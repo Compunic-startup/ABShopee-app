@@ -1,0 +1,33 @@
+{
+  "project_info": {
+    "project_number": "1032975978331",
+    "project_id": "abshopee",
+    "storage_bucket": "abshopee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032975978331:android:36473c20381e6e5458d47e",
+        "android_client_info": {
+          "package_name": "com.abshopee"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1032975978331-onh0q1pngbsete8egmfvld5pnibplp0t.apps.googleusercontent.com"
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1y-80FjGWvNBi_GdRLIRN-DoTBMelqfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

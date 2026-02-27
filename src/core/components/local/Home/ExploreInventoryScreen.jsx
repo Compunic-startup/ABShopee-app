@@ -746,7 +746,7 @@ export default function ExploreInventoryScreen() {
         </View>
       </View>
 
-      {/* Filters
+      {/* Filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -777,7 +777,7 @@ export default function ExploreInventoryScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView> */}
+      </ScrollView>
 
       {/* Products Grid */}
       <FlatList
@@ -972,9 +972,8 @@ const styles = ScaledSheet.create({
   // Filters
   filterScroll: {
     paddingHorizontal: '16@s',
-    paddingVertical: '12@vs',
-    gap: '10@s',
-    backgroundColor: '#fff',
+    paddingVertical: '10@vs',
+    gap: '5@s',
   },
   filterChip: {
     flexDirection: 'row',
@@ -985,14 +984,16 @@ const styles = ScaledSheet.create({
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    gap: '6@s',
+    height: '32@vs',
+    marginBottom: '5@vs',
   },
   filterChipActive: {
     backgroundColor: '#0B77A7',
     borderColor: '#0B77A7',
+    height: '30@vs',
   },
   filterText: {
-    fontSize: '13@ms',
+    fontSize: '10@ms',
     fontFamily: FONTS.Medium,
     color: '#666',
   },

@@ -17,7 +17,6 @@ import { TextInput } from 'react-native-paper'
 import { ScaledSheet } from 'react-native-size-matters'
 import { useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import color from '../../../utils/color'
 import FONTS from '../../../utils/fonts'
 import ProductBottomSheet from './ProductAddSheet'
 import BASE_URL from '../../../services/api'
@@ -214,11 +213,11 @@ export default function ExploreInventoryScreen() {
     const isWishlisted = wishlistIds.has(itemId)
 
     try {
+      const token = await AsyncStorage.getItem('userToken')
+      const businessId = await AsyncStorage.getItem('businessId')
       const url = isWishlisted
         ? `/customer/business/${businessId}/items/${itemId}/wishlist/remove`
         : `/customer/business/${businessId}/items/${itemId}/wishlist/add`
-
-      const token = await AsyncStorage.getItem('userToken');
 
       const res = await fetch(BASE_URL + url, {
         method: isWishlisted ? 'DELETE' : 'POST',
@@ -226,6 +225,8 @@ export default function ExploreInventoryScreen() {
           Authorization: `Bearer ${token}`,
         },
       })
+      const data = await res.json()
+      console.log('Wishlist toggle response', data)
 
       if (!res.ok) throw new Error('wishlist failed')
 
@@ -246,9 +247,10 @@ export default function ExploreInventoryScreen() {
 
   const fetchProducts = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const businessId =  await AsyncStorage.getItem('businessId')
       setLoading(true)
+      const token = await AsyncStorage.getItem('userToken');
+
+      const businessId = await AsyncStorage.getItem('businessId')
       const res = await fetch(
         `${BASE_URL}/customer/business/${businessId}/products`,
         {
@@ -256,14 +258,19 @@ export default function ExploreInventoryScreen() {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-          },
+          }
         }
       )
+
       const json = await res.json()
       console.log(json)
 
       const mapped = json?.data?.rows?.map(item => {
         const price = item.prices?.[0]
+        const priceData = item?.prices?.[0]
+        const amount = priceData?.amount
+        const taxMode = priceData?.taxMode
+        const priceType = priceData?.priceType
         const inventory = item.inventories?.[0]
         const digitalAssetsCount = item.digitalAssets?.length || 0
         const category = item.Categories?.[0]
@@ -284,6 +291,12 @@ export default function ExploreInventoryScreen() {
         const rawFinal = item.discountPricing?.finalPrice ?? price?.amount ?? 0
         const rawDiscount = item.discountPricing?.discountTotal ?? 0
 
+        const getTaxLabel = () => {
+          if (taxMode === 'inclusive') return 'GST Included'
+          if (taxMode === 'exclusive') return 'GST Excluded'
+          return ''
+        }
+
         return {
           id: item.id,
           title: item.title,
@@ -297,14 +310,20 @@ export default function ExploreInventoryScreen() {
           discountTotal: Math.round(rawDiscount),
           discounts: item.discountPricing?.discounts ?? [],
           currency: price?.currency === 'INR' ? '₹' : '',
+
+          taxMode: priceData?.taxMode,
+          priceType: priceData?.priceType,
+
           inStock:
             item.itemType === 'digital'
               ? digitalAssetsCount > 0
               : inventory && inventory.quantityAvailable > 0,
+
           inventoryCount:
             item.itemType === 'digital'
               ? digitalAssetsCount
               : inventory?.quantityAvailable || 0,
+
           category: category?.name,
           featured: featuredAttr?.value === true,
           shortDescription: resolvedDescription,
@@ -329,10 +348,12 @@ export default function ExploreInventoryScreen() {
     const controller = new AbortController()
     abortControllerRef.current = controller
 
+
     try {
       setSearching(true)
       const token = await AsyncStorage.getItem('userToken');
-      const businessId =  await AsyncStorage.getItem('businessId')
+
+      const businessId = await AsyncStorage.getItem('businessId')
       const res = await fetch(
         `${BASE_URL}/customer/business/${businessId}/search/items?q=${encodeURIComponent(
           query
@@ -348,7 +369,6 @@ export default function ExploreInventoryScreen() {
       )
 
       const json = await res.json()
-      console.log('Search results', json)
 
       const mapped = json?.items?.map(item => {
         const price = item.prices?.[0]
@@ -437,6 +457,12 @@ export default function ExploreInventoryScreen() {
 
   const renderItem = ({ item, index }) => {
     const isDigital = item.itemType === 'digital'
+    const taxLabel =
+      item.taxMode === 'inclusive'
+        ? 'Inclusive of All Taxes'
+        : item.taxMode === 'exclusive'
+          ? 'No Tax Included'
+          : ''
 
     return (
       <Animated.View
@@ -524,7 +550,7 @@ export default function ExploreInventoryScreen() {
                       { color: item.inStock ? '#4CAF50' : '#F44336' },
                     ]}
                   >
-                    {item.inStock ? 'In Stock' : 'Out'}
+                    {item.inStock ? 'In Stock' : 'Out Of Stock'}
                   </Text>
                 </View>
               </View>
@@ -559,6 +585,9 @@ export default function ExploreInventoryScreen() {
                       {'  '}{item.currency}{item.finalPrice}
                     </Text>
                   </View>
+                  <Text style={{ fontSize: 11, color: '#007d99' }}>
+                    {taxLabel}
+                  </Text>
 
                   <Text style={styles.savings}>
                     You save {item.currency}{item.discountTotal}
@@ -570,7 +599,6 @@ export default function ExploreInventoryScreen() {
                 </Text>
               )}
             </View>
-
 
             {/* Add to Cart Button
                       {item.inStock && (
@@ -612,6 +640,7 @@ export default function ExploreInventoryScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
         <View style={styles.loader}>
           <ActivityIndicator size="large" color="#0B77A7" />
           <Text style={styles.loadingText}>Loading products...</Text>
@@ -622,6 +651,35 @@ export default function ExploreInventoryScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
+
+      {/* Store Info */}
+      {/* <Animated.View style={[styles.storeInfoCard, { opacity: headerAnim }]}>
+        <View style={styles.storeIconContainer}>
+          <Icon name="store" size={28} color="#0B77A7" />
+        </View>
+        <View style={styles.storeDetails}>
+          <Text style={styles.storeName}>AB Computer Solutions</Text>
+          <View style={styles.locationRow}>
+            <Icon name="map-marker" size={14} color="#4CAF50" />
+            <Text style={styles.location}>
+              Lower ground, 17, RNT marg, Silver mall, Indore
+            </Text>
+          </View>
+          <View style={styles.storeMetrics}>
+            <View style={styles.metricItem}>
+              <Icon name="star" size={14} color="#FFD700" />
+              <Text style={styles.metricText}>4.5</Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Icon name="clock-outline" size={14} color="#666" />
+              <Text style={styles.metricText}>Open Now</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View> */}
+
       {/* Products Grid */}
       <FlatList
         data={filteredProducts}
@@ -654,7 +712,9 @@ export default function ExploreInventoryScreen() {
 const styles = ScaledSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
   },
+
   // Header
   header: {
     flexDirection: 'row',

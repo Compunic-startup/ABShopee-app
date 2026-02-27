@@ -17,11 +17,10 @@ import { TextInput } from 'react-native-paper'
 import { ScaledSheet } from 'react-native-size-matters'
 import { useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import color from '../../../utils/color'
-import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import ProductBottomSheet from '../Home/ProductAddSheet'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import FONTS from '../../../utils/fonts'
 
 const { width } = Dimensions.get('window')
 

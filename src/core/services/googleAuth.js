@@ -9,6 +9,7 @@ GoogleSignin.configure({
 export const googleLogin = async () => {
   await GoogleSignin.hasPlayServices()
   const userInfo = await GoogleSignin.signIn()
+  console.log(userInfo.idToken)
   const idToken = userInfo.idToken
 
   if (!idToken) {
@@ -16,7 +17,7 @@ export const googleLogin = async () => {
   }
 
   const res = await request({
-    url: '/auth/google',
+    url: '192.168.31.38/auth/google',
     method: 'POST',
     body: { idToken },
   })

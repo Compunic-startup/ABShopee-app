@@ -5,32 +5,73 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import { ScaledSheet } from 'react-native-size-matters'
 import color from '../../core/utils/color'
 import fonts from '../../core/utils/fonts'
+import { saveAuthData } from '../../core/storage/authstorage'
+import BASE_URL from '../../core/services/api'
+import AppButton from '../../core/components/global/gloabloadingcomponent'
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { ToastAndroid } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export default function PasswordLoginScreen() {
+
+export default function PasswordLoginScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
   const { params } = useRoute()
   const identifier = params?.identifier
 
   const [password, setPassword] = useState('')
 
+  const [showPassword, setShowPassword] = useState(false)
+
+  const isStrongPassword = (value) => {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+    return regex.test(value)
+  }
+
+  const isValid = isStrongPassword(password)
+
+
   const loginRequest = async () => {
-    const res = await fetch('http://192.168.31.38:9100/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      console.log(data)
+    if (!isValid) {
+      ToastAndroid.show(
+        'Password must be 8+ chars with upper, lower & number',
+        ToastAndroid.SHORT
+      )
       return
     }
 
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Main' }],
-    })
+    try {
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password }),
+      })
+
+      const data = await res.json()
+      console.log(data)
+
+      if (!res.ok) {
+        ToastAndroid.show(
+          data?.message || 'Login failed',
+          ToastAndroid.SHORT
+        )
+        return
+      }
+
+      const token = data?.data?.user?.accessToken
+
+      if (!token) {
+        ToastAndroid.show('Token not received', ToastAndroid.SHORT)
+        return
+      }
+
+      await AsyncStorage.setItem('userToken', token)
+      await AsyncStorage.getItem('userToken').then((value) => console.log('Stored token:', value))
+
+      setIsLoggedIn(true)
+
+    } catch (err) {
+      ToastAndroid.show('Something went wrong', ToastAndroid.SHORT)
+    }
   }
 
   return (
@@ -76,21 +117,46 @@ export default function PasswordLoginScreen() {
         <TextInput
           mode="outlined"
           label="Password"
-          secureTextEntry
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={!showPassword}
           outlineColor="#ddd"
           activeOutlineColor={color.primary}
           style={styles.input}
+          right={
+            <TextInput.Icon
+              icon={() => (
+                <Icon
+                  name={
+                    password.length === 0
+                      ? showPassword
+                        ? 'eye-off'
+                        : 'eye'
+                      : isValid
+                        ? 'check-circle'
+                        : showPassword
+                          ? 'eye-off'
+                          : 'eye'
+                  }
+                  size={20}
+                  color={isValid ? 'green' : undefined}
+                  onPress={() => setShowPassword(!showPassword)}
+                />
+              )}
+            />
+          }
         />
 
-        <Button
+
+        <AppButton
           mode="contained"
+          disabled={!isValid}
           onPress={loginRequest}
           style={styles.button}
         >
           Login
-        </Button>
+        </AppButton>
+
 
         <TouchableOpacity>
           <Text style={styles.forgot}>Forgot password?</Text>
@@ -102,7 +168,7 @@ export default function PasswordLoginScreen() {
           <Divider style={styles.divider} />
         </View>
 
-        <Button
+        <AppButton
           mode="outlined"
           icon={() => (
             <Image
@@ -110,12 +176,12 @@ export default function PasswordLoginScreen() {
               style={{ width: 22, height: 22 }}
             />
           )}
-          onPress={() => {}}
+          onPress={() => { }}
           style={styles.googleBtn}
           textColor="#000"
         >
           Continue with Google
-        </Button>
+        </AppButton>
       </View>
     </View>
   )

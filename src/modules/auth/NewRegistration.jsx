@@ -5,8 +5,14 @@ import { ScaledSheet } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import color from '../../core/utils/color'
 import fonts from '../../core/utils/fonts'
+import BASE_URL from '../../core/services/api'
+import AppButton from '../../core/components/global/gloabloadingcomponent'
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { ToastAndroid } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export default function CreateAccountOtpScreen() {
+
+export default function CreateAccountOtpScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
   const route = useRoute()
 
@@ -16,17 +22,44 @@ export default function CreateAccountOtpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [otp, setOtp] = useState('')
 
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const isStrongPassword = (value) => {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+    return regex.test(value)
+  }
+
+  const passwordsMatch =
+    password.length > 0 &&
+    confirmPassword.length > 0 &&
+    password === confirmPassword
+
+  const isValidOtp = otp.length === 6
+
+
   const verifyOtpRequest = async () => {
-    if (password !== confirmPassword) {
-      console.log('Passwords do not match')
+    if (!isStrongPassword(password)) {
+      ToastAndroid.show(
+        'Password must be 8+ chars with upper, lower & number',
+        ToastAndroid.SHORT
+      )
       return
     }
 
-    const res = await fetch('http://192.168.31.38:9100/auth/signup/verify', {
+    if (!passwordsMatch) {
+      ToastAndroid.show('Passwords do not match', ToastAndroid.SHORT)
+      return
+    }
+
+    if (!isValidOtp) {
+      ToastAndroid.show('OTP must be exactly 6 digits', ToastAndroid.SHORT)
+      return
+    }
+
+    const res = await fetch(`${BASE_URL}/auth/signup/verify`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         identifier: identifier.trim().toLowerCase(),
         otp,
@@ -38,10 +71,18 @@ export default function CreateAccountOtpScreen() {
     })
 
     const data = await res.json()
+    console.log('OTP verification response:', data)
+    const token = data?.data?.user?.accessToken
 
-    if (!res.ok) {
-      throw data
-    }
+      if (!token) {
+        ToastAndroid.show('Token not received', ToastAndroid.SHORT)
+        return
+      }
+
+      await AsyncStorage.setItem('userToken', token)
+      await AsyncStorage.getItem('userToken').then((value) => console.log('Stored token:', value))
+
+    if (!res.ok) throw data
 
     return data
   }
@@ -89,52 +130,91 @@ export default function CreateAccountOtpScreen() {
         <TextInput
           mode="outlined"
           label="Password"
-          secureTextEntry
           value={password}
           onChangeText={setPassword}
+          secureTextEntry={!showPassword}
           outlineColor="#ddd"
           activeOutlineColor={color.primary}
           style={styles.input}
+          right={
+            <TextInput.Icon
+              icon={() => (
+                <Icon
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={20}
+                  onPress={() => setShowPassword(!showPassword)}
+                />
+              )}
+            />
+          }
         />
+
 
         <TextInput
           mode="outlined"
           label="Confirm Password"
-          secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
+          secureTextEntry={!showConfirmPassword}
           outlineColor="#ddd"
           activeOutlineColor={color.primary}
           style={styles.input}
+          right={
+            passwordsMatch ? (
+              <TextInput.Icon
+                icon={() => (
+                  <Icon name="check-circle" size={20} color="green" />
+                )}
+              />
+            ) : (
+              <TextInput.Icon
+                icon={() => (
+                  <Icon
+                    name={showConfirmPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    onPress={() =>
+                      setShowConfirmPassword(!showConfirmPassword)
+                    }
+                  />
+                )}
+              />
+            )
+          }
         />
+
 
         <TextInput
           mode="outlined"
           label="OTP"
           keyboardType="number-pad"
           value={otp}
-          onChangeText={setOtp}
+          onChangeText={(text) =>
+            setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))
+          }
+          maxLength={6}
           outlineColor="#ddd"
           activeOutlineColor={color.primary}
           style={styles.input}
         />
 
-        <Button
+
+        <AppButton
           mode="contained"
+          disabled={!isStrongPassword(password) || !passwordsMatch || !isValidOtp}
           onPress={async () => {
             try {
               const response = await verifyOtpRequest()
-              console.log('ACCOUNT CREATED', response)
-
-              navigation.navigate('Main')
+              if (response) setIsLoggedIn(true)
             } catch (err) {
-              console.log(err)
+              ToastAndroid.show('OTP verification failed', ToastAndroid.SHORT)
             }
           }}
           style={styles.button}
         >
           Create Account
-        </Button>
+        </AppButton>
+
+
 
         <View style={styles.dividerRow}>
           <Divider style={styles.divider} />

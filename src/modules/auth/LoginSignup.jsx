@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, Image } from 'react-native'
+import { View, Text, TouchableOpacity, Image, ToastAndroid } from 'react-native'
 import { TextInput, Button, Divider } from 'react-native-paper'
 import color from '../../core/utils/color'
 import { ScaledSheet } from 'react-native-size-matters'
@@ -7,14 +7,24 @@ import fonts from '../../core/utils/fonts'
 import { useNavigation } from '@react-navigation/native'
 import BASE_URL from '../../core/services/api'
 import { googleLogin } from '../../core/services/googleAuth'
+import AppButton from '../../core/components/global/gloabloadingcomponent'
 
-
-export default function LoginSignupScreen() {
+export default function LoginSignupScreen({ setIsLoggedIn }) {
   const [value, setValue] = useState('')
   const navigation = useNavigation()
 
-  const isEmail = (val) => val.includes('@')
-  const isPhone = (val) => /^\d+$/.test(val)
+  const emailRegex =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const phoneRegex =
+    /^[0-9]{10}$/
+
+  const isValidEmail = emailRegex.test(value.trim())
+  const isValidPhone = phoneRegex.test(value.trim())
+
+  const isValidInput = isValidEmail || isValidPhone
+
+
 
   const signupEmail = async (identifier) => {
     const res = await fetch(`${BASE_URL}/auth/signup`, {
@@ -23,6 +33,7 @@ export default function LoginSignupScreen() {
       body: JSON.stringify({ identifier }),
     })
     console.log(res)
+
     return res.json()
   }
 
@@ -34,6 +45,7 @@ export default function LoginSignupScreen() {
       body: JSON.stringify({ identifier }),
     })
     console.log(res)
+
     return res.json()
 
   }
@@ -44,19 +56,30 @@ export default function LoginSignupScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier }),
     })
+
+    console.log(res)
+
     return res.json()
 
   }
 
   const handleContinue = async () => {
+    if (!isValidInput) {
+      ToastAndroid.show(
+        'Enter valid email or 10 digit phone number',
+        ToastAndroid.SHORT
+      )
+      return
+    }
+
     try {
-      if (isEmail(value)) {
-        const result = await signupEmail(value)
-        console.log('Signup result:', result)
+      if (isValidEmail) {
+        const result = await signupEmail(value.trim())
+
         if (result?.errorCode) {
-          await loginEmail(value)
+          await loginEmail(value.trim())
           navigation.navigate('OTPRegistered', {
-            identifier: value,
+            identifier: value.trim(),
           })
           return
         }
@@ -69,29 +92,31 @@ export default function LoginSignupScreen() {
         return
       }
 
-      if (isPhone(value)) {
-        const result = await sendPhoneOtp(value)
-        console.log('Phone OTP result:', result)
+      if (isValidPhone) {
+        const result = await sendPhoneOtp(value.trim())
+
         navigation.navigate('PhoneOTP', {
           requestId: result.data.requestId,
-          identifier: value,
+          identifier: value.trim(),
         })
       }
-
     } catch (err) {
-      console.log('Auth error:', err)
+      ToastAndroid.show(
+        'Something went wrong',
+        ToastAndroid.SHORT
+      )
     }
   }
 
 
   const handleGoogleLogin = async () => {
-  try {
-    const data = await googleLogin()
-    console.log(data.user)
-  } catch (err) {
-    console.log(err)
+    try {
+      const data = await googleLogin()
+      console.log(data.user)
+    } catch (err) {
+      console.log(err)
+    }
   }
-}
 
   return (
     <View style={styles.container}>
@@ -101,10 +126,6 @@ export default function LoginSignupScreen() {
           style={[styles.logo, { marginLeft: -40 }]}
           resizeMode="contain"
         />
-
-        <TouchableOpacity>
-          <Text style={styles.skipText}>Skip ›</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.hero}>
@@ -129,15 +150,32 @@ export default function LoginSignupScreen() {
           mode="outlined"
           label="Email Or Phone Number"
           value={value}
-          onChangeText={setValue}
+          onChangeText={(text) => {
+            const cleaned = text.trim()
+
+            if (/^\d+$/.test(cleaned)) {
+              setValue(cleaned.slice(0, 10))
+            } else {
+              setValue(cleaned)
+            }
+          }}
+          keyboardType={
+            /^\d+$/.test(value) ? 'number-pad' : 'default'
+          }
           outlineColor="#ddd"
           activeOutlineColor={color.primary}
           style={styles.input}
         />
 
-        <Button mode="contained" onPress={handleContinue} style={styles.button}>
+        <AppButton
+          mode="contained"
+          disabled={!isValidInput}
+          onPress={handleContinue}
+          style={styles.button}
+        >
           Continue
-        </Button>
+        </AppButton>
+
 
         <View style={styles.dividerRow}>
           <Divider style={styles.divider} />
@@ -153,7 +191,7 @@ export default function LoginSignupScreen() {
               style={{ width: 22, height: 22 }}
             />
           )}
-          onPress={() =>handleGoogleLogin()}
+          onPress={() => handleGoogleLogin()}
           style={styles.googleBtn}
           textColor="#000"
         >

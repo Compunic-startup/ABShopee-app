@@ -3,16 +3,29 @@ import LoginScreen from '../../modules/auth/LoginSignup'
 import OTPRegistered from '../../modules/auth/OTPRegistered'
 import NewRegistration from '../../modules/auth/NewRegistration'
 import PhoneOTP from '../../modules/auth/PhoneOTP'
+import SplashScreen from '../../modules/SplashScreen'
+
 
 const Stack = createNativeStackNavigator()
 
-export default function AuthStack() {
+export default function AuthStack({ setIsLoggedIn }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="LoginScreen" component={LoginScreen} />
-      <Stack.Screen name="OTPRegistered" component={OTPRegistered} />
-      <Stack.Screen name="NewRegistration" component={NewRegistration} />
-      <Stack.Screen name="PhoneOTP" component={PhoneOTP} />
+      <Stack.Screen name="SplashScreen">
+        {(props) => <SplashScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
+      <Stack.Screen name="LoginScreen">
+        {(props) => <LoginScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
+      <Stack.Screen name="OTPRegistered">
+        {(props) => <OTPRegistered {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
+      <Stack.Screen name="NewRegistration">
+        {(props) => <NewRegistration {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
+      <Stack.Screen name="PhoneOTP">
+        {(props) => <PhoneOTP {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
     </Stack.Navigator>
   )
 }

@@ -1,6 +1,10 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import HomeScreen from '../../modules/main/Home/HomeScreen'
+import CategoriesScreen from '../../modules/main/CategoriesScreen'
+import OrdersScreen from '../../modules/main/OrdersScreen'
+import AccountScreen from '../../modules/main/AccountScreen'
+import color from '../utils/color'
 
 const Tab = createBottomTabNavigator()
 
@@ -8,8 +12,9 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
-        tabBarStyle: { backgroundColor: '#fff' },
+        tabBarActiveTintColor: color.primary,
+        tabBarStyle: { backgroundColor: '#fff', height: 80, borderRadius: 15, paddingVertical: 10, elevation: 5, paddingTop: 10 },
+        tabBarLabelStyle: { fontSize: 12, marginTop: 5 },
         headerShown: false,
       }}
     >
@@ -18,7 +23,34 @@ export default function TabNavigator() {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ color }) => (
-            <Icon name="home-outline" color={color} size={22} />
+            <Icon name="home" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Categories"
+        component={CategoriesScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Icon name="dots-grid" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Orders"
+        component={OrdersScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Icon name="cube-send" color={color} size={26} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Icon name="account" color={color} size={26} />
           ),
         }}
       />

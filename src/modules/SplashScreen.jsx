@@ -7,54 +7,56 @@ import BASE_URL from '../core/services/api'
 
 const { width, height } = Dimensions.get('window')
 
-export default function SplashScreen({ isLoggedIn }) {
-    const navigation = useNavigation()
+export default function SplashScreen({ setIsLoggedIn }) {
+
     const fadeAnim = useRef(new Animated.Value(0)).current
 
     useEffect(() => {
+
         const initializeApp = async () => {
             try {
+
+                const token = await AsyncStorage.getItem('userToken')
+
                 const response = await fetch(`${BASE_URL}/open/business/info`)
                 const result = await response.json()
 
-                console.log('Business fetch success:', result)
+                const businessId = result?.data?.id
 
-                if (result?.data) {
-                    await AsyncStorage.setItem(
-                        'businessData',
-                        JSON.stringify(result.data)
-                    )
-
-                    await AsyncStorage.setItem(
-                        'businessId',
-                        result.data.id
-                    )
-                    console.log(result.data.id)
+                if (!businessId) {
+                    console.log('BusinessId not found, staying on splash...')
+                    return   // ❌ EXIT HERE → Splash stays
                 }
+
+                await AsyncStorage.setItem(
+                    'businessData',
+                    JSON.stringify(result.data)
+                )
+
+                await AsyncStorage.setItem(
+                    'businessId',
+                    businessId
+                )
+
+                setTimeout(() => {
+                    setIsLoggedIn(!!token)
+                }, 1500)
+
             } catch (error) {
-                console.log('Business fetch error:', error)
+                console.log('Business fetch failed, staying on splash...')
+                return
             }
-
-            navigation.replace(isLoggedIn ? 'HomeScreen' : 'LoginScreen')
         }
 
-        const fadeTimer = setTimeout(() => {
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }).start()
-        }, 1000)
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+        }).start()
 
-        const initTimer = setTimeout(() => {
-            initializeApp()
-        }, 2000)
+        initializeApp()
 
-        return () => {
-            clearTimeout(fadeTimer)
-            clearTimeout(initTimer)
-        }
-    }, [isLoggedIn])
+    }, [])
 
     return (
         <View style={styles.container}>

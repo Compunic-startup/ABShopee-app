@@ -18,6 +18,7 @@ import color from '../../../utils/color'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import noimage from '../../../assets/images/Categories/preloader.gif'
 
 function AutoScrollTitleDesc({ title, description, style, height = 38 }) {
   const translateTitle = useRef(new Animated.Value(0)).current
@@ -186,12 +187,14 @@ export default function WishlistScreen() {
         }
       )
 
+      console.log(res)
+
       if (!res.ok) throw new Error('Remove failed')
+      
 
       // Optimistic update
       setWishlist(prev => prev.filter(item => item.id !== itemId))
     } catch (err) {
-      Alert.alert('Error', 'Unable to remove from wishlist')
       // Refetch on error
       await fetchWishlist()
     } finally {
@@ -417,20 +420,10 @@ export default function WishlistScreen() {
                       <View style={styles.cardContent}>
                         {/* Product Image */}
                         <View style={styles.imageContainer}>
-                          {imageUrl ? (
-                            <Image
-                              source={{ uri: imageUrl }}
-                              style={styles.productImage}
-                            />
-                          ) : (
-                            <View style={styles.placeholderImage}>
-                              <Icon
-                                name="image-off-outline"
-                                size={32}
-                                color="#ccc"
-                              />
-                            </View>
-                          )}
+                          <Image
+                            source={imageUrl ? { uri: imageUrl } : noimage}
+                            style={styles.productImage}
+                          />
 
                           {/* Digital Badge */}
                           {isDigital && (

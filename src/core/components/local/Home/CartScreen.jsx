@@ -19,6 +19,17 @@ import BASE_URL from '../../../services/api'
 import { openRazorpay } from '../../global/razorpaymodule'
 import { TextInput } from 'react-native-paper'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import noimage from '../../../assets/images/Categories/preloader.gif'
+
+// ─── Free Gift Badge Component ────────────────────────────────────────────────
+const FreeGiftBadge = () => (
+  <View style={styles.freeGiftBadgeWrap}>
+    <View style={styles.freeGiftBadge}>
+      <Icon name="gift" size={11} color="#fff" />
+      <Text style={styles.freeGiftBadgeText}>FREE GIFT</Text>
+    </View>
+  </View>
+)
 
 export default function CartScreen() {
   const navigation = useNavigation()
@@ -30,14 +41,20 @@ export default function CartScreen() {
   const [businessId, setBusinessId] = useState(null)
   const [placing, setPlacing] = useState(false)
 
+  const [address, setAddress] = useState({
+    houseNo: '',
+    line1: '',
+    line2: '',
+    city: '',
+    pincode: '',
+  })
+
   // ─── Coupon / Dealer code ─────────────────────────────────────────────────
   const [showCouponInput, setShowCouponInput] = useState(false)
   const [showDealerInput, setShowDealerInput] = useState(false)
   const [couponInput, setCouponInput] = useState('')
   const [dealerInput, setDealerInput] = useState('')
-  // The single active code sent to the backend
   const [appliedCode, setAppliedCode] = useState(null)
-  // 'coupon' | 'dealer' | null
   const [appliedCodeType, setAppliedCodeType] = useState(null)
   const [applyingCode, setApplyingCode] = useState(false)
 
@@ -49,6 +66,10 @@ export default function CartScreen() {
   const hasDigitalItem = cart?.items?.some(
     i => i.itemSnapshot?.itemType === 'digital'
   )
+
+  // Separate free gifts from regular items
+  const regularItems = cart?.items?.filter(i => !i.isFreeGift) ?? []
+  const freeGiftItems = cart?.items?.filter(i => i.isFreeGift) ?? []
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -73,7 +94,7 @@ export default function CartScreen() {
     }
   }, [loading])
 
-  // ─── Fetch cart (optionally with discount code) ───────────────────────────
+  // ─── Fetch cart ───────────────────────────────────────────────────────────
   const fetchCart = async (code = appliedCode) => {
     try {
       const token = await AsyncStorage.getItem('userToken')
@@ -99,16 +120,13 @@ export default function CartScreen() {
   // ─── Apply code ───────────────────────────────────────────────────────────
   const applyCode = async type => {
     const code = (type === 'coupon' ? couponInput : dealerInput).trim()
-
     if (!code) {
       ToastAndroid.show('Please enter a code', ToastAndroid.SHORT)
       return
     }
-
     try {
       setApplyingCode(true)
       const json = await fetchCart(code)
-
       if (json?.data) {
         setAppliedCode(code)
         setAppliedCodeType(type)
@@ -138,7 +156,7 @@ export default function CartScreen() {
     ToastAndroid.show('Code removed', ToastAndroid.SHORT)
   }
 
-  // ─── Totals ───────────────────────────────────────────────────────────────
+  // ─── Totals (exclude free gifts from price calc) ──────────────────────────
   const getCartTotals = () => {
     if (!cart?.items) {
       return {
@@ -146,30 +164,35 @@ export default function CartScreen() {
         taxTotal: 0, taxableAmount: 0, cgst: 0, sgst: 0, igst: 0,
       }
     }
+    return cart.items
+      .filter(item => !item.isFreeGift)
+      .reduce(
+        (acc, item) => {
+          const base = item.discountPricing?.baseItemTotal ?? item.pricing?.itemTotal ?? 0
+          const final = item.discountPricing?.finalItemTotal ?? item.pricing?.itemTotal ?? 0
+          const discount = item.discountPricing?.discountTotal ?? 0
+          const tax = item.taxBreakdown ?? {}
 
-    return cart.items.reduce(
-      (acc, item) => {
-        const base = item.discountPricing?.baseItemTotal ?? item.pricing?.itemTotal ?? 0
-        const final = item.discountPricing?.finalItemTotal ?? item.pricing?.itemTotal ?? 0
-        const discount = item.discountPricing?.discountTotal ?? 0
-        const tax = item.taxBreakdown ?? {}
-
-        acc.baseTotal += base
-        acc.finalTotal += final
-        acc.totalSavings += discount
-        acc.taxTotal += tax.taxTotal ?? 0
-        acc.taxableAmount += tax.taxableAmount ?? 0
-        acc.cgst += tax.components?.cgst?.amount ?? 0
-        acc.sgst += tax.components?.sgst?.amount ?? 0
-        acc.igst += tax.components?.igst?.amount ?? 0
-        return acc
-      },
-      { baseTotal: 0, finalTotal: 0, totalSavings: 0, taxTotal: 0, taxableAmount: 0, cgst: 0, sgst: 0, igst: 0 }
-    )
+          acc.baseTotal += base
+          acc.finalTotal += final
+          acc.totalSavings += discount
+          acc.taxTotal += tax.taxTotal ?? 0
+          acc.taxableAmount += tax.taxableAmount ?? 0
+          acc.cgst += tax.components?.cgst?.amount ?? 0
+          acc.sgst += tax.components?.sgst?.amount ?? 0
+          acc.igst += tax.components?.igst?.amount ?? 0
+          return acc
+        },
+        { baseTotal: 0, finalTotal: 0, totalSavings: 0, taxTotal: 0, taxableAmount: 0, cgst: 0, sgst: 0, igst: 0 }
+      )
   }
 
   const { baseTotal, finalTotal, totalSavings, taxTotal, taxableAmount, cgst, sgst, igst } = getCartTotals()
   const grandTotal = cart?.totalPrice?.amount ?? finalTotal + taxTotal
+
+  // ─── Discount summary from API ────────────────────────────────────────────
+  const discountSummary = cart?.discountSummary ?? []
+  const totalDiscount = cart?.totalDiscount ?? 0
 
   // ─── Attribute helper ─────────────────────────────────────────────────────
   const buildAttributesFromCartItem = cartItem =>
@@ -194,7 +217,6 @@ export default function CartScreen() {
           body: JSON.stringify({ quantity: delta, selectedAttributes }),
         }
       )
-
       if (!res.ok) throw await res.json()
       await fetchCart()
     } catch (err) {
@@ -213,7 +235,6 @@ export default function CartScreen() {
         `${BASE_URL}/customer/business/${bId}/items/cart/${cartItemId}`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
       )
-
       if (!res.ok) throw await res.json()
       await fetchCart()
       ToastAndroid.show('Item removed', ToastAndroid.SHORT)
@@ -233,7 +254,6 @@ export default function CartScreen() {
         `${BASE_URL}/customer/business/${bId}/cart/clear`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
       )
-
       if (!res.ok) throw await res.json()
       await fetchCart()
       ToastAndroid.show('Cart cleared', ToastAndroid.SHORT)
@@ -245,15 +265,35 @@ export default function CartScreen() {
 
   // ─── Build order payload ──────────────────────────────────────────────────
   const buildOrderPayload = ({ cartId, cartItems, paymentMethod, address, email, code }) => {
+    const hasPhysical = cartItems.some(i => i.itemSnapshot?.itemType !== 'digital')
     const hasDigital = cartItems.some(i => i.itemSnapshot?.itemType === 'digital')
 
     const payload = {
       cartId,
       payment: { method: paymentMethod },
-      itemType: hasDigital ? 'digital' : 'physical',
-      ...(code ? { code } : {}),        // ← applied code in body
+      itemType: hasPhysical ? 'physical' : 'digital',
+      ...(code ? { code } : {}),
     }
 
+    if (hasPhysical) {
+      payload.addresses = [
+        {
+          type: 'shipping',
+          addressSnapshot: {
+            line1: address.line1,
+            city: address.city,
+            state: address.state,
+            country: 'IN',
+            pincode: address.pincode,
+          },
+          contactSnapshot: {
+            name: address.name,
+            phone: address.phone,
+            email: address.email,
+          },
+        },
+      ]
+    }
     if (hasDigital) {
       payload.email = email
     } else {
@@ -308,8 +348,10 @@ export default function CartScreen() {
         paymentMethod,
         address,
         email: digitalEmail,
-        code: appliedCode,        // ← send applied code with order
+        code: appliedCode,
       })
+
+      console.log('ORDER PAYLOAD →', JSON.stringify(body, null, 2))
 
       const res = await fetch(
         `${BASE_URL}/customer/business/${bId}/order/place`,
@@ -331,7 +373,6 @@ export default function CartScreen() {
           navigation,
           email: hasDigital ? digitalEmail : address.email,
         })
-        navigation.replace('OrderPlacedAnimation')
         return
       }
 
@@ -342,6 +383,25 @@ export default function CartScreen() {
     } finally {
       setPlacing(false)
       fetchCart()
+    }
+  }
+
+  // ─── Category icon helper ─────────────────────────────────────────────────
+  const getDiscountCategoryIcon = category => {
+    switch (category) {
+      case 'promotion': return 'tag-multiple'
+      case 'coupon': return 'ticket-confirmation'
+      case 'dealer': return 'star-circle'
+      default: return 'percent'
+    }
+  }
+
+  const getDiscountCategoryColor = category => {
+    switch (category) {
+      case 'promotion': return '#FF9800'
+      case 'coupon': return '#9C27B0'
+      case 'dealer': return '#4CAF50'
+      default: return '#0B77A7'
     }
   }
 
@@ -405,83 +465,154 @@ export default function CartScreen() {
       >
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* Cart Items */}
-          <View style={styles.itemsContainer}>
-            {cart?.items?.map(item => {
-              const base = item.discountPricing?.baseItemTotal ?? item.pricing?.itemTotal ?? 0
-              const final = item.discountPricing?.finalItemTotal ?? item.pricing?.itemTotal ?? 0
-              const discount = item.discountPricing?.discountTotal ?? 0
-              const unitPrice = item.discountPricing?.finalUnitPrice ?? final / item.quantity
+          {/* ── Regular Cart Items ──────────────────────────────────────── */}
+          {regularItems.length > 0 && (
+            <View style={styles.itemsContainer}>
+              {regularItems.map(item => {
+                const base = item.discountPricing?.baseItemTotal ?? item.pricing?.itemTotal ?? 0
+                const final = item.discountPricing?.finalItemTotal ?? item.pricing?.itemTotal ?? 0
+                const discount = item.discountPricing?.discountTotal ?? 0
+                const unitPrice = item.discountPricing?.finalUnitPrice ?? final / item.quantity
 
-              return (
-                <View key={item.cartItemId} style={styles.cartCard}>
-                  <View style={styles.cardContent}>
-                    <View style={styles.topRow}>
-                      <View style={styles.imageContainer}>
-                        <Image source={{ uri: item.media?.url }} style={styles.productImage} />
-                        {item.itemSnapshot?.itemType === 'digital' && (
-                          <View style={styles.digitalBadge}>
-                            <Icon name="download" size={10} color="#fff" />
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.productDetails}>
-                        <Text style={styles.productTitle} numberOfLines={2}>
-                          {item.itemSnapshot.title}
-                        </Text>
-                        {item.itemSnapshot.description && (
-                          <Text style={styles.productDesc} numberOfLines={1}>
-                            {item.itemSnapshot.description}
-                          </Text>
-                        )}
-                        <View style={styles.priceRow}>
-                          {discount > 0 ? (
-                            <>
-                              <Text style={styles.basePrice}>₹{Math.round(base)}</Text>
-                              <Text style={styles.finalPrice}>₹{Math.round(final)}</Text>
-                            </>
-                          ) : (
-                            <Text style={styles.finalPrice}>₹{Math.round(final)}</Text>
+                return (
+                  <View key={item.cartItemId} style={styles.cartCard}>
+                    <View style={styles.cardContent}>
+                      <View style={styles.topRow}>
+                        <View style={styles.imageContainer}>
+                          <Image
+                            source={item.media?.url ? { uri: item.media.url } : noimage}
+                            style={styles.productImage}
+                          />
+                          {item.itemSnapshot?.itemType === 'digital' && (
+                            <View style={styles.digitalBadge}>
+                              <Icon name="download" size={10} color="#fff" />
+                            </View>
                           )}
                         </View>
-                        {discount > 0 && (
-                          <Text style={styles.savings}>You save ₹{Math.round(discount)}</Text>
-                        )}
-                        {item.quantity > 1 && (
-                          <Text style={styles.unitPrice}>₹{unitPrice.toFixed(2)} each</Text>
-                        )}
-                      </View>
-                    </View>
 
-                    <View style={styles.qtyContainer}>
-                      <TouchableOpacity onPress={() => removeItem(item.cartItemId)} style={styles.removeBtn}>
-                        <Icon name="delete-outline" size={20} color="#FF5252" />
-                      </TouchableOpacity>
-                      <View style={styles.qtyBox}>
-                        <TouchableOpacity onPress={() => updateQty(item, -1)} style={styles.qtyButton} activeOpacity={0.7}>
-                          <Icon name="minus" size={16} color="#0B77A7" />
-                        </TouchableOpacity>
-                        <View style={styles.qtyDisplay}>
-                          <Text style={styles.qtyText}>{item.quantity}</Text>
+                        <View style={styles.productDetails}>
+                          <Text style={styles.productTitle} numberOfLines={2}>
+                            {item.itemSnapshot.title}
+                          </Text>
+                          {item.itemSnapshot.description && (
+                            <Text style={styles.productDesc} numberOfLines={1}>
+                              {item.itemSnapshot.description}
+                            </Text>
+                          )}
+                          <View style={styles.priceRow}>
+                            {discount > 0 ? (
+                              <>
+                                <Text style={styles.basePrice}>₹{Math.round(base)}</Text>
+                                <Text style={styles.finalPrice}>₹{Math.round(final)}</Text>
+                              </>
+                            ) : (
+                              <Text style={styles.finalPrice}>₹{Math.round(final)}</Text>
+                            )}
+                          </View>
+                          {discount > 0 && (
+                            <Text style={styles.savings}>You save ₹{Math.round(discount)}</Text>
+                          )}
+                          {item.quantity > 1 && (
+                            <Text style={styles.unitPrice}>₹{unitPrice.toFixed(2)} each</Text>
+                          )}
                         </View>
-                        <TouchableOpacity onPress={() => updateQty(item, 1)} style={styles.qtyButton} activeOpacity={0.7}>
-                          <Icon name="plus" size={16} color="#0B77A7" />
+                      </View>
+
+                      <View style={styles.qtyContainer}>
+                        <TouchableOpacity onPress={() => removeItem(item.cartItemId)} style={styles.removeBtn}>
+                          <Icon name="delete-outline" size={20} color="#FF5252" />
                         </TouchableOpacity>
+                        <View style={styles.qtyBox}>
+                          <TouchableOpacity onPress={() => updateQty(item, -1)} style={styles.qtyButton} activeOpacity={0.7}>
+                            <Icon name="minus" size={16} color="#0B77A7" />
+                          </TouchableOpacity>
+                          <View style={styles.qtyDisplay}>
+                            <Text style={styles.qtyText}>{item.quantity}</Text>
+                          </View>
+                          <TouchableOpacity onPress={() => updateQty(item, 1)} style={styles.qtyButton} activeOpacity={0.7}>
+                            <Icon name="plus" size={16} color="#0B77A7" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   </View>
-                </View>
-              )
-            })}
-          </View>
+                )
+              })}
+            </View>
+          )}
 
           {/* Clear Cart */}
-          {cart?.items?.length > 1 && (
+          {regularItems.length > 1 && (
             <TouchableOpacity style={styles.clearCartBtn} onPress={clearCart}>
               <Icon name="delete-sweep-outline" size={22} color="#FF5252" />
               <Text style={styles.clearCartText}>Clear All Items</Text>
             </TouchableOpacity>
+          )}
+
+          {/* ── Free Gift Items ─────────────────────────────────────────── */}
+          {freeGiftItems.length > 0 && (
+            <View style={styles.freeGiftSection}>
+              {/* Section header */}
+              <View style={styles.freeGiftSectionHeader}>
+                <View style={styles.freeGiftHeaderLeft}>
+                  <Icon name="gift-open" size={20} color="#0b81b8" />
+                  <Text style={styles.freeGiftSectionTitle}>Your Free Gift{freeGiftItems.length > 1 ? 's' : ''}</Text>
+                </View>
+                <View style={styles.freeGiftCountPill}>
+                  <Text style={styles.freeGiftCountText}>{freeGiftItems.length}</Text>
+                </View>
+              </View>
+
+              {freeGiftItems.map(item => (
+                <View key={item.cartItemId} style={styles.freeGiftCard}>
+                  {/* Gold shimmer top border */}
+                  <View style={styles.freeGiftTopAccent} />
+
+                  <View style={styles.freeGiftCardInner}>
+                    {/* Left: image + badge */}
+                    <View style={styles.freeGiftImageWrap}>
+                      <Image
+                        source={item.media?.url ? { uri: item.media.url } : noimage}
+                        style={styles.freeGiftImage}
+                      />
+                      <FreeGiftBadge />
+                    </View>
+
+                    {/* Right: details */}
+                    <View style={styles.freeGiftDetails}>
+                      <Text style={styles.freeGiftTitle} numberOfLines={2}>
+                        {item.itemSnapshot.title}
+                      </Text>
+                      {item.itemSnapshot.description && (
+                        <Text style={styles.freeGiftDesc} numberOfLines={1}>
+                          {item.itemSnapshot.description}
+                        </Text>
+                      )}
+
+                      {/* Qty + complimentary tag */}
+                      <View style={styles.freeGiftFooter}>
+                        <View style={styles.freeGiftQtyPill}>
+                          <Icon name="package-variant" size={12} color="#0b81b8" />
+                          <Text style={styles.freeGiftQtyText}>Qty: {item.quantity}</Text>
+                        </View>
+                        <View style={styles.complimentaryPill}>
+                          <Icon name="check-circle" size={12} color="#fff" />
+                          <Text style={styles.complimentaryText}>Complimentary</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Bottom note */}
+                  <View style={styles.freeGiftNote}>
+                    <Icon name="information-outline" size={13} color="#0b81b8" />
+                    <Text style={styles.freeGiftNoteText}>
+                      This item is a free gift and cannot be modified
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           )}
 
           {/* ── Offers & Discounts ────────────────────────────────────────── */}
@@ -513,7 +644,7 @@ export default function CartScreen() {
               </View>
             )}
 
-            {/* Coupon row — hide if dealer code is active */}
+            {/* Coupon row */}
             {appliedCodeType !== 'dealer' && (
               <>
                 <TouchableOpacity
@@ -564,7 +695,7 @@ export default function CartScreen() {
 
             <View style={styles.divider} />
 
-            {/* Dealer code row — hide if coupon is active */}
+            {/* Dealer code row */}
             {appliedCodeType !== 'coupon' && (
               <>
                 <TouchableOpacity
@@ -613,6 +744,60 @@ export default function CartScreen() {
               </>
             )}
           </View>
+
+          {/* ── Discount Summary (from API) ───────────────────────────────── */}
+          {discountSummary.length > 0 && (
+            <View style={styles.discountSummaryCard}>
+              <View style={styles.discountSummaryHeader}>
+                <View style={styles.discountSummaryHeaderLeft}>
+                  <Icon name="tag-heart" size={22} color="#fff" />
+                  <Text style={styles.discountSummaryHeaderText}>Discounts Applied</Text>
+                </View>
+                <View style={styles.discountSummaryBadge}>
+                  <Text style={styles.discountSummaryBadgeText}>{discountSummary.length}</Text>
+                </View>
+              </View>
+
+              <View style={styles.discountSummaryBody}>
+                {discountSummary.map((disc, idx) => {
+                  const iconName = getDiscountCategoryIcon(disc.category)
+                  const iconColor = getDiscountCategoryColor(disc.category)
+                  return (
+                    <View key={disc.discountId ?? idx}>
+                      <View style={styles.discountRow}>
+                        <View style={styles.discountRowLeft}>
+                          <View style={[styles.discountIconWrap, { backgroundColor: iconColor + '18' }]}>
+                            <Icon name={iconName} size={18} color={iconColor} />
+                          </View>
+                          <View style={styles.discountTextBlock}>
+                            <Text style={styles.discountName} numberOfLines={1}>{disc.name}</Text>
+                            <View style={[styles.discountCategoryPill, { backgroundColor: iconColor + '22' }]}>
+                              <Text style={[styles.discountCategoryText, { color: iconColor }]}>
+                                {disc.category.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={styles.discountAmountBlock}>
+                          <Text style={styles.discountMinus}>−</Text>
+                          <Text style={styles.discountAmount}>₹{Math.round(disc.totalApplied)}</Text>
+                        </View>
+                      </View>
+                      {idx < discountSummary.length - 1 && <View style={styles.discountDivider} />}
+                    </View>
+                  )
+                })}
+
+                <View style={styles.discountTotalRow}>
+                  <View style={styles.discountTotalLeft}>
+                    <Icon name="check-decagram" size={18} color="#4CAF50" />
+                    <Text style={styles.discountTotalLabel}>Total Discount</Text>
+                  </View>
+                  <Text style={styles.discountTotalValue}>− ₹{Math.round(totalDiscount)}</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Delivery Section */}
           {!hasOnlyDigital && (
@@ -667,7 +852,7 @@ export default function CartScreen() {
             <Text style={styles.billTitle}>Bill Summary</Text>
 
             <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Subtotal ({cart?.items?.length} items)</Text>
+              <Text style={styles.billLabel}>Subtotal ({regularItems.length} item{regularItems.length !== 1 ? 's' : ''})</Text>
               {totalSavings > 0 ? (
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.basePrice}>₹{Math.round(baseTotal)}</Text>
@@ -678,7 +863,20 @@ export default function CartScreen() {
               )}
             </View>
 
-            {/* Applied code row in bill */}
+            {/* Free gifts row in bill */}
+            {freeGiftItems.length > 0 && (
+              <View style={styles.billRow}>
+                <View style={styles.billDiscountLabelRow}>
+                  <Icon name="gift" size={13} color="#0b81b8" />
+                  <Text style={[styles.billLabel, { color: '#0b81b8', flex: 1, marginLeft: 5 }]}>
+                    Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
+                  </Text>
+                </View>
+                <Text style={[styles.billValue, { color: '#0b81b8', fontFamily: FONTS.Bold }]}>FREE</Text>
+              </View>
+            )}
+
+            {/* Applied code in bill */}
             {appliedCode && (
               <View style={styles.billRow}>
                 <Text style={[styles.billLabel, { color: '#4CAF50' }]}>
@@ -687,6 +885,25 @@ export default function CartScreen() {
                 <Text style={[styles.billValue, { color: '#4CAF50' }]}>Applied ✓</Text>
               </View>
             )}
+
+            {/* Discount summary rows in bill */}
+            {discountSummary.map((disc, idx) => (
+              <View key={disc.discountId ?? idx} style={styles.billRow}>
+                <View style={styles.billDiscountLabelRow}>
+                  <Icon
+                    name={getDiscountCategoryIcon(disc.category)}
+                    size={13}
+                    color={getDiscountCategoryColor(disc.category)}
+                  />
+                  <Text style={[styles.billLabel, { color: '#388E3C', flex: 1, marginLeft: 5 }]} numberOfLines={1}>
+                    {disc.name}
+                  </Text>
+                </View>
+                <Text style={[styles.billValue, { color: '#388E3C' }]}>
+                  − ₹{Math.round(disc.totalApplied)}
+                </Text>
+              </View>
+            ))}
 
             <View style={styles.billRow}>
               <Text style={styles.billLabel}>Taxable Amount</Text>
@@ -726,11 +943,11 @@ export default function CartScreen() {
               <Text style={styles.billTotalValue}>₹{grandTotal.toFixed(2)}</Text>
             </View>
 
-            {totalSavings > 0 && (
+            {(totalSavings > 0 || totalDiscount > 0) && (
               <View style={styles.savingsCard}>
                 <Icon name="check-circle" size={18} color="#4CAF50" />
                 <Text style={styles.savingsText}>
-                  You're saving ₹{Math.round(totalSavings)} on this order
+                  You're saving ₹{Math.round(Math.max(totalSavings, totalDiscount))} on this order
                 </Text>
               </View>
             )}
@@ -822,7 +1039,9 @@ export default function CartScreen() {
         <View style={styles.bottomLeft}>
           <Text style={styles.bottomTotal}>₹{grandTotal.toFixed(2)}</Text>
           <Text style={styles.bottomSubtext}>
-            {totalSavings > 0 ? `₹${Math.round(totalSavings)} Saved` : 'Incl. all taxes'}
+            {(totalSavings > 0 || totalDiscount > 0)
+              ? `₹${Math.round(Math.max(totalSavings, totalDiscount))} Saved`
+              : 'Incl. all taxes'}
           </Text>
         </View>
 
@@ -909,6 +1128,176 @@ const styles = ScaledSheet.create({
   clearCartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '8@s', marginHorizontal: '16@s', marginVertical: '8@vs', paddingVertical: '10@vs', borderRadius: '10@ms', borderWidth: 1, borderColor: '#FF5252', backgroundColor: '#FFF5F5' },
   clearCartText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#FF5252' },
 
+  // ── Free Gift Section ─────────────────────────────────────────────────────
+  freeGiftSection: {
+    marginHorizontal: '16@s',
+    marginTop: '14@vs',
+  },
+  freeGiftSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '10@vs',
+    paddingHorizontal: '2@s',
+  },
+  freeGiftHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+  },
+  freeGiftSectionTitle: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Bold,
+    color: '#00457a',
+    letterSpacing: 0.3,
+  },
+  freeGiftCountPill: {
+    backgroundColor: '#cdd4ff',
+    borderRadius: '10@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '2@vs',
+    borderWidth: 1,
+    borderColor: '#1756d4',
+  },
+  freeGiftCountText: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Bold,
+    color: '#0b81b8',
+  },
+
+  freeGiftCard: {
+    backgroundColor: '#f5fdff',
+    borderRadius: '14@ms',
+    borderWidth: 1.5,
+    borderColor: '#1756d4',
+    overflow: 'hidden',
+    marginBottom: '10@vs',
+    elevation: 3,
+    shadowColor: '#1756d4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
+  freeGiftTopAccent: {
+    height: '3@vs',
+    backgroundColor: '#1756d4',
+  },
+  freeGiftCardInner: {
+    flexDirection: 'row',
+    padding: '14@s',
+    gap: '12@s',
+  },
+  freeGiftImageWrap: {
+    position: 'relative',
+    width: '80@s',
+    height: '80@s',
+    borderRadius: '10@ms',
+    backgroundColor: '#e1eeff',
+    borderWidth: 1,
+    borderColor: '#70a7f0',
+  },
+  freeGiftImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '10@ms',
+    resizeMode: 'contain',
+  },
+  freeGiftBadgeWrap: {
+    position: 'absolute',
+    bottom: '-1@vs',
+    left: '-1@s',
+    right: '-1@s',
+    alignItems: 'center',
+  },
+  freeGiftBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '3@s',
+    backgroundColor: '#0a69c8',
+    paddingHorizontal: '6@s',
+    paddingVertical: '3@vs',
+    borderRadius: '6@ms',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  freeGiftBadgeText: {
+    fontSize: '8@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+
+  freeGiftDetails: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  freeGiftTitle: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Bold,
+    color: '#00223d',
+    marginBottom: '4@vs',
+    lineHeight: '20@vs',
+  },
+  freeGiftDesc: {
+    fontSize: '12@ms',
+    color: '#557d8b',
+    marginBottom: '8@vs',
+  },
+  freeGiftFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+    flexWrap: 'wrap',
+  },
+  freeGiftQtyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '4@s',
+    backgroundColor: '#cde6ff',
+    borderRadius: '8@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '3@vs',
+    borderWidth: 1,
+    borderColor: '#7090f0',
+  },
+  freeGiftQtyText: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Bold,
+    color: '#0b81b8',
+  },
+  complimentaryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '4@s',
+    backgroundColor: '#0a69c8',
+    borderRadius: '8@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '3@vs',
+  },
+  complimentaryText: {
+    fontSize: '10@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+    letterSpacing: 0.3,
+  },
+
+  freeGiftNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '6@s',
+    backgroundColor: '#dcefff',
+    paddingHorizontal: '14@s',
+    paddingVertical: '8@vs',
+    borderTopWidth: 1,
+    borderTopColor: '#928aed',
+  },
+  freeGiftNoteText: {
+    fontSize: '11@ms',
+    color: '#0a20c8',
+    fontFamily: FONTS.Medium,
+    flex: 1,
+  },
+
   sectionCard: { backgroundColor: '#fff', marginHorizontal: '16@s', marginTop: '12@vs', borderRadius: '14@ms', padding: '16@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginBottom: '14@vs' },
   sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
@@ -917,7 +1306,6 @@ const styles = ScaledSheet.create({
   offerLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
   offerText: { fontSize: '14@ms', color: '#333', fontFamily: FONTS.Medium },
 
-  // ── Applied code banner ───────────────────────────────────────────────────
   appliedCodeBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#F1F8F4', borderRadius: '10@ms', padding: '12@s',
@@ -928,23 +1316,55 @@ const styles = ScaledSheet.create({
   appliedCodeValue: { fontSize: '14@ms', color: '#1a1a1a', fontFamily: FONTS.Bold, marginTop: '1@vs' },
   removeCodeBtn: { padding: '4@s' },
 
-  // ── Code input row ────────────────────────────────────────────────────────
-  codeInputRow: {
-    flexDirection: 'row', alignItems: 'center', gap: '10@s',
-    marginTop: '8@vs', marginBottom: '4@vs',
-  },
-  codeInput: {
-    flex: 1, height: '46@vs', borderWidth: 1.5, borderColor: '#D0D0D0',
-    borderRadius: '10@ms', paddingHorizontal: '12@s',
-    fontSize: '14@ms', color: '#1a1a1a', backgroundColor: '#FAFAFA',
-    fontFamily: FONTS.Medium,
-  },
-  applyBtn: {
-    backgroundColor: '#0B77A7', paddingHorizontal: '18@s', height: '46@vs',
-    borderRadius: '10@ms', justifyContent: 'center', alignItems: 'center', minWidth: '72@s',
-  },
+  codeInputRow: { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '8@vs', marginBottom: '4@vs' },
+  codeInput: { flex: 1, height: '46@vs', borderWidth: 1.5, borderColor: '#D0D0D0', borderRadius: '10@ms', paddingHorizontal: '12@s', fontSize: '14@ms', color: '#1a1a1a', backgroundColor: '#FAFAFA', fontFamily: FONTS.Medium },
+  applyBtn: { backgroundColor: '#0B77A7', paddingHorizontal: '18@s', height: '46@vs', borderRadius: '10@ms', justifyContent: 'center', alignItems: 'center', minWidth: '72@s' },
   applyBtnDisabled: { backgroundColor: '#B0BEC5' },
   applyBtnText: { color: '#fff', fontFamily: FONTS.Bold, fontSize: '14@ms' },
+
+  // ── Discount Summary Card ─────────────────────────────────────────────────
+  discountSummaryCard: {
+    marginHorizontal: '16@s', marginTop: '12@vs', borderRadius: '14@ms',
+    overflow: 'hidden', elevation: 2,
+    shadowColor: '#4CAF50', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6,
+  },
+  discountSummaryHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2E7D32', paddingHorizontal: '16@s', paddingVertical: '12@vs',
+  },
+  discountSummaryHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
+  discountSummaryHeaderText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  discountSummaryBadge: {
+    backgroundColor: '#fff', borderRadius: '10@ms',
+    paddingHorizontal: '8@s', paddingVertical: '2@vs',
+  },
+  discountSummaryBadgeText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  discountSummaryBody: { backgroundColor: '#fff', padding: '14@s' },
+
+  discountRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingVertical: '10@vs',
+  },
+  discountRowLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s', flex: 1 },
+  discountIconWrap: { width: '36@s', height: '36@s', borderRadius: '10@ms', justifyContent: 'center', alignItems: 'center' },
+  discountTextBlock: { flex: 1 },
+  discountName: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '4@vs' },
+  discountCategoryPill: { alignSelf: 'flex-start', borderRadius: '4@ms', paddingHorizontal: '6@s', paddingVertical: '2@vs' },
+  discountCategoryText: { fontSize: '9@ms', fontFamily: FONTS.Bold, letterSpacing: 0.5 },
+  discountAmountBlock: { flexDirection: 'row', alignItems: 'center', gap: '2@s' },
+  discountMinus: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#388E3C' },
+  discountAmount: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#388E3C' },
+  discountDivider: { height: 1, backgroundColor: '#F0F4F0', marginVertical: '2@vs' },
+
+  discountTotalRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: '10@vs', backgroundColor: '#F1F8F4',
+    borderRadius: '10@ms', padding: '10@s',
+    borderWidth: 1, borderColor: '#C8E6C9',
+  },
+  discountTotalLeft: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
+  discountTotalLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  discountTotalValue: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
 
   addressCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8F9FA', padding: '12@s', borderRadius: '10@ms', marginBottom: '10@vs' },
   addressLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s', flex: 1 },
@@ -964,6 +1384,7 @@ const styles = ScaledSheet.create({
   billValueFree: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#4CAF50' },
   billTotalLabel: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
   billTotalValue: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
+  billDiscountLabelRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: '8@s' },
   savingsCard: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: '#F1F8F4', padding: '10@s', borderRadius: '8@ms', marginTop: '10@vs' },
   savingsText: { fontSize: '13@ms', color: '#4CAF50', fontFamily: FONTS.Medium, flex: 1 },
 

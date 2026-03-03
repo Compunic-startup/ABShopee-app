@@ -14,7 +14,7 @@ import {
 import { ScaledSheet } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import noimage from '../../../assets/images/Categories/noimage.png'
+import noimage from '../../../assets/images/Categories/preloader.gif'
 import RNFS from 'react-native-fs'
 import FileViewer from 'react-native-file-viewer'
 import FONTS from '../../../utils/fonts'
@@ -72,7 +72,8 @@ export default function OrderDetailsScreen() {
     try {
       setDownloading(true)
       const token = await AsyncStorage.getItem('userToken')
-      const url = `${BASE_URL}/customer/business/da81a423-2230-4586-b47b-07268479cb24/orders/${orderId}/invoice`
+      const businessId = await AsyncStorage.getItem('businessId')
+      const url = `${BASE_URL}/customer/business/${businessId}/orders/${orderId}/invoice`
       const filePath = `${RNFS.DownloadDirectoryPath}/Invoice-${orderId}.pdf`
 
       const options = {
@@ -168,7 +169,8 @@ export default function OrderDetailsScreen() {
 
   if (!order) return null
 
-  const address = order.addresses?.[0]
+  const addressData = order.addresses?.[0]?.addressSnapshot
+  const contactData = order.addresses?.[0]?.contactSnapshot
   const latestEvent = order.events?.[order.events.length - 1]
   const currentStatus = latestEvent?.toStatus || order.status
   const statusConfig = getStatusConfig(currentStatus)
@@ -265,47 +267,51 @@ export default function OrderDetailsScreen() {
               </Text>
             </View>
 
-            {order.pricing?.pricingSnapshot?.items?.map((item, index) => (
-              <View key={item.itemId || index} style={styles.itemCard}>
-                <Image
-                  source={item.image ? { uri: item.image } : noimage}
-                  style={styles.itemImage}
-                />
+            {order.items?.map((item, index) => {
+              const snapshot = item.itemSnapshot
 
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
+              return (
+                <View key={item.itemId || index} style={styles.itemCard}>
+                  <Image
+                    source={
+                      snapshot?.image
+                        ? { uri: snapshot.image }
+                        : noimage
+                    }
+                    style={styles.itemImage}
+                  />
 
-                  <View style={styles.itemMetaRow}>
-                    <View style={styles.qtyBadge}>
-                      <Icon name="numeric" size={12} color="#666" />
-                      <Text style={styles.qtyText}>Qty: {item.quantity}</Text>
-                    </View>
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.itemTitle} numberOfLines={2}>
+                      {snapshot?.title}
+                    </Text>
 
-                    {item.itemType === 'digital' && (
-                      <View style={styles.digitalBadge}>
-                        <Icon name="download" size={10} color="#1976D2" />
-                        <Text style={styles.digitalText}>Digital</Text>
+                    <View style={styles.itemMetaRow}>
+                      <View style={styles.qtyBadge}>
+                        <Text style={styles.qtyText}>
+                          Qty: {item.quantity}
+                        </Text>
                       </View>
-                    )}
-                  </View>
 
-                  {item.promotionDiscountTotal > 0 && (
-                    <View style={styles.savingsRow}>
-                      <Icon name="tag" size={12} color="#4CAF50" />
-                      <Text style={styles.savingsText}>
-                        Saved ₹{item.promotionDiscountTotal}
-                      </Text>
+                      {snapshot?.itemType === 'digital' && (
+                        <View style={styles.digitalBadge}>
+                          <Icon name="download" size={10} color="#1976D2" />
+                          <Text style={styles.digitalText}>Digital</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
 
-                  <Text style={styles.itemPrice}>
-                    ₹{item.finalLineTotal?.toFixed(2)}
-                  </Text>
+                    <Text style={styles.itemPrice}>
+                      ₹
+                      {(
+                        order.pricing?.pricingSnapshot?.items?.[index]
+                          ?.finalLineTotal || 0
+                      ).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              )
+            })}
           </View>
 
           {/* Price Summary */}
@@ -355,41 +361,87 @@ export default function OrderDetailsScreen() {
               <Text style={styles.sectionTitle}>Payment Information</Text>
             </View>
 
-            <View style={styles.paymentInfoCard}>
-              <View style={styles.paymentRow}>
-                <Icon
-                  name={
-                    paymentInfo?.provider === 'razorpay'
-                      ? 'cellphone'
-                      : 'cash'
-                  }
-                  size={20}
-                  color="#0B77A7"
-                />
-                <View style={styles.paymentTextContainer}>
-                  <Text style={styles.paymentMethod}>
-                    {paymentInfo?.method || 'N/A'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.paymentStatus,
-                      {
-                        color:
-                          paymentInfo?.status === 'success'
-                            ? '#4CAF50'
-                            : '#FF9800',
-                      },
-                    ]}
-                  >
-                    {paymentInfo?.status || 'Pending'}
-                  </Text>
+            {order.payment?.map((pay, index) => (
+              <View key={index} style={styles.paymentInfoCard}>
+                <View style={styles.paymentRow}>
+                  <Icon
+                    name={pay.provider === 'razorpay' ? 'cellphone' : 'cash'}
+                    size={22}
+                    color="#0B77A7"
+                  />
+
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={styles.paymentMethod}>
+                      {pay.method?.toUpperCase()}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.paymentStatus,
+                        {
+                          color:
+                            pay.status === 'captured' ||
+                              pay.status === 'success'
+                              ? '#4CAF50'
+                              : '#FF9800',
+                        },
+                      ]}
+                    >
+                      {pay.status?.toUpperCase()}
+                    </Text>
+
+                    <Text style={styles.paymentMeta}>
+                      Amount: ₹{parseFloat(pay.amount).toFixed(2)}
+                    </Text>
+
+                    <Text style={styles.paymentMeta}>
+                      Currency: {pay.currency}
+                    </Text>
+
+                    <Text style={styles.paymentMeta}>
+                      Paid On:{' '}
+                      {new Date(pay.createdAt).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            ))}
           </View>
 
+          {/* refunds
+          {order.refunds && order.refunds.length > 0 && (
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Icon name="cash-refund" size={22} color="#F44336" />
+                <Text style={styles.sectionTitle}>Refund Details</Text>
+              </View>
+
+              {order.refunds.map((refund, index) => (
+                <View key={index} style={styles.refundCard}>
+                  <Text style={styles.refundAmount}>
+                    ₹{parseFloat(refund.amount).toFixed(2)}
+                  </Text>
+
+                  <Text style={styles.refundStatus}>
+                    Status: {refund.status?.toUpperCase()}
+                  </Text>
+
+                  {refund.reason && (
+                    <Text style={styles.refundReason}>
+                      Reason: {refund.reason}
+                    </Text>
+                  )}
+
+                  <Text style={styles.refundDate}>
+                    {new Date(refund.createdAt).toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )} */}
+
           {/* Delivery Address */}
-          {!isDigital && address && (
+          {!isDigital && addressData && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Icon name="map-marker" size={22} color="#0B77A7" />
@@ -397,18 +449,24 @@ export default function OrderDetailsScreen() {
               </View>
 
               <View style={styles.addressCard}>
-                <View style={styles.addressHeader}>
-                  <Icon name="home" size={20} color="#4CAF50" />
-                  <Text style={styles.addressType}>Home</Text>
-                </View>
-
-                <Text style={styles.addressName}>{address.fullName}</Text>
-                <Text style={styles.addressPhone}>{address.phone}</Text>
-                <Text style={styles.addressText}>
-                  {address.addressLine1}
+                <Text style={styles.addressName}>
+                  {contactData?.name}
                 </Text>
+
+                <Text style={styles.addressPhone}>
+                  {contactData?.phone}
+                </Text>
+
                 <Text style={styles.addressText}>
-                  {address.city}, {address.state} - {address.postalCode}
+                  {addressData?.line1}
+                </Text>
+
+                <Text style={styles.addressText}>
+                  {addressData?.city}, {addressData?.state} - {addressData?.pincode}
+                </Text>
+
+                <Text style={styles.addressText}>
+                  {addressData?.country}
                 </Text>
               </View>
 

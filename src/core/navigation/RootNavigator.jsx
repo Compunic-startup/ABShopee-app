@@ -1,23 +1,38 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { useState } from 'react'
 import AuthStack from './AuthStack'
 import MainStack from './MainStack'
-import { useState } from 'react'
+import SplashScreen from '../../modules/SplashScreen'
 
 const Stack = createNativeStackNavigator()
+
 export default function RootNavigator() {
 
+  const [isLoggedIn, setIsLoggedIn] = useState(null)
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false) 
-  
   return (
-    <Stack.Navigator screenOptions={{headerShown: false}}>
-      {isLoggedIn ? (
-        <Stack.Screen name="MainStack" component={MainStack} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+
+      {isLoggedIn === null ? (
+        <Stack.Screen name="SplashScreen">
+          {(props) => (
+            <SplashScreen {...props} setIsLoggedIn={setIsLoggedIn} />
+          )}
+        </Stack.Screen>
+      ) : isLoggedIn ? (
+        <Stack.Screen name="MainStack">
+          {(props) => (
+            <MainStack {...props} setIsLoggedIn={setIsLoggedIn} />
+          )}
+        </Stack.Screen>
       ) : (
         <Stack.Screen name="AuthStack">
-          {(props) => <AuthStack {...props} setIsLoggedIn={setIsLoggedIn} />}
+          {(props) => (
+            <AuthStack {...props} setIsLoggedIn={setIsLoggedIn} />
+          )}
         </Stack.Screen>
       )}
+
     </Stack.Navigator>
   )
 }

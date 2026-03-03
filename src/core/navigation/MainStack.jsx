@@ -7,20 +7,28 @@ import WishlistScreen from '../components/local/Home/WishlistScreen'
 import BuyInstantScreen from '../components/local/Home/BuyInstantScreen'
 import OrderPlacedAnimation from '../components/global/OrderPlacedAnimation'
 import OrderDetailsScreen from '../components/local/Home/OrderDetailsScreen'
+import coupondiscounts from '../components/local/Categories/CouponsDiscounts'
+import UserRefunds from '../../core/components/local/payments/UserRefunds'
+import UserTransactions from '../../core/components/local/payments/UserTransactions'
 
 const Stack = createNativeStackNavigator()
 
-export default function MainStack() {
+export default function MainStack({setIsLoggedIn}) {
   return (
     <Stack.Navigator>
       <Stack.Screen
         name="Tabs"
-        component={TabNavigator}
         options={{ headerShown: false }}
-      />
+      >
+        {(props) => (
+          <TabNavigator {...props} setIsLoggedIn={setIsLoggedIn} />
+        )}
+      </Stack.Screen>
 
       {/* Extra Screens */}
       <Stack.Screen name="ExploreInventoryScreen" component={ExploreInventoryScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="coupondiscounts" component={coupondiscounts} options={{ headerShown: false }} />
+
       <Stack.Screen
         name="ProductDetail"
         component={ProductDetailScreen} options={{ headerShown: false }}
@@ -45,7 +53,14 @@ export default function MainStack() {
         name="OrderDetailsScreen"
         component={OrderDetailsScreen} options={{ headerShown: false }}
       />
-
+      <Stack.Screen
+        name="userrefunds"
+        component={UserRefunds} options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="usertransactions"
+        component={UserTransactions} options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   )
 }

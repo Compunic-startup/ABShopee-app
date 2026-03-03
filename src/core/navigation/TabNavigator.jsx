@@ -8,7 +8,7 @@ import color from '../utils/color'
 
 const Tab = createBottomTabNavigator()
 
-export default function TabNavigator() {
+export default function TabNavigator({ setIsLoggedIn }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -47,13 +47,16 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="Account"
-        component={AccountScreen}
         options={{
           tabBarIcon: ({ color }) => (
             <Icon name="account" color={color} size={26} />
           ),
         }}
-      />
+      >
+        {(props) => (
+          <AccountScreen {...props} setIsLoggedIn={setIsLoggedIn} />
+        )}
+      </Tab.Screen>
     </Tab.Navigator>
   )
 }

@@ -6,11 +6,11 @@ import RecommendedScreen from '../../../core/components/local/Home/RecommendedSc
 
 const HomeScreen = () => {
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
       <HomeHeader />
       <HomeCategories />
       <RecommendedScreen />
-    </View>
+    </ScrollView>
   )
 }
 

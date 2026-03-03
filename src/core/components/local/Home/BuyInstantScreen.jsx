@@ -21,6 +21,7 @@ import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import { openRazorpay } from '../../global/razorpaymodule'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import noimage from '../../../assets/images/Categories/preloader.gif'
 
 // ─── Reusable skeleton box with pulse animation ────────────────────────────
 function SkeletonBox({ width, height, borderRadius = 6, style }) {
@@ -30,7 +31,7 @@ function SkeletonBox({ width, height, borderRadius = 6, style }) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 0.75, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.3,  duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.3, duration: 800, useNativeDriver: true }),
       ])
     ).start()
   }, [])
@@ -66,6 +67,188 @@ function PriceBreakdownSkeleton() {
   )
 }
 
+// ─── Free Gift Card Component ──────────────────────────────────────────────
+function FreeGiftCard({ item }) {
+  return (
+    <View style={freeGiftStyles.card}>
+      {/* Gold top accent */}
+      <View style={freeGiftStyles.topAccent} />
+
+      <View style={freeGiftStyles.inner}>
+        {/* Image */}
+        <View style={freeGiftStyles.imageWrap}>
+          <Image
+            source={item.media?.url ? { uri: item.media.url } : noimage}
+            style={freeGiftStyles.image}
+          />
+          {/* FREE GIFT badge */}
+          <View style={freeGiftStyles.badgeWrap}>
+            <View style={freeGiftStyles.badge}>
+              <Icon name="gift" size={9} color="#fff" />
+              <Text style={freeGiftStyles.badgeText}>FREE</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Details */}
+        <View style={freeGiftStyles.details}>
+          <Text style={freeGiftStyles.title} numberOfLines={2}>
+            {item.itemSnapshot?.title}
+          </Text>
+
+          <View style={freeGiftStyles.footer}>
+            <View style={freeGiftStyles.qtyPill}>
+              <Icon name="package-variant" size={11} color="#B8860B" />
+              <Text style={freeGiftStyles.qtyText}>Qty: {item.quantity}</Text>
+            </View>
+            <View style={freeGiftStyles.complimentaryPill}>
+              <Icon name="check-circle" size={11} color="#fff" />
+              <Text style={freeGiftStyles.complimentaryText}>Complimentary</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Bottom note */}
+      <View style={freeGiftStyles.note}>
+        <Icon name="information-outline" size={12} color="#B8860B" />
+        <Text style={freeGiftStyles.noteText}>
+          This item is a free gift and cannot be modified
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+const freeGiftStyles = ScaledSheet.create({
+  card: {
+    backgroundColor: '#FFFDF5',
+    borderRadius: '12@ms',
+    borderWidth: 1.5,
+    borderColor: '#D4A017',
+    overflow: 'hidden',
+    marginBottom: '10@vs',
+    elevation: 3,
+    shadowColor: '#D4A017',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
+  topAccent: {
+    height: '3@vs',
+    backgroundColor: '#D4A017',
+  },
+  inner: {
+    flexDirection: 'row',
+    padding: '12@s',
+    gap: '12@s',
+  },
+  imageWrap: {
+    position: 'relative',
+    width: '70@s',
+    height: '70@s',
+    borderRadius: '10@ms',
+    backgroundColor: '#FFF8E1',
+    borderWidth: 1,
+    borderColor: '#F0D070',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '10@ms',
+    resizeMode: 'contain',
+  },
+  badgeWrap: {
+    position: 'absolute',
+    bottom: '-1@vs',
+    left: '-1@s',
+    right: '-1@s',
+    alignItems: 'center',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '3@s',
+    backgroundColor: '#C8860A',
+    paddingHorizontal: '6@s',
+    paddingVertical: '2@vs',
+    borderRadius: '5@ms',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  badgeText: {
+    fontSize: '8@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  details: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Bold,
+    color: '#3D2B00',
+    lineHeight: '18@vs',
+    marginBottom: '6@vs',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+    flexWrap: 'wrap',
+  },
+  qtyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '4@s',
+    backgroundColor: '#FFF3CD',
+    borderRadius: '8@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '3@vs',
+    borderWidth: 1,
+    borderColor: '#F0D070',
+  },
+  qtyText: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Bold,
+    color: '#B8860B',
+  },
+  complimentaryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '4@s',
+    backgroundColor: '#C8860A',
+    borderRadius: '8@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '3@vs',
+  },
+  complimentaryText: {
+    fontSize: '10@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+    letterSpacing: 0.3,
+  },
+  note: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '6@s',
+    backgroundColor: '#FFF8DC',
+    paddingHorizontal: '12@s',
+    paddingVertical: '7@vs',
+    borderTopWidth: 1,
+    borderTopColor: '#EDD68A',
+  },
+  noteText: {
+    fontSize: '11@ms',
+    color: '#8B7010',
+    fontFamily: FONTS.Medium,
+    flex: 1,
+  },
+})
+
+// ─── Main Screen ──────────────────────────────────────────────────────────
 export default function BuyInstantScreen() {
   const navigation = useNavigation()
   const { params } = useRoute()
@@ -92,7 +275,7 @@ export default function BuyInstantScreen() {
   const [couponInput, setCouponInput] = useState('')
   const [dealerInput, setDealerInput] = useState('')
   const [appliedCode, setAppliedCode] = useState(null)
-  const [appliedCodeType, setAppliedCodeType] = useState(null) // 'coupon' | 'dealer' | null
+  const [appliedCodeType, setAppliedCodeType] = useState(null)
   const [applyingCode, setApplyingCode] = useState(false)
 
   const toast = (msg) => ToastAndroid.show(msg, ToastAndroid.SHORT)
@@ -101,6 +284,10 @@ export default function BuyInstantScreen() {
   const image =
     product.media?.find(m => m.role === 'primary')?.url ||
     product.media?.[0]?.url
+
+  // ─── injectedItems = free gift items from preview ─────────────────────────
+  const injectedItems = preview?.injectedItems ?? []
+  const freeGiftItems = injectedItems.filter(i => i.isFreeGift)
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -218,25 +405,25 @@ export default function BuyInstantScreen() {
         ...(isDigital
           ? { itemType: 'digital', email }
           : {
-              addresses: [
-                {
-                  type: 'shipping',
-                  addressSnapshot: {
-                    line1: 'HB 15 Takshshila Apartments',
-                    city: 'Ahmedabad',
-                    state: 'Gujarat',
-                    country: 'IN',
-                    pincode: '380015',
-                  },
-                  contactSnapshot: {
-                    name: 'Ayush',
-                    phone: '9999999999',
-                    email: 'xxx@gmail.com',
-                  },
+            addresses: [
+              {
+                type: 'shipping',
+                addressSnapshot: {
+                  line1: 'HB 15 Takshshila Apartments',
+                  city: 'Ahmedabad',
+                  state: 'Gujarat',
+                  country: 'IN',
+                  pincode: '380015',
                 },
-              ],
-              itemType: 'physical',
-            }),
+                contactSnapshot: {
+                  name: 'Ayush',
+                  phone: '9999999999',
+                  email: 'xxx@gmail.com',
+                },
+              },
+            ],
+            itemType: 'physical',
+          }),
         payment: { method: 'RAZORPAY' },
       }
 
@@ -323,7 +510,10 @@ export default function BuyInstantScreen() {
 
             <View style={styles.productContent}>
               <View style={styles.imageContainer}>
-                <Image source={{ uri: image }} style={styles.productImage} />
+                <Image
+                  source={image ? { uri: image } : noimage}
+                  style={styles.productImage}
+                />
                 {isDigital && (
                   <View style={styles.digitalBadge}>
                     <Icon name="download" size={12} color="#fff" />
@@ -408,6 +598,19 @@ export default function BuyInstantScreen() {
                     </View>
                   )}
 
+                  {/* Free gift row in bill */}
+                  {!loading && freeGiftItems.length > 0 && (
+                    <View style={styles.priceRow}>
+                      <View style={styles.discountLabelRow}>
+                        <Icon name="gift" size={13} color="#B8860B" />
+                        <Text style={[styles.priceLabel, { color: '#B8860B', flex: 1, marginLeft: 4 }]}>
+                          Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
+                        </Text>
+                      </View>
+                      <Text style={[styles.priceValue, { color: '#B8860B', fontFamily: FONTS.Bold }]}>FREE</Text>
+                    </View>
+                  )}
+
                   <View style={styles.priceRow}>
                     <Text style={styles.priceLabel}>Delivery Charges</Text>
                     <Text style={styles.priceFree}>FREE</Text>
@@ -439,7 +642,7 @@ export default function BuyInstantScreen() {
 
             <View style={styles.divider} />
 
-            {/* ── Total: skeleton while loading ─────────────────────────── */}
+            {/* ── Total ─────────────────────────────────────────────────── */}
             <View style={styles.totalRow}>
               <View>
                 <Text style={styles.totalLabel}>Total Amount</Text>
@@ -453,6 +656,39 @@ export default function BuyInstantScreen() {
               }
             </View>
           </View>
+
+          {/* ── Free Gift Section ─────────────────────────────────────────── */}
+          {!loading && freeGiftItems.length > 0 && (
+            <View style={styles.freeGiftSection}>
+              {/* Section header */}
+              <View style={styles.freeGiftSectionHeader}>
+                <View style={styles.freeGiftHeaderLeft}>
+                  <Icon name="gift-open" size={20} color="#B8860B" />
+                  <Text style={styles.freeGiftSectionTitle}>
+                    Your Free Gift{freeGiftItems.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <View style={styles.freeGiftCountPill}>
+                  <Text style={styles.freeGiftCountText}>{freeGiftItems.length}</Text>
+                </View>
+              </View>
+
+              {freeGiftItems.map(item => (
+                <FreeGiftCard key={item.cartItemId} item={item} />
+              ))}
+            </View>
+          )}
+
+          {/* ── Skeleton placeholder for free gift while loading ─────────── */}
+          {loading && (
+            <View style={[styles.freeGiftSection, { opacity: 0.5 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <SkeletonBox width={20} height={20} borderRadius={10} />
+                <SkeletonBox width={140} height={14} />
+              </View>
+              <SkeletonBox width="100%" height={100} borderRadius={12} />
+            </View>
+          )}
 
           {/* ── Offers & Discounts ────────────────────────────────────────── */}
           <View style={styles.card}>
@@ -556,7 +792,7 @@ export default function BuyInstantScreen() {
                     <Icon name={showDealerInput ? 'chevron-up' : 'chevron-right'} size={22} color="#999" />
                   )}
                 </TouchableOpacity>
-
+                
                 {showDealerInput && !appliedCode && (
                   <View style={styles.codeInputRow}>
                     <RNTextInput
@@ -644,7 +880,7 @@ export default function BuyInstantScreen() {
               <View style={styles.digitalInfoBox}>
                 <Icon name="download-circle" size={20} color="#1976D2" />
                 <Text style={styles.digitalInfoText}>
-                  Download link will be sent instantly after payment
+                  Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)
                 </Text>
               </View>
             </View>
@@ -706,7 +942,7 @@ export default function BuyInstantScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* ── Bottom Bar: skeleton total while loading ──────────────────────── */}
+      {/* ── Bottom Bar ────────────────────────────────────────────────────── */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomLeft}>
           <Text style={styles.bottomLabel}>Total Amount</Text>
@@ -736,7 +972,7 @@ export default function BuyInstantScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Loading Overlay (while placing order) */}
+      {/* Loading Overlay */}
       {placing && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
@@ -808,6 +1044,43 @@ const styles = ScaledSheet.create({
   savingsNote: { fontSize: '12@ms', color: '#4CAF50', fontFamily: FONTS.Medium, marginTop: '2@vs' },
   totalAmount: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
 
+  // ── Free Gift Section ─────────────────────────────────────────────────────
+  freeGiftSection: {
+    marginHorizontal: '16@s',
+    marginBottom: '16@vs',
+  },
+  freeGiftSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '10@vs',
+    paddingHorizontal: '2@s',
+  },
+  freeGiftHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+  },
+  freeGiftSectionTitle: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Bold,
+    color: '#004f7a',
+    letterSpacing: 0.3,
+  },
+  freeGiftCountPill: {
+    backgroundColor: '#cdd8ff',
+    borderRadius: '10@ms',
+    paddingHorizontal: '8@s',
+    paddingVertical: '2@vs',
+    borderWidth: 1,
+    borderColor: '#1795d4',
+  },
+  freeGiftCountText: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Bold,
+    color: '#0b7eb8',
+  },
+
   card: {
     backgroundColor: '#fff', marginHorizontal: '16@s', marginBottom: '16@vs',
     borderRadius: '16@ms', padding: '16@s', elevation: 2, shadowColor: '#000',
@@ -866,8 +1139,6 @@ const styles = ScaledSheet.create({
   radioInner: { width: '12@s', height: '12@s', borderRadius: '6@s', backgroundColor: '#0B77A7' },
   paymentTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
   paymentSubtitle: { fontSize: '12@ms', color: '#666', marginTop: '2@vs' },
-  recommendedBadge: { backgroundColor: '#4CAF50', paddingHorizontal: '10@s', paddingVertical: '4@vs', borderRadius: '12@ms' },
-  recommendedText: { fontSize: '11@ms', color: '#fff', fontFamily: FONTS.Bold },
 
   securityBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F8F4', marginHorizontal: '16@s', marginBottom: '16@vs', padding: '14@s', borderRadius: '12@ms', gap: '12@s' },
   securityTextContainer: { flex: 1 },

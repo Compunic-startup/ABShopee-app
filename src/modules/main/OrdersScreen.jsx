@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import FONTS from '../../core/utils/fonts'
 import color from '../../core/utils/color'
 import BASE_URL from '../../core/services/api'
-import { useNavigation } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 
@@ -27,11 +27,6 @@ export default function OrdersScreen() {
   const [fadeAnim] = useState(new Animated.Value(0))
   const navigation = useNavigation()
 
-
-  useEffect(() => {
-    fetchOrders()
-  }, [])
-
   useEffect(() => {
     if (!loading && orders.length > 0) {
       Animated.timing(fadeAnim, {
@@ -41,6 +36,12 @@ export default function OrdersScreen() {
       }).start()
     }
   }, [loading, orders])
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders()
+    }, [])
+  )
 
   const fetchOrders = async () => {
     try {
@@ -291,7 +292,7 @@ export default function OrdersScreen() {
                   orderId: item.orderId,
                 })
               }
-              >
+            >
               <Icon name="eye-outline" size={18} color="#0B77A7" />
               <Text style={styles.actionBtnText}>View Details</Text>
             </TouchableOpacity>

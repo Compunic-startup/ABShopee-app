@@ -14,8 +14,9 @@ import { ScaledSheet } from 'react-native-size-matters'
 import { useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import FONTS from '../../core/utils/fonts'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-export default function AccountScreen() {
+export default function AccountScreen({setIsLoggedIn}) {
   const navigation = useNavigation()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -76,6 +77,22 @@ export default function AccountScreen() {
           route: 'OrdersScreen',
         },
         {
+          icon: 'cash',
+          label: 'Transactions',
+          subtitle: `${stats.orders} orders`,
+          color: '#059b00',
+          bgColor: '#E3F2FD',
+          route: 'usertransactions',
+        },
+        {
+          icon: 'cash-refund',
+          label: 'Refunds',
+          subtitle: `${stats.orders} orders`,
+          color: '#a5a200',
+          bgColor: '#E3F2FD',
+          route: 'userrefunds',
+        },
+        {
           icon: 'heart',
           label: 'Wishlist',
           subtitle: `${stats.wishlist} items`,
@@ -83,16 +100,9 @@ export default function AccountScreen() {
           bgColor: '#FFEBEE',
           route: 'WishlistScreen',
         },
-        {
-          icon: 'map-marker',
-          label: 'Saved Addresses',
-          subtitle: `${stats.addresses} addresses`,
-          color: '#4CAF50',
-          bgColor: '#E8F5E9',
-          route: 'AddressesScreen',
-        },
       ],
     },
+
     {
       title: 'Account Settings',
       items: [
@@ -174,8 +184,9 @@ export default function AccountScreen() {
     },
   ]
 
-  const handleLogout = () => {
-    navigation.navigate('LoginScreen')
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('userToken')
+    setIsLoggedIn(false)
   }
 
   if (loading) {

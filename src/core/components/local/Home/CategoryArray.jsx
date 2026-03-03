@@ -10,26 +10,19 @@ const CATEGORIES = [
     id: 1,
     title: 'Explore\nInventory',
     image: require('../../../assets/images/Categories/inventory.png'),
+    screen: 'ExploreInventoryScreen',
   },
   {
     id: 2,
-    title: 'Shop\nBy Brands',
-    image: require('../../../assets/images/Categories/brand.png'),
+    title: 'Shop By\nCategory',
+    image: require('../../../assets/images/Categories/category.png'),
+    screen: 'CategoryScreen',
   },
   {
     id: 3,
-    title: 'Shop By\nCategory',
-    image: require('../../../assets/images/Categories/category.png'),
-  },
-  {
-    id: 4,
-    title: 'Our Best\nSellers',
-    image: require('../../../assets/images/Categories/bestseller.png'),
-  },
-  {
-    id: 5,
     title: 'Coupons &\nDiscounts',
     image: require('../../../assets/images/Categories/discount.png'),
+    screen: 'coupondiscounts',
   },
 ]
 
@@ -46,7 +39,7 @@ export default function HomeCategories() {
         {CATEGORIES.map(item => (
           <TouchableOpacity
             key={item.id}
-            onPress={() => navigation.navigate('ExploreInventoryScreen')}
+            onPress={() => navigation.navigate(item.screen)}
             activeOpacity={0.85}
             style={styles.card}
           >
@@ -74,20 +67,22 @@ const styles = ScaledSheet.create({
   },
 
   card: {
-    width: '90@s',
+    width: '96@s',
     height: '100@vs',
-    backgroundColor: color.primary,
+    backgroundColor: '#f5f5f5',
     borderRadius: '8@ms',
     marginRight: '14@s',
     padding: '14@s',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth:0.7,
+    borderColor:color.primary
   },
 
   title: {
     textAlign: 'center',
     fontSize: '10@ms',
-    color: '#fff',
+    color: color.primary,
     fontFamily: FONTS.Bold,
   },
 

@@ -37,7 +37,6 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
     return res.json()
   }
 
-
   const loginEmail = async (identifier) => {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',

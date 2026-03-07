@@ -98,7 +98,7 @@ function FreeGiftCard({ item }) {
 
           <View style={freeGiftStyles.footer}>
             <View style={freeGiftStyles.qtyPill}>
-              <Icon name="package-variant" size={11} color="#B8860B" />
+              <Icon name="package-variant" size={11} color="#0b4bb8" />
               <Text style={freeGiftStyles.qtyText}>Qty: {item.quantity}</Text>
             </View>
             <View style={freeGiftStyles.complimentaryPill}>
@@ -111,7 +111,7 @@ function FreeGiftCard({ item }) {
 
       {/* Bottom note */}
       <View style={freeGiftStyles.note}>
-        <Icon name="information-outline" size={12} color="#B8860B" />
+        <Icon name="information-outline" size={12} color="#0b4bb8" />
         <Text style={freeGiftStyles.noteText}>
           This item is a free gift and cannot be modified
         </Text>
@@ -122,21 +122,21 @@ function FreeGiftCard({ item }) {
 
 const freeGiftStyles = ScaledSheet.create({
   card: {
-    backgroundColor: '#FFFDF5',
+    backgroundColor: '#f5f9ff',
     borderRadius: '12@ms',
     borderWidth: 1.5,
-    borderColor: '#D4A017',
+    borderColor: '#1743d4',
     overflow: 'hidden',
     marginBottom: '10@vs',
     elevation: 3,
-    shadowColor: '#D4A017',
+    shadowColor: '#1743d4',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
   },
   topAccent: {
     height: '3@vs',
-    backgroundColor: '#D4A017',
+    backgroundColor: '#1743d4',
   },
   inner: {
     flexDirection: 'row',
@@ -148,9 +148,9 @@ const freeGiftStyles = ScaledSheet.create({
     width: '70@s',
     height: '70@s',
     borderRadius: '10@ms',
-    backgroundColor: '#FFF8E1',
+    backgroundColor: '#e1f4ff',
     borderWidth: 1,
-    borderColor: '#F0D070',
+    borderColor: '#7092f0',
   },
   image: {
     width: '100%',
@@ -169,7 +169,7 @@ const freeGiftStyles = ScaledSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: '3@s',
-    backgroundColor: '#C8860A',
+    backgroundColor: '#0a69c8',
     paddingHorizontal: '6@s',
     paddingVertical: '2@vs',
     borderRadius: '5@ms',
@@ -189,7 +189,7 @@ const freeGiftStyles = ScaledSheet.create({
   title: {
     fontSize: '13@ms',
     fontFamily: FONTS.Bold,
-    color: '#3D2B00',
+    color: '#00183d',
     lineHeight: '18@vs',
     marginBottom: '6@vs',
   },
@@ -203,23 +203,23 @@ const freeGiftStyles = ScaledSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: '4@s',
-    backgroundColor: '#FFF3CD',
+    backgroundColor: '#cdd8ff',
     borderRadius: '8@ms',
     paddingHorizontal: '8@s',
     paddingVertical: '3@vs',
     borderWidth: 1,
-    borderColor: '#F0D070',
+    borderColor: '#7092f0',
   },
   qtyText: {
     fontSize: '11@ms',
     fontFamily: FONTS.Bold,
-    color: '#B8860B',
+    color: '#0b4bb8',
   },
   complimentaryPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: '4@s',
-    backgroundColor: '#C8860A',
+    backgroundColor: '#0a69c8',
     borderRadius: '8@ms',
     paddingHorizontal: '8@s',
     paddingVertical: '3@vs',
@@ -234,15 +234,15 @@ const freeGiftStyles = ScaledSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: '6@s',
-    backgroundColor: '#FFF8DC',
+    backgroundColor: '#dceaff',
     paddingHorizontal: '12@s',
     paddingVertical: '7@vs',
     borderTopWidth: 1,
-    borderTopColor: '#EDD68A',
+    borderTopColor: '#8abbed',
   },
   noteText: {
     fontSize: '11@ms',
-    color: '#8B7010',
+    color: '#105a8b',
     fontFamily: FONTS.Medium,
     flex: 1,
   },
@@ -268,6 +268,21 @@ export default function BuyInstantScreen() {
 
   const [qty, setQty] = useState(quantity)
   const [paymentMethod, setPaymentMethod] = useState('ONLINE')
+
+  // ─── Address state ────────────────────────────────────────────────────────
+  const [address, setAddress] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+  })
+
+  const setAddressField = (field, value) =>
+    setAddress(prev => ({ ...prev, [field]: value }))
 
   // ─── Coupon / Dealer code ─────────────────────────────────────────────────
   const [showCouponInput, setShowCouponInput] = useState(false)
@@ -379,6 +394,18 @@ export default function BuyInstantScreen() {
     toast('Code removed')
   }
 
+  // ─── Address validation ───────────────────────────────────────────────────
+  const validateAddress = () => {
+    const { name, phone, line1, city, state, pincode } = address
+    if (!name.trim()) { toast('Enter full name'); return false }
+    if (!phone.trim() || phone.trim().length < 10) { toast('Enter valid 10-digit phone number'); return false }
+    if (!line1.trim()) { toast('Enter address line 1'); return false }
+    if (!city.trim()) { toast('Enter city'); return false }
+    if (!state.trim()) { toast('Enter state'); return false }
+    if (!pincode.trim() || pincode.trim().length !== 6) { toast('Enter valid 6-digit pincode'); return false }
+    return true
+  }
+
   // ─── Place order ──────────────────────────────────────────────────────────
   const placeBuyNowOrder = async () => {
     if (placing) return
@@ -387,9 +414,11 @@ export default function BuyInstantScreen() {
       toast('Please enter email for digital delivery')
       return
     }
-
     if (isDigital && !email.includes('@')) {
       toast('Please enter a valid email address')
+      return
+    }
+    if (!isDigital && !validateAddress()) {
       return
     }
 
@@ -409,16 +438,16 @@ export default function BuyInstantScreen() {
               {
                 type: 'shipping',
                 addressSnapshot: {
-                  line1: 'HB 15 Takshshila Apartments',
-                  city: 'Ahmedabad',
-                  state: 'Gujarat',
+                  line1: address.line1,
+                  city: address.city,
+                  state: address.state,
                   country: 'IN',
-                  pincode: '380015',
+                  pincode: address.pincode,
                 },
                 contactSnapshot: {
-                  name: 'Ayush',
-                  phone: '9999999999',
-                  email: 'xxx@gmail.com',
+                  name: address.name,
+                  phone: address.phone,
+                  email: address.email,
                 },
               },
             ],
@@ -602,12 +631,12 @@ export default function BuyInstantScreen() {
                   {!loading && freeGiftItems.length > 0 && (
                     <View style={styles.priceRow}>
                       <View style={styles.discountLabelRow}>
-                        <Icon name="gift" size={13} color="#B8860B" />
-                        <Text style={[styles.priceLabel, { color: '#B8860B', flex: 1, marginLeft: 4 }]}>
+                        <Icon name="gift" size={13} color="#0b4bb8" />
+                        <Text style={[styles.priceLabel, { color: '#0b4bb8', flex: 1, marginLeft: 4 }]}>
                           Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
                         </Text>
                       </View>
-                      <Text style={[styles.priceValue, { color: '#B8860B', fontFamily: FONTS.Bold }]}>FREE</Text>
+                      <Text style={[styles.priceValue, { color: '#0b4bb8', fontFamily: FONTS.Bold }]}>FREE</Text>
                     </View>
                   )}
 
@@ -660,10 +689,9 @@ export default function BuyInstantScreen() {
           {/* ── Free Gift Section ─────────────────────────────────────────── */}
           {!loading && freeGiftItems.length > 0 && (
             <View style={styles.freeGiftSection}>
-              {/* Section header */}
               <View style={styles.freeGiftSectionHeader}>
                 <View style={styles.freeGiftHeaderLeft}>
-                  <Icon name="gift-open" size={20} color="#B8860B" />
+                  <Icon name="gift-open" size={20} color="#0b4bb8" />
                   <Text style={styles.freeGiftSectionTitle}>
                     Your Free Gift{freeGiftItems.length > 1 ? 's' : ''}
                   </Text>
@@ -792,7 +820,7 @@ export default function BuyInstantScreen() {
                     <Icon name={showDealerInput ? 'chevron-up' : 'chevron-right'} size={22} color="#999" />
                   )}
                 </TouchableOpacity>
-                
+
                 {showDealerInput && !appliedCode && (
                   <View style={styles.codeInputRow}>
                     <RNTextInput
@@ -820,7 +848,7 @@ export default function BuyInstantScreen() {
             )}
           </View>
 
-          {/* ── Delivery / Digital ────────────────────────────────────────── */}
+          {/* ── Delivery Address / Digital ────────────────────────────────── */}
           {!isDigital ? (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -828,26 +856,113 @@ export default function BuyInstantScreen() {
                 <Text style={styles.sectionTitle}>Delivery Address</Text>
               </View>
 
-              <View style={styles.addressCard}>
-                <View style={styles.addressHeader}>
-                  <Icon name="home" size={20} color="#4CAF50" />
-                  <Text style={styles.addressType}>Home</Text>
-                </View>
-                <Text style={styles.addressText}>HB 15 Takshshila Apartments</Text>
-                <Text style={styles.addressText}>Ahmedabad, Gujarat 380015</Text>
-                <View style={styles.addressContact}>
-                  <Icon name="account" size={16} color="#666" />
-                  <Text style={styles.contactText}>Ayush</Text>
-                  <View style={styles.contactDivider} />
-                  <Icon name="phone" size={16} color="#666" />
-                  <Text style={styles.contactText}>9999999999</Text>
-                </View>
+              {/* Full Name */}
+              <TextInput
+                mode="outlined"
+                label="Full Name"
+                placeholder="John Doe"
+                value={address.name}
+                onChangeText={v => setAddressField('name', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="account-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Phone */}
+              <TextInput
+                mode="outlined"
+                label="Phone Number"
+                placeholder="9876543210"
+                value={address.phone}
+                onChangeText={v => setAddressField('phone', v)}
+                keyboardType="phone-pad"
+                maxLength={10}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="phone-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Email (optional) */}
+              <TextInput
+                mode="outlined"
+                label="Email"
+                placeholder="you@example.com"
+                value={address.email}
+                onChangeText={v => setAddressField('email', v)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="email-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Address Line 1 */}
+              <TextInput
+                mode="outlined"
+                label="Address Line 1"
+                placeholder="House / Flat No., Street"
+                value={address.line1}
+                onChangeText={v => setAddressField('line1', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="home-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Address Line 2 (optional) */}
+              <TextInput
+                mode="outlined"
+                label="Address Line 2 (optional)"
+                placeholder="Landmark, Area, Colony"
+                value={address.line2}
+                onChangeText={v => setAddressField('line2', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="map-marker-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* City + State */}
+              <View style={styles.addressRowDouble}>
+                <TextInput
+                  mode="outlined"
+                  label="City"
+                  placeholder="Indore"
+                  value={address.city}
+                  onChangeText={v => setAddressField('city', v)}
+                  outlineColor="#E0E0E0"
+                  activeOutlineColor="#0B77A7"
+                  style={[styles.addressInput, styles.addressInputHalf]}
+                />
+                <TextInput
+                  mode="outlined"
+                  label="State"
+                  placeholder="MP"
+                  value={address.state}
+                  onChangeText={v => setAddressField('state', v)}
+                  outlineColor="#E0E0E0"
+                  activeOutlineColor="#0B77A7"
+                  style={[styles.addressInput, styles.addressInputHalf]}
+                />
               </View>
 
-              <TouchableOpacity style={styles.changeAddressBtn}>
-                <Icon name="pencil-outline" size={18} color="#0B77A7" />
-                <Text style={styles.changeAddressText}>Change Address</Text>
-              </TouchableOpacity>
+              {/* Pincode */}
+              <TextInput
+                mode="outlined"
+                label="Pincode"
+                placeholder="452001"
+                value={address.pincode}
+                onChangeText={v => setAddressField('pincode', v)}
+                keyboardType="number-pad"
+                maxLength={6}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="postage-stamp" color="#999" />}
+                style={styles.addressInput}
+              />
 
               <View style={styles.deliveryInfoBox}>
                 <Icon name="truck-fast" size={20} color="#4CAF50" />
@@ -1089,6 +1204,14 @@ const styles = ScaledSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '16@vs', gap: '10@s' },
   sectionTitle: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
 
+  // ── Address form ──────────────────────────────────────────────────────────
+  addressInput: { marginBottom: '10@vs', backgroundColor: '#fff' },
+  addressRowDouble: { flexDirection: 'row', gap: '10@s' },
+  addressInputHalf: { flex: 1 },
+
+  deliveryInfoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F8F4', padding: '12@s', borderRadius: '10@ms', gap: '10@s', marginTop: '4@vs' },
+  deliveryInfoText: { flex: 1, fontSize: '13@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
+
   offerItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
   offerLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
   offerText: { fontSize: '14@ms', color: '#333', fontFamily: FONTS.Medium },
@@ -1113,18 +1236,6 @@ const styles = ScaledSheet.create({
   applyBtn: { backgroundColor: '#0B77A7', paddingHorizontal: '18@s', height: '46@vs', borderRadius: '10@ms', justifyContent: 'center', alignItems: 'center', minWidth: '72@s' },
   applyBtnDisabled: { backgroundColor: '#B0BEC5' },
   applyBtnText: { color: '#fff', fontFamily: FONTS.Bold, fontSize: '14@ms' },
-
-  addressCard: { backgroundColor: '#F8F9FA', padding: '14@s', borderRadius: '12@ms', marginBottom: '12@vs' },
-  addressHeader: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: '8@vs' },
-  addressType: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  addressText: { fontSize: '13@ms', color: '#555', lineHeight: '20@vs' },
-  addressContact: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginTop: '8@vs' },
-  contactText: { fontSize: '12@ms', color: '#666' },
-  contactDivider: { width: 1, height: '12@vs', backgroundColor: '#E0E0E0', marginHorizontal: '4@s' },
-  changeAddressBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: '10@vs', borderRadius: '10@ms', borderWidth: 1.5, borderColor: '#0B77A7', gap: '6@s', marginBottom: '12@vs' },
-  changeAddressText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
-  deliveryInfoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F8F4', padding: '12@s', borderRadius: '10@ms', gap: '10@s' },
-  deliveryInfoText: { flex: 1, fontSize: '13@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
 
   emailNote: { fontSize: '13@ms', color: '#666', marginBottom: '12@vs' },
   emailInput: { backgroundColor: '#fff', marginBottom: '12@vs' },

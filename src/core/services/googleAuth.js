@@ -17,7 +17,7 @@ export const googleLogin = async () => {
   }
 
   const res = await request({
-    url: '192.168.31.38/auth/google',
+    url: 'https://ab-shoppy.icompunic.com/auth/google',
     method: 'POST',
     body: { idToken },
   })

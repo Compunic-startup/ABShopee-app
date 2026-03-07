@@ -20,6 +20,9 @@ export default function HomeHeader() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 22 , marginRight: 5}}>
+           <TouchableOpacity onPress={() => navigation.navigate('NotificationsScreen')}>
+            <Icon name="bell-outline" size={28} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('WishlistScreen')}>
             <Icon name="heart-outline" size={28} color="#fff" />
           </TouchableOpacity>
@@ -29,7 +32,7 @@ export default function HomeHeader() {
         </View>
       </View>
 
-      {/* Search Bar */}
+      {/* Search Bar
       <TextInput
         mode="outlined"
         placeholder="Search For Anti-Virus"
@@ -38,7 +41,7 @@ export default function HomeHeader() {
         activeOutlineColor={color.primary}
         style={styles.searchInput}
         theme={{ roundness: 10 }}
-      />
+      /> */}
 
       {/* Banner */}
       <View style={styles.banner}>

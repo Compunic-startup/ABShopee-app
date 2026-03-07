@@ -42,10 +42,13 @@ export default function CartScreen() {
   const [placing, setPlacing] = useState(false)
 
   const [address, setAddress] = useState({
-    houseNo: '',
+    name: '',
+    phone: '',
+    email: '',
     line1: '',
     line2: '',
     city: '',
+    state: '',
     pincode: '',
   })
 
@@ -67,9 +70,17 @@ export default function CartScreen() {
     i => i.itemSnapshot?.itemType === 'digital'
   )
 
+  const hasPhysicalItem = cart?.items?.some(
+    i => i.itemSnapshot?.itemType !== 'digital'
+  )
+
   // Separate free gifts from regular items
   const regularItems = cart?.items?.filter(i => !i.isFreeGift) ?? []
   const freeGiftItems = cart?.items?.filter(i => i.isFreeGift) ?? []
+
+  // ─── Address field helper ─────────────────────────────────────────────────
+  const setAddressField = (field, value) =>
+    setAddress(prev => ({ ...prev, [field]: value }))
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -319,12 +330,25 @@ export default function CartScreen() {
     return payload
   }
 
+  // ─── Address validation ───────────────────────────────────────────────────
+  const validateAddress = () => {
+    const { name, phone, line1, city, state, pincode } = address
+    if (!name.trim()) { ToastAndroid.show('Enter full name', ToastAndroid.SHORT); return false }
+    if (!phone.trim() || phone.trim().length < 10) { ToastAndroid.show('Enter valid 10-digit phone number', ToastAndroid.SHORT); return false }
+    if (!line1.trim()) { ToastAndroid.show('Enter address line 1', ToastAndroid.SHORT); return false }
+    if (!city.trim()) { ToastAndroid.show('Enter city', ToastAndroid.SHORT); return false }
+    if (!state.trim()) { ToastAndroid.show('Enter state', ToastAndroid.SHORT); return false }
+    if (!pincode.trim() || pincode.trim().length !== 6) { ToastAndroid.show('Enter valid 6-digit pincode', ToastAndroid.SHORT); return false }
+    return true
+  }
+
   // ─── Place order ──────────────────────────────────────────────────────────
-  const placeOrder = async ({ cartId, cartItems, paymentMethod, address }) => {
+  const placeOrder = async ({ cartId, cartItems, paymentMethod }) => {
     if (placing) return
     try {
       setPlacing(true)
       const hasDigital = cartItems.some(i => i.itemSnapshot?.itemType === 'digital')
+      const hasPhysical = cartItems.some(i => i.itemSnapshot?.itemType !== 'digital')
 
       if (hasDigital && !digitalEmail) {
         ToastAndroid.show('Enter email for digital delivery', ToastAndroid.SHORT)
@@ -332,6 +356,9 @@ export default function CartScreen() {
       }
       if (hasDigital && !digitalEmail.includes('@')) {
         ToastAndroid.show('Enter valid email address', ToastAndroid.SHORT)
+        return
+      }
+      if (hasPhysical && !validateAddress()) {
         return
       }
       if (paymentMethod === 'COD' && hasDigital) {
@@ -799,25 +826,130 @@ export default function CartScreen() {
             </View>
           )}
 
-          {/* Delivery Section */}
+          {/* ── Delivery / Shipping Address ───────────────────────────────── */}
           {!hasOnlyDigital && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <Icon name="truck-delivery-outline" size={24} color="#0B77A7" />
                 <Text style={styles.sectionTitle}>Delivery Details</Text>
               </View>
-              <TouchableOpacity style={styles.addressCard}>
-                <View style={styles.addressLeft}>
-                  <Icon name="map-marker" size={20} color="#0B77A7" />
-                  <View style={styles.addressTextContainer}>
-                    <Text style={styles.addressTitle}>Deliver to</Text>
-                    <Text style={styles.addressText}>
-                      HB 15 Takshshila Apartments, Indore, MP 452001
-                    </Text>
-                  </View>
-                </View>
-                <Icon name="chevron-right" size={24} color="#999" />
-              </TouchableOpacity>
+
+              {/* Row 1: Full Name */}
+              <TextInput
+                mode="outlined"
+                label="Full Name"
+                placeholder="John Doe"
+                placeholderTextColor="#99999993"
+                value={address.name}
+                onChangeText={v => setAddressField('name', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="account-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Row 2: Phone */}
+              <TextInput
+                mode="outlined"
+                label="Phone Number"
+                placeholder="9876543210"
+                placeholderTextColor="#99999993"
+                value={address.phone}
+                onChangeText={v => setAddressField('phone', v)}
+                keyboardType="phone-pad"
+                maxLength={10}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="phone-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Row 3: Email (optional for physical) */}
+              <TextInput
+                mode="outlined"
+                label="Email"
+                placeholder="you@example.com"
+                placeholderTextColor="#99999993"
+                value={address.email}
+                onChangeText={v => setAddressField('email', v)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="email-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Row 4: Address Line 1 */}
+              <TextInput
+                mode="outlined"
+                label="Address Line 1"
+                placeholder="House / Flat No., Street"
+                placeholderTextColor="#99999993"
+                value={address.line1}
+                onChangeText={v => setAddressField('line1', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="home-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Row 5: Address Line 2 (optional) */}
+              <TextInput
+                mode="outlined"
+                label="Address Line 2 (optional)"
+                placeholder="Landmark, Area, Colony"
+                placeholderTextColor="#99999993"
+                value={address.line2}
+                onChangeText={v => setAddressField('line2', v)}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="map-marker-outline" color="#999" />}
+                style={styles.addressInput}
+              />
+
+              {/* Row 6: City + State side by side */}
+              <View style={styles.addressRowDouble}>
+                <TextInput
+                  mode="outlined"
+                  label="City"
+                  placeholder="Indore"
+                  placeholderTextColor="#99999993"
+                  value={address.city}
+                  onChangeText={v => setAddressField('city', v)}
+                  outlineColor="#E0E0E0"
+                  activeOutlineColor="#0B77A7"
+                  style={[styles.addressInput, styles.addressInputHalf]}
+                />
+                <TextInput
+                  mode="outlined"
+                  label="State"
+                  placeholder="MP"
+                  placeholderTextColor="#99999993"
+                  value={address.state}
+                  onChangeText={v => setAddressField('state', v)}
+                  outlineColor="#E0E0E0"
+                  activeOutlineColor="#0B77A7"
+                  style={[styles.addressInput, styles.addressInputHalf]}
+                />
+              </View>
+
+              {/* Row 7: Pincode */}
+              <TextInput
+                mode="outlined"
+                label="Pincode"
+                placeholder="452001"
+                placeholderTextColor="#99999993"
+                value={address.pincode}
+                onChangeText={v => setAddressField('pincode', v)}
+                keyboardType="number-pad"
+                maxLength={6}
+                outlineColor="#E0E0E0"
+                activeOutlineColor="#0B77A7"
+                left={<TextInput.Icon icon="postage-stamp" color="#999" />}
+                style={styles.addressInput}
+              />
+
               <View style={styles.deliveryInfo}>
                 <Icon name="clock-outline" size={16} color="#4CAF50" />
                 <Text style={styles.deliveryTime}>Estimated delivery in 3-5 days</Text>
@@ -825,7 +957,7 @@ export default function CartScreen() {
             </View>
           )}
 
-          {/* Digital Email */}
+          {/* ── Digital Delivery Email ────────────────────────────────────── */}
           {hasDigitalItem && (
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
@@ -1053,15 +1185,6 @@ export default function CartScreen() {
               cartId: cart.cartId,
               cartItems: cart.items,
               paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD',
-              address: {
-                line1: 'HB 15 Takshshila Apartments',
-                city: 'Indore',
-                state: 'MP',
-                pincode: '452001',
-                name: 'Customer',
-                phone: '9999999999',
-                email: 'ayushhkhale@gmail.com',
-              },
             })
           }
           activeOpacity={0.9}
@@ -1302,6 +1425,14 @@ const styles = ScaledSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginBottom: '14@vs' },
   sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
 
+  // ── Address form ──────────────────────────────────────────────────────────
+  addressInput: { marginBottom: '10@vs', backgroundColor: '#fff' },
+  addressRowDouble: { flexDirection: 'row', gap: '10@s' },
+  addressInputHalf: { flex: 1 },
+
+  deliveryInfo: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginTop: '4@vs' },
+  deliveryTime: { fontSize: '12@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
+
   offerItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
   offerLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
   offerText: { fontSize: '14@ms', color: '#333', fontFamily: FONTS.Medium },
@@ -1365,14 +1496,6 @@ const styles = ScaledSheet.create({
   discountTotalLeft: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
   discountTotalLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
   discountTotalValue: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
-
-  addressCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8F9FA', padding: '12@s', borderRadius: '10@ms', marginBottom: '10@vs' },
-  addressLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s', flex: 1 },
-  addressTextContainer: { flex: 1 },
-  addressTitle: { fontSize: '12@ms', color: '#999', marginBottom: '2@vs' },
-  addressText: { fontSize: '13@ms', color: '#333', fontFamily: FONTS.Medium },
-  deliveryInfo: { flexDirection: 'row', alignItems: 'center', gap: '6@s' },
-  deliveryTime: { fontSize: '12@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
 
   emailNote: { fontSize: '13@ms', color: '#666', marginBottom: '10@vs' },
 

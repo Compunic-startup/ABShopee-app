@@ -1,17 +1,27 @@
-import React, { useState } from 'react'
-import { View, Text, Image, TouchableOpacity } from 'react-native'
-import { TextInput, Button, Divider } from 'react-native-paper'
+import React, { useState, useRef, useEffect } from 'react'
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ToastAndroid,
+  Animated,
+  Dimensions,
+  StatusBar,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native'
+import { TextInput, Divider } from 'react-native-paper'
+import { ScaledSheet, moderateScale } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
-import { ScaledSheet } from 'react-native-size-matters'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import color from '../../core/utils/color'
 import fonts from '../../core/utils/fonts'
-import { saveAuthData } from '../../core/storage/authstorage'
 import BASE_URL from '../../core/services/api'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { ToastAndroid } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
+const { height } = Dimensions.get('window')
 
 export default function PasswordLoginScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
@@ -19,45 +29,61 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
   const identifier = params?.identifier
 
   const [password, setPassword] = useState('')
-
   const [showPassword, setShowPassword] = useState(false)
 
-  const isStrongPassword = (value) => {
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
-    return regex.test(value)
-  }
+  // ── Animations ──────────────────────────────────────────────────────────────
+  const fadeAnim  = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(60)).current
+  const cardAnim  = useRef(new Animated.Value(80)).current
+  const cardFade  = useRef(new Animated.Value(0)).current
+  const pulse     = useRef(new Animated.Value(1)).current
 
+  useEffect(() => {
+    Animated.stagger(120, [
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(cardFade, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(cardAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+    ]).start()
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.08, duration: 2200, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1,    duration: 2200, useNativeDriver: true }),
+      ])
+    ).start()
+  }, [])
+
+  // ── Validation ──────────────────────────────────────────────────────────────
+  const isStrongPassword = (value) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(value)
   const isValid = isStrongPassword(password)
 
-
+  // ── Login ───────────────────────────────────────────────────────────────────
   const loginRequest = async () => {
     if (!isValid) {
-      ToastAndroid.show(
-        'Password must be 8+ chars with upper, lower & number',
-        ToastAndroid.SHORT
-      )
+      ToastAndroid.show('Password must be 8+ chars with upper, lower & number', ToastAndroid.SHORT)
       return
     }
-
     try {
       const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
       })
-
       const data = await res.json()
       console.log(data)
 
       if (!res.ok) {
-        ToastAndroid.show(
-          data?.message || 'Login failed',
-          ToastAndroid.SHORT
-        )
+        ToastAndroid.show(data?.message || 'Login failed', ToastAndroid.SHORT)
         return
       }
 
-      const token = data?.data?.user?.accessToken
+      const token      = data?.data?.user?.accessToken
+      const customerId = data?.data?.user?.id
 
       if (!token) {
         ToastAndroid.show('Token not received', ToastAndroid.SHORT)
@@ -65,125 +91,150 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
       }
 
       await AsyncStorage.setItem('userToken', token)
+      await AsyncStorage.setItem('customerId', customerId)
       await AsyncStorage.getItem('userToken').then((value) => console.log('Stored token:', value))
-
       setIsLoggedIn(true)
-
     } catch (err) {
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT)
     }
   }
 
+  // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
-      <View style={styles.topBar}>
-        <Image
-          source={require('../../core/assets/images/constants/logolight.png')}
-          style={[styles.logo, { marginLeft: -40 }]}
-          resizeMode="contain"
-        />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-        <TouchableOpacity>
-          <Text style={styles.skipText}>Skip ›</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Decorative blobs */}
+        <Animated.View style={[styles.blobTopRight, { transform: [{ scale: pulse }] }]} />
+        <View style={styles.blobBottomLeft} />
 
-      <View style={styles.hero}>
-        <Text style={styles.title}>
-          Storage Or RAMs,{'\n'}You Name It, We Get It!
-        </Text>
-
-        <Image
-          source={require('../../core/assets/images/constants/floatingbgssd.png')}
-          style={styles.productImage}
-          resizeMode="contain"
-        />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.heading}>Welcome Back</Text>
-        <Text style={styles.subHeading}>
-          Login to continue with {identifier}
-        </Text>
-
-        <TextInput
-          mode="outlined"
-          label="Email"
-          value={identifier}
-          disabled
-          style={styles.input}
-        />
-
-        <TextInput
-          mode="outlined"
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          outlineColor="#ddd"
-          activeOutlineColor={color.primary}
-          style={styles.input}
-          right={
-            <TextInput.Icon
-              icon={() => (
-                <Icon
-                  name={
-                    password.length === 0
-                      ? showPassword
-                        ? 'eye-off'
-                        : 'eye'
-                      : isValid
-                        ? 'check-circle'
-                        : showPassword
-                          ? 'eye-off'
-                          : 'eye'
-                  }
-                  size={20}
-                  color={isValid ? 'green' : undefined}
-                  onPress={() => setShowPassword(!showPassword)}
-                />
-              )}
-            />
-          }
-        />
-
-
-        <AppButton
-          mode="contained"
-          disabled={!isValid}
-          onPress={loginRequest}
-          style={styles.button}
+        {/* Top Bar */}
+        <Animated.View
+          style={[styles.topBar, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
         >
-          Login
-        </AppButton>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Icon name="arrow-left" size={moderateScale(20)} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
 
+        {/* Hero */}
+        <Animated.View
+          style={[styles.hero, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        >
+          <Text style={styles.title}>
+            Welcome Back,{'\n'}
+            <Text style={styles.titleAccent}>Good To See You! 👋</Text>
+          </Text>
+        </Animated.View>
 
-        <TouchableOpacity>
-          <Text style={styles.forgot}>Forgot password?</Text>
-        </TouchableOpacity>
+        {/* Card */}
+        <Animated.View
+          style={[styles.card, { opacity: cardFade, transform: [{ translateY: cardAnim }] }]}
+        >
+          {/* Card handle */}
+          <View style={styles.cardHandle} />
 
-        <View style={styles.dividerRow}>
-          <Divider style={styles.divider} />
-          <Text style={styles.or}>or Login with</Text>
-          <Divider style={styles.divider} />
-        </View>
+          <Text style={styles.heading}>Login to Continue</Text>
+          <Text style={styles.subHeading}>
+            Signing in as <Text style={styles.identifierHighlight}>{identifier}</Text>
+          </Text>
 
-        <AppButton
-          mode="outlined"
-          icon={() => (
+          {/* Email (disabled) */}
+          <View style={styles.inputWrapper}>
+            <TextInput
+              mode="outlined"
+              label="Email"
+              value={identifier}
+              disabled
+              outlineColor="#E8ECF4"
+              activeOutlineColor={color.primary}
+              outlineStyle={{ borderRadius: moderateScale(14) }}
+              style={styles.input}
+              left={<TextInput.Icon icon={() => <Icon name="email-outline" size={18} color="#9AA3B2" />} />}
+              theme={{ fonts: { bodyLarge: { fontFamily: fonts.MontRegular } } }}
+            />
+            <View style={styles.lockBadge}>
+              <Icon name="lock-outline" size={moderateScale(11)} color="#9AA3B2" />
+            </View>
+          </View>
+
+          {/* Password */}
+          <View style={styles.inputWrapper}>
+            <TextInput
+              mode="outlined"
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              outlineColor="#E8ECF4"
+              activeOutlineColor={color.primary}
+              outlineStyle={{ borderRadius: moderateScale(14) }}
+              style={styles.input}
+              left={<TextInput.Icon icon={() => <Icon name="lock-outline" size={18} color="#9AA3B2" />} />}
+              right={
+                <TextInput.Icon
+                  icon={() => (
+                    <Icon
+                      name={
+                        password.length === 0
+                          ? showPassword ? 'eye-off-outline' : 'eye-outline'
+                          : isValid
+                            ? 'check-circle'
+                            : showPassword ? 'eye-off-outline' : 'eye-outline'
+                      }
+                      size={18}
+                      color={isValid ? '#22C55E' : '#9AA3B2'}
+                      onPress={() => setShowPassword(!showPassword)}
+                    />
+                  )}
+                />
+              }
+              theme={{
+                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                colors: { onSurfaceVariant: '#9AA3B2' },
+              }}
+            />
+          </View>
+
+          {/* Login Button */}
+          <AppButton
+            mode="contained"
+            disabled={!isValid}
+            onPress={loginRequest}
+            style={[styles.button, !isValid && styles.buttonDisabled]}
+            contentStyle={styles.buttonContent}
+          >
+            Login →
+          </AppButton>
+
+          {/* Forgot password */}
+          <TouchableOpacity>
+            <Text style={styles.forgot}>Forgot password?</Text>
+          </TouchableOpacity>
+
+          {/* Divider
+          <View style={styles.dividerRow}>
+            <Divider style={styles.divider} />
+            <Text style={styles.or}>or login with</Text>
+            <Divider style={styles.divider} />
+          </View> */}
+
+          {/* Google Button
+          <TouchableOpacity style={styles.googleBtn} activeOpacity={0.75} onPress={() => {}}>
             <Image
               source={require('../../core/assets/images/constants/googleimg.png')}
-              style={{ width: 22, height: 22 }}
+              style={styles.googleIcon}
             />
-          )}
-          onPress={() => { }}
-          style={styles.googleBtn}
-          textColor="#000"
-        >
-          Continue with Google
-        </AppButton>
+            <Text style={styles.googleText}>Continue with Google</Text>
+          </TouchableOpacity> */}
+
+        </Animated.View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -191,103 +242,197 @@ const styles = ScaledSheet.create({
   container: {
     flex: 1,
     backgroundColor: color.primary,
+    overflow: 'hidden',
   },
 
+  // ── Blobs ───────────────────────────────────────────────────────────────────
+  blobTopRight: {
+    position: 'absolute',
+    top: '-60@vs',
+    right: '-60@s',
+    width: '200@s',
+    height: '200@s',
+    borderRadius: '100@s',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  blobBottomLeft: {
+    position: 'absolute',
+    bottom: '180@vs',
+    left: '-80@s',
+    width: '180@s',
+    height: '180@s',
+    borderRadius: '90@s',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+
+  // ── Top bar ─────────────────────────────────────────────────────────────────
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: '16@s',
-    paddingTop: '12@vs',
-  },
-
-  logo: {
-    height: '40@vs',
-    width: '120@s',
-  },
-
-  skipText: {
-    color: '#fff',
-    fontSize: '13@ms',
-  },
-
-  hero: {
-    flex: 1,
     alignItems: 'center',
     paddingHorizontal: '20@s',
+    paddingTop: '16@vs',
+  },
+  backBtn: {
+    width: '36@s',
+    height: '36@s',
+    borderRadius: '18@ms',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
+  // ── Hero ────────────────────────────────────────────────────────────────────
+  hero: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: '12@s',
+  },
   title: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: '21@ms',
+    lineHeight: '31@vs',
+    fontFamily: fonts.MontBold,
+    textAlign: 'center',
+  },
+  titleAccent: {
     color: '#fff',
-    fontSize: '20@ms',
-    fontWeight: '700',
-    textAlign: 'center',
-    marginVertical: '40@vs',
-    fontFamily: fonts.MontBold,
+    fontSize: '23@ms',
+    fontWeight: '800',
   },
 
-  productImage: {
-    height: '450@vs',
-    width: '100%',
-    marginTop: '-150@vs',
-  },
-
+  // ── Card ────────────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: '26@ms',
-    borderTopRightRadius: '26@ms',
-    padding: '20@s',
+    backgroundColor: '#FAFBFF',
+    borderTopLeftRadius: '32@ms',
+    borderTopRightRadius: '32@ms',
+    paddingHorizontal: '24@s',
+    paddingTop: '10@vs',
+    paddingBottom: '28@vs',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 16,
   },
-
+  cardHandle: {
+    alignSelf: 'center',
+    width: '36@s',
+    height: '4@vs',
+    borderRadius: '2@ms',
+    backgroundColor: '#DDE2EF',
+    marginBottom: '16@vs',
+  },
   heading: {
-    fontSize: '20@ms',
+    fontSize: '22@ms',
+    fontWeight: '800',
+    color: '#0F172A',
     fontFamily: fonts.MontBold,
-    textAlign: 'center',
+    marginBottom: '4@vs',
+  },
+  subHeading: {
+    color: '#64748B',
+    fontSize: '12@ms',
+    fontFamily: fonts.MontRegular,
+    lineHeight: '18@vs',
+    marginBottom: '14@vs',
+  },
+  identifierHighlight: {
+    color: color.primary,
+    fontFamily: fonts.MontBold,
   },
 
-  subHeading: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: '11@ms',
-    marginVertical: '6@vs',
+  // ── Inputs ──────────────────────────────────────────────────────────────────
+  inputWrapper: {
+    position: 'relative',
+    marginBottom: '10@vs',
+  },
+  input: {
+    backgroundColor: '#fff',
+    fontSize: '13@ms',
     fontFamily: fonts.MontRegular,
   },
-
-  input: {
-    marginTop: '10@vs',
-    backgroundColor: '#fff',
+  lockBadge: {
+    position: 'absolute',
+    right: '14@s',
+    top: '50%',
+    marginTop: '-8@vs',
   },
 
+  // ── Button ──────────────────────────────────────────────────────────────────
   button: {
-    borderRadius: '8@ms',
-    marginVertical: '14@vs',
+    borderRadius: '14@ms',
+    marginTop: '4@vs',
+    marginBottom: '12@vs',
+    backgroundColor: color.primary,
+    shadowColor: color.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonContent: {
+    height: '50@vs',
   },
 
+  // Forgot password
   forgot: {
     textAlign: 'center',
     color: color.primary,
-    fontSize: '13@ms',
-    fontFamily: fonts.MontMedium,
-    marginBottom: '14@vs',
+    fontSize: '12@ms',
+    fontFamily: fonts.MontBold,
+    marginBottom: '16@vs',
   },
 
+  // ── Divider ─────────────────────────────────────────────────────────────────
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: '12@vs',
+    marginBottom: '14@vs',
   },
-
   divider: {
     flex: 1,
+    backgroundColor: '#E8ECF4',
+    height: 1,
   },
-
   or: {
-    marginHorizontal: '8@s',
-    fontSize: '12@ms',
-    color: '#666',
+    marginHorizontal: '10@s',
+    fontSize: '11@ms',
+    color: '#94A3B8',
+    fontFamily: fonts.MontRegular,
+    letterSpacing: 0.3,
   },
 
+  // ── Google Button ───────────────────────────────────────────────────────────
   googleBtn: {
-    borderRadius: '8@ms',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: '14@ms',
+    paddingVertical: '13@vs',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  googleIcon: {
+    width: '22@ms',
+    height: '22@ms',
+    marginRight: '10@s',
+  },
+  googleText: {
+    fontSize: '14@ms',
+    fontWeight: '600',
+    color: '#1E293B',
+    fontFamily: fonts.MontBold,
   },
 })

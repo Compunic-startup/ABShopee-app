@@ -299,20 +299,20 @@ export default function ExploreInventoryScreen() {
 
   // ── Option lists ──────────────────────────────────────────────────────────
   const filterOptions = [
-    { key: 'all',      label: 'All Products', shortLabel: 'All',      icon: 'view-grid'    },
-    { key: 'digital',  label: 'Digital',      shortLabel: 'Digital',  icon: 'download'     },
-    { key: 'physical', label: 'Physical',     shortLabel: 'Physical', icon: 'cube-outline' },
-    { key: 'in_stock', label: 'In Stock',     shortLabel: 'In Stock', icon: 'check-circle' },
-    { key: 'featured', label: 'Featured',     shortLabel: 'Featured', icon: 'star'         },
+    { key: 'all', label: 'All Products', shortLabel: 'All', icon: 'view-grid' },
+    { key: 'digital', label: 'Digital', shortLabel: 'Digital', icon: 'download' },
+    { key: 'physical', label: 'Physical', shortLabel: 'Physical', icon: 'cube-outline' },
+    { key: 'in_stock', label: 'In Stock', shortLabel: 'In Stock', icon: 'check-circle' },
+    { key: 'featured', label: 'Featured', shortLabel: 'Featured', icon: 'star' },
   ]
 
   const sortOptions = [
-    { key: 'price_asc',  label: 'Price: Low → High', shortLabel: '↑ Price', icon: 'sort-ascending'  },
+    { key: 'price_asc', label: 'Price: Low → High', shortLabel: '↑ Price', icon: 'sort-ascending' },
     { key: 'price_desc', label: 'Price: High → Low', shortLabel: '↓ Price', icon: 'sort-descending' },
   ]
 
   const getSortParams = key => {
-    if (key === 'price_asc')  return '&sortBy=discountedPrice&sortOrder=asc'
+    if (key === 'price_asc') return '&sortBy=discountedPrice&sortOrder=asc'
     if (key === 'price_desc') return '&sortBy=discountedPrice&sortOrder=desc'
     return ''
   }
@@ -334,7 +334,7 @@ export default function ExploreInventoryScreen() {
     if (!loading && !contentLoading && products.length > 0) {
       fadeAnim.setValue(0)
       Animated.parallel([
-        Animated.timing(fadeAnim,   { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
         Animated.timing(headerAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]).start()
     }
@@ -377,7 +377,7 @@ export default function ExploreInventoryScreen() {
   const toggleWishlist = async itemId => {
     const isWishlisted = wishlistIds.has(itemId)
     try {
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
       const url = isWishlisted
         ? `/customer/business/${businessId}/items/${itemId}/wishlist/remove`
@@ -402,21 +402,21 @@ export default function ExploreInventoryScreen() {
 
   // ── Map API row → product ─────────────────────────────────────────────────
   const mapProduct = item => {
-    const price              = item.prices?.[0]
-    const priceData          = item?.prices?.[0]
-    const inventory          = item.inventories?.[0]
+    const price = item.prices?.[0]
+    const priceData = item?.prices?.[0]
+    const inventory = item.inventories?.[0]
     const digitalAssetsCount = item.digitalAssets?.length || 0
-    const category           = item.Categories?.[0]
-    const featuredAttr       = item.attributes?.find(a => a.key === 'is_featured')
-    const shortDescAttr      = item.attributes?.find(a => a.key === 'short_description')
+    const category = item.Categories?.[0]
+    const featuredAttr = item.attributes?.find(a => a.key === 'is_featured')
+    const shortDescAttr = item.attributes?.find(a => a.key === 'short_description')
     const resolvedDescription = shortDescAttr?.value || item.description || null
-    const rawBase     = item.discountPricing?.basePrice     ?? price?.amount ?? 0
-    const rawFinal    = item.discountPricing?.finalPrice    ?? price?.amount ?? 0
+    const rawBase = item.discountPricing?.basePrice ?? price?.amount ?? 0
+    const rawFinal = item.discountPricing?.finalPrice ?? price?.amount ?? 0
     const rawDiscount = item.discountPricing?.discountTotal ?? 0
 
     return {
       id: item.id, title: item.title, itemType: item.itemType,
-      image: item.media?.[0]?.url ? { uri: item.media[0].url } :  PLACEHOLDER_IMAGE,
+      image: item.media?.[0]?.url ? { uri: item.media[0].url } : PLACEHOLDER_IMAGE,
       basePrice: Math.round(rawBase), finalPrice: Math.round(rawFinal), discountTotal: Math.round(rawDiscount),
       discounts: item.discountPricing?.discounts ?? [],
       currency: price?.currency === 'INR' ? '₹' : '',
@@ -432,13 +432,13 @@ export default function ExploreInventoryScreen() {
   const fetchProducts = async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true)
-      else           setContentLoading(true)
+      else setContentLoading(true)
 
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
       const sortParams = getSortParams(sortOption)
 
-      const res  = await fetch(
+      const res = await fetch(
         `${BASE_URL}/customer/business/${businessId}/products?${sortParams}`,
         { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
       )
@@ -466,25 +466,25 @@ export default function ExploreInventoryScreen() {
     try {
       setSearching(true)
       setContentLoading(true)
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
       const sortParams = getSortParams(sortOption)
 
-      const res  = await fetch(
+      const res = await fetch(
         `${BASE_URL}/customer/business/${businessId}/search/items?q=${encodeURIComponent(query)}&limit=50${sortParams}`,
         { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, signal: controller.signal }
       )
       const json = await res.json()
 
       const mapped = (json?.items || []).map(item => {
-        const price         = item.prices?.[0]
-        const inventory     = item.inventories?.[0]
-        const category      = item.Categories?.[0]
-        const featuredAttr  = item.attributes?.find(a => a.key === 'is_featured')
+        const price = item.prices?.[0]
+        const inventory = item.inventories?.[0]
+        const category = item.Categories?.[0]
+        const featuredAttr = item.attributes?.find(a => a.key === 'is_featured')
         const shortDescAttr = item.attributes?.find(a => a.key === 'short_description')
         return {
           id: item.id, title: item.title, itemType: item.itemType,
-          image: item.media?.[0]?.url ? { uri: item.media[0].url } : PLACEHOLDER_IMAGE ,
+          image: item.media?.[0]?.url ? { uri: item.media[0].url } : PLACEHOLDER_IMAGE,
           basePrice: price?.amount ?? 0, finalPrice: price?.amount ?? 0, discountTotal: 0,
           discounts: [], currency: price?.currency === 'INR' ? '₹' : '',
           inStock: inventory && inventory.quantityAvailable > 0,
@@ -516,14 +516,14 @@ export default function ExploreInventoryScreen() {
   // ── Client-side filter + paginate ─────────────────────────────────────────
   const filteredProducts = (() => {
     let base = products
-    if (selectedFilter === 'digital')  base = base.filter(p => p.itemType === 'digital')
+    if (selectedFilter === 'digital') base = base.filter(p => p.itemType === 'digital')
     if (selectedFilter === 'physical') base = base.filter(p => p.itemType === 'physical')
     if (selectedFilter === 'in_stock') base = base.filter(p => p.inStock === true)
     if (selectedFilter === 'featured') base = base.filter(p => p.featured === true)
     return base
   })()
 
-  const totalPages    = Math.ceil(filteredProducts.length / PAGE_SIZE)
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE)
   const pagedProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const handleSortSelect = key => setSortOption(prev => (prev === key ? null : key))
@@ -538,7 +538,7 @@ export default function ExploreInventoryScreen() {
     const isDigital = item.itemType === 'digital'
     const taxLabel =
       item.taxMode === 'inclusive' ? 'Incl. All Taxes' :
-      item.taxMode === 'exclusive' ? 'Excl. Tax' : ''
+        item.taxMode === 'exclusive' ? 'Excl. Tax' : ''
 
     return (
       <Animated.View
@@ -688,7 +688,7 @@ export default function ExploreInventoryScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16 },
 
   // ── Header ──────────────────────────────────────────────────────────────
   header: {
@@ -829,7 +829,7 @@ const styles = ScaledSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 4,
   },
-  imageContainer: { position: 'relative', backgroundColor: '#fff', height: '135@vs' , padding:'20@vs'},
+  imageContainer: { position: 'relative', backgroundColor: '#fff', height: '135@vs', padding: '20@vs' },
   productImage: { width: '100%', height: '100%', resizeMode: 'contain' },
   badge: {
     position: 'absolute', top: '7@vs', left: '7@s',

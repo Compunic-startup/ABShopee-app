@@ -10,6 +10,7 @@ import OrderDetailsScreen from '../components/local/Home/OrderDetailsScreen'
 import coupondiscounts from '../components/local/Categories/CouponsDiscounts'
 import UserRefunds from '../../core/components/local/payments/UserRefunds'
 import UserTransactions from '../../core/components/local/payments/UserTransactions'
+import NotificationsScreen from '../components/local/Home/NotificationsScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -60,6 +61,10 @@ export default function MainStack({setIsLoggedIn}) {
       <Stack.Screen
         name="usertransactions"
         component={UserTransactions} options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NotificationsScreen"
+        component={NotificationsScreen} options={{ headerShown: false }}
       />
     </Stack.Navigator>
   )

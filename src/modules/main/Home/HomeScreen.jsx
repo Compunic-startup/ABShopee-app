@@ -4,13 +4,23 @@ import HomeHeader from '../../../core/components/local/Home/HomeHeader'
 import HomeCategories from '../../../core/components/local/Home/CategoryArray'
 import RecommendedScreen from '../../../core/components/local/Home/RecommendedScreen'
 
+import { FlatList } from 'react-native'
+
 const HomeScreen = () => {
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <HomeHeader />
-      <HomeCategories />
-      <RecommendedScreen />
-    </ScrollView>
+    <FlatList
+      data={[]}
+      renderItem={null}
+      ListHeaderComponent={
+        <>
+          <HomeHeader />
+          <HomeCategories />
+          <RecommendedScreen />
+        </>
+      }
+      showsVerticalScrollIndicator={false}
+      style={{ flex: 1, backgroundColor: '#fff' }}
+    />
   )
 }
 

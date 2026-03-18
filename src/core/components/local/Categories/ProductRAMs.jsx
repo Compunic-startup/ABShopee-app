@@ -449,7 +449,6 @@ export default function ProductTiles({ categoryId }) {
       setCurrentPage(1)
     } catch (e) {
       console.log('Product fetch error', e)
-      ToastAndroid.show('Failed to load products', ToastAndroid.SHORT)
     } finally {
       setLoading(false)
       setContentLoading(false)

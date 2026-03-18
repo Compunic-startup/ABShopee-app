@@ -1,26 +1,56 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, Text, Image, TouchableOpacity } from 'react-native'
-import { TextInput, Button } from 'react-native-paper'
 import { ScaledSheet } from 'react-native-size-matters'
 import color from '../../../utils/color'
 import FONTS from '../../../utils/fonts'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useNavigation } from '@react-navigation/native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export default function HomeHeader() {
+
   const navigation = useNavigation()
+  const [name, setName] = useState('Customer')
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+
+        const storedProfile = await AsyncStorage.getItem('userProfile')
+
+        if (!storedProfile) return
+
+        const profile = JSON.parse(storedProfile)
+        console.log(profile, 'Loaded profile from AsyncStorage')
+
+        const userProfile = profile?.userProfile || {}
+
+        const displayName =
+          [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ')
+
+        if (displayName) {
+          setName(displayName)
+        }
+
+      } catch (err) {
+        console.log('Profile read error', err)
+      }
+    }
+
+    loadProfile()
+  }, [])
+
   return (
     <View style={styles.container}>
-      {/* Welcome Text */}
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <View>
           <Text style={styles.welcomeText}>Welcome,</Text>
-          <Text style={styles.userName}>Ayush Khale</Text>
+          <Text style={styles.userName}>{name}</Text>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 22 , marginRight: 5}}>
-           <TouchableOpacity onPress={() => navigation.navigate('NotificationsScreen')}>
+          <TouchableOpacity onPress={() => navigation.navigate('NotificationsScreen')}>
             <Icon name="bell-outline" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('WishlistScreen')}>
@@ -32,18 +62,6 @@ export default function HomeHeader() {
         </View>
       </View>
 
-      {/* Search Bar
-      <TextInput
-        mode="outlined"
-        placeholder="Search For Anti-Virus"
-        left={<TextInput.Icon icon="magnify" />}
-        outlineColor="transparent"
-        activeOutlineColor={color.primary}
-        style={styles.searchInput}
-        theme={{ roundness: 10 }}
-      /> */}
-
-      {/* Banner */}
       <View style={styles.banner}>
         <Image
           source={require('../../../assets/images/constants/bannerimage.png')}
@@ -51,6 +69,7 @@ export default function HomeHeader() {
           resizeMode="contain"
         />
       </View>
+
     </View>
   )
 }

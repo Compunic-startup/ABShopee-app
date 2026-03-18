@@ -34,6 +34,9 @@ export default function ProductDetailScreen() {
   const [offerExpanded, setOfferExpanded] = useState(true)
   const [pulsAnim] = useState(new Animated.Value(1))
 
+  const [cartLoading, setCartLoading] = useState(false)
+  const [buyLoading, setBuyLoading] = useState(false)
+
   const galleryRef = useRef(null)
   const scrollViewRef = useRef(null)
 
@@ -278,6 +281,36 @@ export default function ProductDetailScreen() {
       else if (err?.code === 'OUT_OF_STOCK') alert('Item is out of stock')
       else if (err?.code === 'INVALID_ATTRIBUTES') alert('Invalid selection')
       else alert(err.message || 'Something went wrong')
+    }
+  }
+
+  const handleAddToCart = async () => {
+    try {
+      setCartLoading(true)
+      await addToCart()
+    } finally {
+      setCartLoading(false)
+    }
+  }
+
+  const handleBuyNow = async () => {
+    try {
+      setBuyLoading(true)
+
+      const selectedAttributes = buildSelectedAttributesPayload()
+
+      navigation.navigate('BuyInstantScreen', {
+        itemId,
+        product,
+        selectedAttributes,
+        quantity: 1,
+        isDigital,
+      })
+
+    } catch (err) {
+      alert(err.message || 'Please select required options')
+    } finally {
+      setBuyLoading(false)
     }
   }
 
@@ -644,30 +677,40 @@ export default function ProductDetailScreen() {
       <View style={styles.bottomBar}>
         {inStock ? (
           <>
-            <TouchableOpacity style={styles.addToCartBtn} onPress={addToCart} activeOpacity={0.8}>
-              <Icon name="cart-outline" size={22} color="#0B77A7" />
-              <Text style={styles.addToCartText}>Add to Cart</Text>
+            <TouchableOpacity
+              style={styles.addToCartBtn}
+              onPress={handleAddToCart}
+              activeOpacity={0.8}
+              disabled={cartLoading}
+            >
+              {cartLoading ? (
+                <ActivityIndicator color="#0B77A7" />
+              ) : (
+                <>
+                  <Icon name="cart-outline" size={22} color="#0B77A7" />
+                  <Text style={styles.addToCartText}>Add to Cart</Text>
+                </>
+              )}
             </TouchableOpacity>
+
 
             <TouchableOpacity
               style={styles.buyNowBtn}
-              onPress={() => {
-                try {
-                  const selectedAttributes = buildSelectedAttributesPayload()
-                  navigation.navigate('BuyInstantScreen', {
-                    itemId, product, selectedAttributes, quantity: 1, isDigital,
-                  })
-                } catch (err) {
-                  alert(err.message || 'Please select required options')
-                }
-              }}
+              onPress={handleBuyNow}
               activeOpacity={0.9}
+              disabled={buyLoading}
             >
-              {discountTotal > 0 && (
-                <Text style={styles.buyNowMrp}>{currency}{basePrice}</Text>
+              {buyLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  {discountTotal > 0 && (
+                    <Text style={styles.buyNowMrp}>{currency}{basePrice}</Text>
+                  )}
+                  <Text style={styles.buyNowPrice}>{currency}{finalPrice}</Text>
+                  <Text style={styles.buyNowText}>Buy Now</Text>
+                </>
               )}
-              <Text style={styles.buyNowPrice}>{currency}{finalPrice}</Text>
-              <Text style={styles.buyNowText}>Buy Now</Text>
             </TouchableOpacity>
           </>
         ) : (

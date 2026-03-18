@@ -11,6 +11,8 @@ import coupondiscounts from '../components/local/Categories/CouponsDiscounts'
 import UserRefunds from '../../core/components/local/payments/UserRefunds'
 import UserTransactions from '../../core/components/local/payments/UserTransactions'
 import NotificationsScreen from '../components/local/Home/NotificationsScreen'
+import EditProfileScreen from '../components/local/Account/EditProfileScreen'
+import ProfileInfoScreen from '../components/global/ProfileInfoScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -65,6 +67,14 @@ export default function MainStack({setIsLoggedIn}) {
       <Stack.Screen
         name="NotificationsScreen"
         component={NotificationsScreen} options={{ headerShown: false }}
+      />
+       <Stack.Screen
+        name="EditProfileScreen"
+        component={EditProfileScreen} options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ProfileInfoScreen"
+        component={ProfileInfoScreen} options={{ headerShown: false }}
       />
     </Stack.Navigator>
   )

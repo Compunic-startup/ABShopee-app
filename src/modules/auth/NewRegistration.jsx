@@ -36,16 +36,16 @@ export default function CreateAccountOtpScreen({ setIsLoggedIn }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // ── Animations (mirrors LoginSignupScreen) ──────────────────────────────────
-  const fadeAnim  = useRef(new Animated.Value(0)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(60)).current
-  const cardAnim  = useRef(new Animated.Value(80)).current
-  const cardFade  = useRef(new Animated.Value(0)).current
-  const pulse     = useRef(new Animated.Value(1)).current
+  const cardAnim = useRef(new Animated.Value(80)).current
+  const cardFade = useRef(new Animated.Value(0)).current
+  const pulse = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
     Animated.stagger(120, [
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
       ]),
       Animated.parallel([
@@ -57,25 +57,25 @@ export default function CreateAccountOtpScreen({ setIsLoggedIn }) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.08, duration: 2200, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,    duration: 2200, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
       ])
     ).start()
   }, [])
 
   // ── Validation ──────────────────────────────────────────────────────────────
   const isStrongPassword = (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(val)
-  const passwordsMatch   = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword
-  const isValidOtp       = otp.length === 6
-  const canSubmit        = isStrongPassword(password) && passwordsMatch && isValidOtp
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword
+  const isValidOtp = otp.length === 6
+  const canSubmit = isStrongPassword(password) && passwordsMatch && isValidOtp
 
   // ── Password strength bar ───────────────────────────────────────────────────
   const getStrength = (val) => {
     if (!val) return 0
     let score = 0
-    if (val.length >= 8)         score++
-    if (/[A-Z]/.test(val))       score++
-    if (/[a-z]/.test(val))       score++
-    if (/\d/.test(val))          score++
+    if (val.length >= 8) score++
+    if (/[A-Z]/.test(val)) score++
+    if (/[a-z]/.test(val)) score++
+    if (/\d/.test(val)) score++
     if (/[^A-Za-z0-9]/.test(val)) score++
     return score  // 0–5
   }
@@ -90,7 +90,7 @@ export default function CreateAccountOtpScreen({ setIsLoggedIn }) {
       return
     }
     if (!passwordsMatch) { ToastAndroid.show('Passwords do not match', ToastAndroid.SHORT); return }
-    if (!isValidOtp)     { ToastAndroid.show('OTP must be exactly 6 digits', ToastAndroid.SHORT); return }
+    if (!isValidOtp) { ToastAndroid.show('OTP must be exactly 6 digits', ToastAndroid.SHORT); return }
 
     try {
       const res = await fetch(`${BASE_URL}/auth/signup/verify`, {
@@ -106,7 +106,16 @@ export default function CreateAccountOtpScreen({ setIsLoggedIn }) {
         }),
       })
       const data = await res.json()
-      const token      = data?.data?.user?.accessToken
+      console.log('Signup verify response:', data)
+
+      if (data?.data?.user?.identifier) {
+        await AsyncStorage.setItem(
+          'Identifier',
+          JSON.stringify(data?.data?.user?.identifier)
+        )
+      }
+      
+      const token = data?.data?.user?.accessToken
       const customerId = data?.data?.user?.id
       await AsyncStorage.setItem('userToken', token)
       await AsyncStorage.setItem('customerId', customerId)

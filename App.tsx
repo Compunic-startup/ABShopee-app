@@ -11,7 +11,7 @@ export default function App() {
   React.useEffect(() => {
     getFCMToken()
   }, [])
-
+  
   return (
     <PaperProvider theme={theme}>
       <NavigationContainer>

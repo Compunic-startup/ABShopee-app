@@ -373,6 +373,7 @@ export default function ExploreInventoryScreen() {
     try {
       const token      = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
+      if (!token || !businessId) throw new Error('Missing auth or business ID')
       const url = isWishlisted
         ? `/customer/business/${businessId}/items/${itemId}/wishlist/remove`
         : `/customer/business/${businessId}/items/${itemId}/wishlist/add`
@@ -497,7 +498,6 @@ export default function ExploreInventoryScreen() {
       setCurrentPage(1)
     } catch (e) {
       console.log('Product fetch error', e)
-      ToastAndroid.show('Failed to load products', ToastAndroid.SHORT)
     } finally {
       setLoading(false)
       setContentLoading(false)

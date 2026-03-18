@@ -3,6 +3,7 @@ import LoginScreen from '../../modules/auth/LoginSignup'
 import OTPRegistered from '../../modules/auth/OTPRegistered'
 import NewRegistration from '../../modules/auth/NewRegistration'
 import PhoneOTP from '../../modules/auth/PhoneOTP'
+import ForgotPassword from '../../modules/auth/ForgotPassword'
 
 const Stack = createNativeStackNavigator()
 
@@ -20,6 +21,9 @@ export default function AuthStack({ setIsLoggedIn }) {
       </Stack.Screen>
       <Stack.Screen name="PhoneOTP">
         {(props) => <PhoneOTP {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
+       <Stack.Screen name="ForgotPassword">
+        {(props) => <ForgotPassword {...props} setIsLoggedIn={setIsLoggedIn} />}
       </Stack.Screen>
     </Stack.Navigator>
   )

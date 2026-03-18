@@ -73,14 +73,60 @@ export default function OTPScreen({ setIsLoggedIn }) {
         }),
       })
 
+      if (!res.ok) {
+        const errorData = await res.json()
+        console.log('OTP verification failed:', errorData)
+        ToastAndroid.show(errorData?.message || 'OTP verification failed', ToastAndroid.SHORT)
+        return
+      }
+
       const data = await res.json()
       console.log('OTP verification response:', data)
       const token = data?.data?.user?.accessToken
       const customerId = data?.data?.user?.id
 
+
+      if (data?.data?.user?.identifier) {
+            await AsyncStorage.setItem(
+              'Identifier',
+              JSON.stringify(data?.data?.user?.identifier)
+            )
+          }
+
       if (!token) {
         ToastAndroid.show('Token not received', ToastAndroid.SHORT)
         return
+      }
+
+      /* ---------- FETCH PROFILE HERE ---------- */
+
+      if (token) {
+        try {
+
+          const profileRes = await fetch(
+            `${BASE_URL}/customer/business/ad1351af-4c82-4206-9dee-2db2545acd19/customer-business-profile`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+
+          const profileJson = await profileRes.json()
+          console.log(profileJson, 'Fetched profile during splash')
+
+          if (profileJson?.success && profileJson?.data) {
+            await AsyncStorage.setItem(
+              'userProfile',
+              JSON.stringify(profileJson.data)
+            )
+          }
+
+        } catch (err) {
+          console.log('Profile fetch failed during splash')
+        }
       }
 
       await AsyncStorage.setItem('userToken', token)

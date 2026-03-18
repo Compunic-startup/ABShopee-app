@@ -74,6 +74,7 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier }),
     })
+    console.log('Login response:', res)
     return res.json()
   }
 
@@ -114,6 +115,7 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
         })
       }
     } catch (err) {
+      console.log(err)
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT)
     }
   }

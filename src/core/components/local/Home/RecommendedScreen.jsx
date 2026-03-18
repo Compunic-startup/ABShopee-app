@@ -16,13 +16,14 @@ import {
 } from 'react-native'
 import { TextInput } from 'react-native-paper'
 import { ScaledSheet, moderateScale, scale, verticalScale } from 'react-native-size-matters'
-import { useFocusEffect, useNavigation } from '@react-navigation/native'
+import { useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import color from '../../../utils/color'
+import FONTS from '../../../utils/fonts'
 import ProductBottomSheet from './ProductAddSheet'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
-import FONTS from '../../../utils/fonts'
 
 const { width } = Dimensions.get('window')
 const PAGE_SIZE = 10
@@ -114,9 +115,9 @@ function SkeletonGrid() {
 // ─── AutoScroll Title/Desc ────────────────────────────────────────────────────
 function AutoScrollTitleDesc({ title, description, style, height = 38 }) {
   const translateTitle = useRef(new Animated.Value(0)).current
-  const translateDesc = useRef(new Animated.Value(height)).current
-  const titleOpacity = useRef(new Animated.Value(1)).current
-  const descOpacity = useRef(new Animated.Value(0)).current
+  const translateDesc  = useRef(new Animated.Value(height)).current
+  const titleOpacity   = useRef(new Animated.Value(1)).current
+  const descOpacity    = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     if (!description) return
@@ -125,18 +126,18 @@ function AutoScrollTitleDesc({ title, description, style, height = 38 }) {
         Animated.delay(1500),
         Animated.parallel([
           Animated.timing(translateTitle, { toValue: -height, duration: 800, useNativeDriver: true }),
-          Animated.timing(titleOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+          Animated.timing(titleOpacity,   { toValue: 0,       duration: 600, useNativeDriver: true }),
         ]),
         Animated.parallel([
           Animated.timing(translateDesc, { toValue: 0, duration: 800, useNativeDriver: true }),
-          Animated.timing(descOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(descOpacity,   { toValue: 1, duration: 600, useNativeDriver: true }),
         ]),
         Animated.delay(1800),
         Animated.parallel([
-          Animated.timing(translateDesc, { toValue: height, duration: 0, useNativeDriver: true }),
-          Animated.timing(descOpacity, { toValue: 0, duration: 0, useNativeDriver: true }),
-          Animated.timing(translateTitle, { toValue: 0, duration: 0, useNativeDriver: true }),
-          Animated.timing(titleOpacity, { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(translateDesc,  { toValue: height, duration: 0, useNativeDriver: true }),
+          Animated.timing(descOpacity,    { toValue: 0,      duration: 0, useNativeDriver: true }),
+          Animated.timing(translateTitle, { toValue: 0,      duration: 0, useNativeDriver: true }),
+          Animated.timing(titleOpacity,   { toValue: 1,      duration: 0, useNativeDriver: true }),
         ]),
       ])
     ).start()
@@ -165,21 +166,20 @@ function AutoScrollTitleDesc({ title, description, style, height = 38 }) {
 // ─── Reusable Dropdown ────────────────────────────────────────────────────────
 function Dropdown({ label, icon, options, selectedKey, onSelect }) {
   const [visible, setVisible] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
-  const anchorRef = useRef(null)
+  const [pos, setPos]         = useState({ top: 0, left: 0, width: 0 })
+  const anchorRef             = useRef(null)
 
   const open = () => {
     anchorRef.current?.measureInWindow((x, y, w, h) => {
       const menuWidth = Math.max(w, moderateScale(175))
-      // Clamp so menu never overflows right edge
-      const safeLeft = Math.min(x, width - menuWidth - scale(10))
+      const safeLeft  = Math.min(x, width - menuWidth - scale(10))
       setPos({ top: y + h + 4, left: Math.max(scale(8), safeLeft), width: menuWidth })
       setVisible(true)
     })
   }
 
   const selectedOption = options.find(o => o.key === selectedKey)
-  const isActive = selectedKey !== null && selectedKey !== undefined && selectedKey !== 'all'
+  const isActive       = selectedKey !== null && selectedKey !== undefined && selectedKey !== 'all'
 
   return (
     <>
@@ -227,7 +227,6 @@ function Dropdown({ label, icon, options, selectedKey, onSelect }) {
 function PaginationBar({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null
 
-  // Build compact page array with ellipsis
   const pages = []
   const delta = 1
   for (let i = 1; i <= totalPages; i++) {
@@ -279,23 +278,24 @@ const PLACEHOLDER_IMAGE = noimage
 
 export default function ExploreInventoryScreen() {
   const navigation = useNavigation()
-  const [wishlistIds, setWishlistIds] = useState(new Set())
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(false)          // full-screen initial load
-  const [contentLoading, setContentLoading] = useState(false) // skeleton overlay for search/sort
-  const [refreshing, setRefreshing] = useState(false)
+  const [wishlistIds, setWishlistIds]         = useState(new Set())
+  const [products, setProducts]               = useState([])
+  const [totalCount, setTotalCount]           = useState(0)            // ← from data.count
+  const [loading, setLoading]                 = useState(false)
+  const [contentLoading, setContentLoading]   = useState(false)
+  const [refreshing, setRefreshing]           = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [sheetVisible, setSheetVisible] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searching, setSearching] = useState(false)       // spinner in search bar
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [sortOption, setSortOption] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const searchTimeoutRef = useRef(null)
-  const abortControllerRef = useRef(null)
-  const [fadeAnim] = useState(new Animated.Value(0))
-  const [headerAnim] = useState(new Animated.Value(0))
-  const listRef = useRef(null)
+  const [sheetVisible, setSheetVisible]       = useState(false)
+  const [searchQuery, setSearchQuery]         = useState('')
+  const [searching, setSearching]             = useState(false)
+  const [selectedFilter, setSelectedFilter]   = useState('all')
+  const [sortOption, setSortOption]           = useState(null)
+  const [currentPage, setCurrentPage]         = useState(1)
+  const searchTimeoutRef                      = useRef(null)
+  const abortControllerRef                    = useRef(null)
+  const [fadeAnim]                            = useState(new Animated.Value(0))
+  const [headerAnim]                          = useState(new Animated.Value(0))
+  const listRef                               = useRef(null)
 
   // ── Option lists ──────────────────────────────────────────────────────────
   const filterOptions = [
@@ -318,12 +318,7 @@ export default function ExploreInventoryScreen() {
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchProducts(true)
-    }, [])
-  )
+  useEffect(() => { fetchProducts(true) }, [])
 
   useEffect(() => {
     if (searchQuery.trim().length >= 3) searchProducts(searchQuery.trim())
@@ -340,7 +335,6 @@ export default function ExploreInventoryScreen() {
     }
   }, [loading, contentLoading, products])
 
-  // Reset page on filter/sort/search change
   useEffect(() => {
     setCurrentPage(1)
     listRef.current?.scrollToOffset?.({ offset: 0, animated: false })
@@ -348,7 +342,7 @@ export default function ExploreInventoryScreen() {
 
   // ── WishlistHeart ─────────────────────────────────────────────────────────
   const WishlistHeart = ({ active, onPress }) => {
-    const animScale = useRef(new Animated.Value(1)).current
+    const animScale    = useRef(new Animated.Value(1)).current
     const [isProcessing, setIsProcessing] = useState(false)
 
     const handlePress = async () => {
@@ -379,6 +373,7 @@ export default function ExploreInventoryScreen() {
     try {
       const token      = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
+      if (!token || !businessId) throw new Error('Missing token or businessId')
       const url = isWishlisted
         ? `/customer/business/${businessId}/items/${itemId}/wishlist/remove`
         : `/customer/business/${businessId}/items/${itemId}/wishlist/add`
@@ -401,29 +396,78 @@ export default function ExploreInventoryScreen() {
   }
 
   // ── Map API row → product ─────────────────────────────────────────────────
+  // Handles the updated API shape:
+  //   data.count / data.limit / data.offset / data.rows
+  //   discountPricing.finalPrice may be 0 even when discountTotal is 0
+  //   media / Categories / attributes / inventories may be empty arrays
+  //   digitalAssets is an array of { id } objects
   const mapProduct = item => {
-    const price              = item.prices?.[0]
-    const priceData          = item?.prices?.[0]
-    const inventory          = item.inventories?.[0]
-    const digitalAssetsCount = item.digitalAssets?.length || 0
-    const category           = item.Categories?.[0]
-    const featuredAttr       = item.attributes?.find(a => a.key === 'is_featured')
-    const shortDescAttr      = item.attributes?.find(a => a.key === 'short_description')
+    const price     = item.prices?.[0]
+    const priceData = item.prices?.[0]
+
+    // ── Digital asset stock ──────────────────────────────────────────────
+    // digitalAssets is Array<{ id: string }> — count by .length
+    const digitalAssetsCount = Array.isArray(item.digitalAssets) ? item.digitalAssets.length : 0
+
+    // ── Physical inventory ───────────────────────────────────────────────
+    const inventory = Array.isArray(item.inventories) ? item.inventories[0] : undefined
+
+    // ── Category & attributes ────────────────────────────────────────────
+    const category      = Array.isArray(item.Categories) ? item.Categories[0] : undefined
+    const featuredAttr  = Array.isArray(item.attributes)
+      ? item.attributes.find(a => a.key === 'is_featured')
+      : undefined
+    const shortDescAttr = Array.isArray(item.attributes)
+      ? item.attributes.find(a => a.key === 'short_description')
+      : undefined
+
+    // ── Description fallback chain ───────────────────────────────────────
     const resolvedDescription = shortDescAttr?.value || item.description || null
-    const rawBase     = item.discountPricing?.basePrice     ?? price?.amount ?? 0
-    const rawFinal    = item.discountPricing?.finalPrice    ?? price?.amount ?? 0
+
+    // ── Prices ───────────────────────────────────────────────────────────
+    const rawBase     = item.discountPricing?.basePrice  ?? Number(price?.amount ?? 0)
     const rawDiscount = item.discountPricing?.discountTotal ?? 0
 
+    // FIX: API sometimes returns finalPrice: 0 even when discountTotal is 0.
+    // In that case fall back to basePrice so we never show ₹0 incorrectly.
+    const rawFinal = item.discountPricing?.finalPrice ?? Number(price?.amount ?? 0)
+    const effectiveFinalPrice = (rawFinal === 0 && rawDiscount === 0)
+      ? rawBase
+      : rawFinal
+
+    // ── Stock ─────────────────────────────────────────────────────────────
+    const isDigital = item.itemType === 'digital'
+    const inStock   = isDigital
+      ? digitalAssetsCount > 0
+      : !!(inventory && inventory.quantityAvailable > 0)
+    const inventoryCount = isDigital
+      ? digitalAssetsCount
+      : (inventory?.quantityAvailable || 0)
+
+    // ── Media ─────────────────────────────────────────────────────────────
+    const imageSource = (Array.isArray(item.media) && item.media[0]?.url)
+      ? { uri: item.media[0].url }
+      : PLACEHOLDER_IMAGE
+
     return {
-      id: item.id, title: item.title, itemType: item.itemType,
-      image: item.media?.[0]?.url ? { uri: item.media[0].url } :  PLACEHOLDER_IMAGE,
-      basePrice: Math.round(rawBase), finalPrice: Math.round(rawFinal), discountTotal: Math.round(rawDiscount),
-      discounts: item.discountPricing?.discounts ?? [],
-      currency: price?.currency === 'INR' ? '₹' : '',
-      taxMode: priceData?.taxMode, priceType: priceData?.priceType,
-      inStock: item.itemType === 'digital' ? digitalAssetsCount > 0 : inventory && inventory.quantityAvailable > 0,
-      inventoryCount: item.itemType === 'digital' ? digitalAssetsCount : inventory?.quantityAvailable || 0,
-      category: category?.name, featured: featuredAttr?.value === true,
+      id:            item.id,
+      title:         item.title,
+      slug:          item.slug,
+      status:        item.status,
+      visibility:    item.visibility,
+      itemType:      item.itemType,
+      image:         imageSource,
+      basePrice:     Math.round(rawBase),
+      finalPrice:    Math.round(effectiveFinalPrice),
+      discountTotal: Math.round(rawDiscount),
+      discounts:     item.discountPricing?.discounts ?? [],
+      currency:      price?.currency === 'INR' ? '₹' : (price?.currency ?? ''),
+      taxMode:       priceData?.taxMode,
+      priceType:     priceData?.priceType,
+      inStock,
+      inventoryCount,
+      category:      category?.name ?? null,
+      featured:      featuredAttr?.value === true,
       shortDescription: resolvedDescription,
     }
   }
@@ -444,12 +488,16 @@ export default function ExploreInventoryScreen() {
       )
       const json = await res.json()
 
-      const mapped = (json?.data?.rows || []).map(mapProduct)
+      // API shape: { data: { count, limit, offset, rows: [...] } }
+      const rows  = json?.data?.rows  ?? []
+      const count = json?.data?.count ?? rows.length
+
+      const mapped = rows.map(mapProduct)
       setProducts(mapped)
+      setTotalCount(count)
       setCurrentPage(1)
     } catch (e) {
       console.log('Product fetch error', e)
-      ToastAndroid.show('Failed to load products', ToastAndroid.SHORT)
     } finally {
       setLoading(false)
       setContentLoading(false)
@@ -466,6 +514,7 @@ export default function ExploreInventoryScreen() {
     try {
       setSearching(true)
       setContentLoading(true)
+
       const token      = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
       const sortParams = getSortParams(sortOption)
@@ -476,24 +525,51 @@ export default function ExploreInventoryScreen() {
       )
       const json = await res.json()
 
-      const mapped = (json?.items || []).map(item => {
+      // Search endpoint returns { items: [...] }
+      const items = json?.items ?? []
+      const mapped = items.map(item => {
         const price         = item.prices?.[0]
-        const inventory     = item.inventories?.[0]
-        const category      = item.Categories?.[0]
-        const featuredAttr  = item.attributes?.find(a => a.key === 'is_featured')
-        const shortDescAttr = item.attributes?.find(a => a.key === 'short_description')
+        const inventory     = Array.isArray(item.inventories) ? item.inventories[0] : undefined
+        const category      = Array.isArray(item.Categories)  ? item.Categories[0]  : undefined
+        const featuredAttr  = Array.isArray(item.attributes)
+          ? item.attributes.find(a => a.key === 'is_featured')
+          : undefined
+        const shortDescAttr = Array.isArray(item.attributes)
+          ? item.attributes.find(a => a.key === 'short_description')
+          : undefined
+        const digitalAssetsCount = Array.isArray(item.digitalAssets) ? item.digitalAssets.length : 0
+        const isDigital           = item.itemType === 'digital'
+        const rawAmount           = Number(price?.amount ?? 0)
+
         return {
-          id: item.id, title: item.title, itemType: item.itemType,
-          image: item.media?.[0]?.url ? { uri: item.media[0].url } : PLACEHOLDER_IMAGE ,
-          basePrice: price?.amount ?? 0, finalPrice: price?.amount ?? 0, discountTotal: 0,
-          discounts: [], currency: price?.currency === 'INR' ? '₹' : '',
-          inStock: inventory && inventory.quantityAvailable > 0,
-          inventoryCount: inventory?.quantityAvailable || 0,
-          category: category?.name, featured: featuredAttr?.value === true,
+          id:            item.id,
+          title:         item.title,
+          slug:          item.slug,
+          itemType:      item.itemType,
+          image:         (Array.isArray(item.media) && item.media[0]?.url)
+                           ? { uri: item.media[0].url }
+                           : PLACEHOLDER_IMAGE,
+          basePrice:     rawAmount,
+          finalPrice:    rawAmount,
+          discountTotal: 0,
+          discounts:     [],
+          currency:      price?.currency === 'INR' ? '₹' : (price?.currency ?? ''),
+          taxMode:       price?.taxMode,
+          priceType:     price?.priceType,
+          inStock:       isDigital
+                           ? digitalAssetsCount > 0
+                           : !!(inventory && inventory.quantityAvailable > 0),
+          inventoryCount: isDigital
+                           ? digitalAssetsCount
+                           : (inventory?.quantityAvailable || 0),
+          category:      category?.name ?? null,
+          featured:      featuredAttr?.value === true,
           shortDescription: shortDescAttr?.value || item.description || null,
         }
       })
+
       setProducts(mapped)
+      setTotalCount(mapped.length)
       setCurrentPage(1)
     } catch (e) {
       if (e.name !== 'AbortError') console.log('Search error', e)
@@ -526,9 +602,8 @@ export default function ExploreInventoryScreen() {
   const totalPages    = Math.ceil(filteredProducts.length / PAGE_SIZE)
   const pagedProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const handleSortSelect = key => setSortOption(prev => (prev === key ? null : key))
-
-  const handlePageChange = page => {
+  const handleSortSelect  = key => setSortOption(prev => (prev === key ? null : key))
+  const handlePageChange  = page => {
     setCurrentPage(page)
     listRef.current?.scrollToOffset?.({ offset: 0, animated: true })
   }
@@ -536,9 +611,12 @@ export default function ExploreInventoryScreen() {
   // ── Render item ───────────────────────────────────────────────────────────
   const renderItem = useCallback(({ item }) => {
     const isDigital = item.itemType === 'digital'
-    const taxLabel =
+    const taxLabel  =
       item.taxMode === 'inclusive' ? 'Incl. All Taxes' :
       item.taxMode === 'exclusive' ? 'Excl. Tax' : ''
+
+    // A product is "free" if finalPrice is 0 (could be a free/fully-discounted item)
+    const isFree = item.finalPrice === 0
 
     return (
       <Animated.View
@@ -563,14 +641,20 @@ export default function ExploreInventoryScreen() {
             </View>
             <WishlistHeart active={wishlistIds.has(item.id)} onPress={() => toggleWishlist(item.id)} />
             {item.featured && (
-              <View style={styles.featuredStar}><Icon name="star" size={13} color="#FFD700" /></View>
+              <View style={styles.featuredStar}>
+                <Icon name="star" size={13} color="#FFD700" />
+              </View>
             )}
           </View>
 
           <View style={styles.productInfo}>
             <View style={styles.metaRow}>
               <View style={[styles.stockBadge, { backgroundColor: item.inStock ? '#E8F5E9' : '#FFEBEE' }]}>
-                <Icon name={item.inStock ? 'check-circle' : 'close-circle'} size={9} color={item.inStock ? '#4CAF50' : '#F44336'} />
+                <Icon
+                  name={item.inStock ? 'check-circle' : 'close-circle'}
+                  size={9}
+                  color={item.inStock ? '#4CAF50' : '#F44336'}
+                />
                 <Text style={[styles.stockText, { color: item.inStock ? '#4CAF50' : '#F44336' }]}>
                   {item.inStock ? 'In Stock' : 'Out of Stock'}
                 </Text>
@@ -591,7 +675,11 @@ export default function ExploreInventoryScreen() {
             />
 
             <View style={styles.priceContainer}>
-              {item.discountTotal > 0 ? (
+              {isFree ? (
+                // Free / fully-discounted product
+                <Text style={[styles.finalPrice, { color: '#2E7D32' }]}>Free</Text>
+              ) : item.discountTotal > 0 ? (
+                // Discounted product
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Text style={styles.basePrice}>{item.currency}{item.basePrice}</Text>
@@ -601,7 +689,11 @@ export default function ExploreInventoryScreen() {
                   <Text style={styles.savings}>Save {item.currency}{item.discountTotal}</Text>
                 </>
               ) : (
-                <Text style={styles.finalPrice}>{item.currency}{item.finalPrice}</Text>
+                // Regular price
+                <>
+                  <Text style={styles.finalPrice}>{item.currency}{item.finalPrice}</Text>
+                  {!!taxLabel && <Text style={styles.taxLabel}>{taxLabel}</Text>}
+                </>
               )}
             </View>
           </View>
@@ -633,17 +725,13 @@ export default function ExploreInventoryScreen() {
   // ── Main render ───────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* ── Skeleton OR Product Grid ──────────────────────────────────────── */}
+      <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
+      {/* Skeleton OR Product Grid */}
       {contentLoading ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#0B77A7']}
-              tintColor="#0B77A7"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0B77A7']} tintColor="#0B77A7" />
           }
         >
           <SkeletonGrid />
@@ -659,12 +747,7 @@ export default function ExploreInventoryScreen() {
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#0B77A7']}
-              tintColor="#0B77A7"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0B77A7']} tintColor="#0B77A7" />
           }
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={
@@ -688,7 +771,7 @@ export default function ExploreInventoryScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
 
   // ── Header ──────────────────────────────────────────────────────────────
   header: {
@@ -705,7 +788,7 @@ const styles = ScaledSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerContent: { flex: 1, marginLeft: '10@s' },
-  headerTitle: { fontSize: '17@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  headerTitle:    { fontSize: '17@ms', fontFamily: FONTS.Bold, color: '#fff' },
   headerSubtitle: { fontSize: '11@ms', color: 'rgba(255,255,255,0.75)', marginTop: '1@vs' },
   cartBtn: {
     width: '40@s', height: '40@s', borderRadius: '20@s',
@@ -719,7 +802,7 @@ const styles = ScaledSheet.create({
   cartBadgeText: { fontSize: '9@ms', color: '#fff', fontFamily: FONTS.Bold },
 
   // ── Search ───────────────────────────────────────────────────────────────
-  searchContainer: { paddingHorizontal: '14@s', paddingVertical: '10@vs' },
+  searchContainer:    { paddingHorizontal: '14@s', paddingVertical: '10@vs' },
   searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -730,14 +813,14 @@ const styles = ScaledSheet.create({
     borderWidth: 1,
     borderColor: '#DDE3EA',
   },
-  searchIcon: { marginRight: '6@s' },
+  searchIcon:  { marginRight: '6@s' },
   searchInput: {
     flex: 1, fontSize: '13@ms', fontFamily: FONTS.Medium,
     backgroundColor: 'transparent', padding: 0, height: '42@vs',
   },
   loadingIcon: { marginLeft: '6@s' },
 
-  // ── Filter / Sort Row — KEY FIX: no overflow, compact buttons ───────────
+  // ── Filter / Sort Row ────────────────────────────────────────────────────
   filterSortRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -746,10 +829,7 @@ const styles = ScaledSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EBEBEB',
     gap: '6@s',
-    // No flexWrap so row stays single-line; buttons shrink via flexShrink
   },
-
-  // Dropdown trigger — compact, will NOT overflow
   dropdownBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -759,19 +839,13 @@ const styles = ScaledSheet.create({
     borderRadius: '8@ms',
     paddingHorizontal: '8@s',
     paddingVertical: '5@vs',
-    flexShrink: 0,          // don't let it grow unbounded
-    maxWidth: '110@s',      // hard cap so it never overflows
+    flexShrink: 0,
+    maxWidth: '110@s',
   },
-  dropdownBtnActive: { backgroundColor: '#0B77A7' },
-  dropdownBtnLabel: {
-    fontSize: '11@ms',
-    fontFamily: FONTS.SemiBold,
-    color: '#0B77A7',
-    flexShrink: 1,
-  },
+  dropdownBtnActive:      { backgroundColor: '#0B77A7' },
+  dropdownBtnLabel:       { fontSize: '11@ms', fontFamily: FONTS.SemiBold, color: '#0B77A7', flexShrink: 1 },
   dropdownBtnLabelActive: { color: '#fff' },
 
-  // Active filter pill (compact)
   activePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -785,7 +859,7 @@ const styles = ScaledSheet.create({
   },
   activePillText: { fontSize: '10@ms', color: '#0B77A7', fontFamily: FONTS.Medium, flexShrink: 1 },
 
-  // Dropdown modal / menu
+  // Dropdown modal
   ddOverlay: { flex: 1 },
   ddMenu: {
     position: 'absolute',
@@ -806,15 +880,15 @@ const styles = ScaledSheet.create({
     paddingHorizontal: '14@s',
     paddingVertical: '11@vs',
   },
-  ddItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F5F8' },
-  ddItemActive: { backgroundColor: '#EBF6FB' },
-  ddItemText: { fontSize: '13@ms', color: '#333', fontFamily: FONTS.Regular, flex: 1 },
-  ddItemTextActive: { color: '#0B77A7', fontFamily: FONTS.SemiBold },
+  ddItemBorder:    { borderBottomWidth: 1, borderBottomColor: '#F3F5F8' },
+  ddItemActive:    { backgroundColor: '#EBF6FB' },
+  ddItemText:      { fontSize: '13@ms', color: '#333', fontFamily: FONTS.Regular, flex: 1 },
+  ddItemTextActive:{ color: '#0B77A7', fontFamily: FONTS.SemiBold },
 
   // ── Product list ─────────────────────────────────────────────────────────
-  productList: { padding: '14@s', paddingTop: '10@vs', paddingBottom: '24@vs' },
+  productList:   { padding: '14@s', paddingTop: '10@vs', paddingBottom: '24@vs' },
   columnWrapper: { justifyContent: 'space-between' },
-  cardWrapper: { width: '48.5%', marginBottom: '12@vs' },
+  cardWrapper:   { width: '48.5%', marginBottom: '12@vs' },
 
   // ── Card ──────────────────────────────────────────────────────────────────
   card: {
@@ -829,8 +903,8 @@ const styles = ScaledSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 4,
   },
-  imageContainer: { position: 'relative', backgroundColor: '#fff', height: '135@vs' , padding:'20@vs'},
-  productImage: { width: '100%', height: '100%', resizeMode: 'contain' },
+  imageContainer: { position: 'relative', backgroundColor: '#fff', height: '135@vs', padding: '20@vs' },
+  productImage:   { width: '100%', height: '100%', resizeMode: 'contain' },
   badge: {
     position: 'absolute', top: '7@vs', left: '7@s',
     flexDirection: 'row', alignItems: 'center',
@@ -865,30 +939,30 @@ const styles = ScaledSheet.create({
     paddingHorizontal: '5@s', paddingVertical: '2@vs',
     borderRadius: '7@ms', gap: '3@s',
   },
-  stockText: { fontSize: '9@ms', fontFamily: FONTS.Bold },
+  stockText:    { fontSize: '9@ms', fontFamily: FONTS.Bold },
   categoryBadge: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#E3F2FD',
     paddingHorizontal: '5@s', paddingVertical: '2@vs',
     borderRadius: '7@ms', gap: '2@s', flexShrink: 1,
   },
-  category: { fontSize: '9@ms', color: '#0B77A7', fontFamily: FONTS.Bold, flexShrink: 1 },
+  category:    { fontSize: '9@ms', color: '#0B77A7', fontFamily: FONTS.Bold, flexShrink: 1 },
   productName: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', lineHeight: '17@vs' },
   priceContainer: { marginTop: '5@vs' },
-  basePrice: {
+  basePrice:  {
     fontSize: '11@ms', color: '#9E9E9E',
     textDecorationLine: 'line-through', fontFamily: FONTS.Medium,
   },
   finalPrice: { fontSize: '14@ms', color: '#1565C0', fontFamily: FONTS.Bold },
-  taxLabel: { fontSize: '9.5@ms', color: '#00838F', marginTop: '1@vs' },
-  savings: { fontSize: '10@ms', color: '#2E7D32', marginTop: '2@vs', fontFamily: FONTS.SemiBold },
+  taxLabel:   { fontSize: '9.5@ms', color: '#00838F', marginTop: '1@vs' },
+  savings:    { fontSize: '10@ms', color: '#2E7D32', marginTop: '2@vs', fontFamily: FONTS.SemiBold },
 
   // ── Empty state ───────────────────────────────────────────────────────────
   emptyContainer: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     paddingTop: '70@vs', paddingHorizontal: '40@s',
   },
-  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginTop: '16@vs', marginBottom: '8@vs' },
+  emptyTitle:    { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginTop: '16@vs', marginBottom: '8@vs' },
   emptySubtitle: { fontSize: '13@ms', color: '#888', textAlign: 'center' },
 
   // ── Pagination ────────────────────────────────────────────────────────────
@@ -905,9 +979,9 @@ const styles = ScaledSheet.create({
     justifyContent: 'center', alignItems: 'center',
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#DDE3EA', elevation: 1,
   },
-  pageBtnActive: { backgroundColor: '#0B77A7', borderColor: '#0B77A7' },
-  pageBtnDisabled: { backgroundColor: '#F5F7FA', borderColor: '#EAECEF' },
-  pageBtnText: { fontSize: '13@ms', fontFamily: FONTS.SemiBold, color: '#444' },
-  pageBtnTextActive: { color: '#fff' },
-  pageDots: { fontSize: '15@ms', color: '#aaa', paddingHorizontal: '2@s' },
+  pageBtnActive:    { backgroundColor: '#0B77A7', borderColor: '#0B77A7' },
+  pageBtnDisabled:  { backgroundColor: '#F5F7FA', borderColor: '#EAECEF' },
+  pageBtnText:      { fontSize: '13@ms', fontFamily: FONTS.SemiBold, color: '#444' },
+  pageBtnTextActive:{ color: '#fff' },
+  pageDots:         { fontSize: '15@ms', color: '#aaa', paddingHorizontal: '2@s' },
 })

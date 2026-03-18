@@ -32,16 +32,16 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
   const [showPassword, setShowPassword] = useState(false)
 
   // ── Animations ──────────────────────────────────────────────────────────────
-  const fadeAnim  = useRef(new Animated.Value(0)).current
+  const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(60)).current
-  const cardAnim  = useRef(new Animated.Value(80)).current
-  const cardFade  = useRef(new Animated.Value(0)).current
-  const pulse     = useRef(new Animated.Value(1)).current
+  const cardAnim = useRef(new Animated.Value(80)).current
+  const cardFade = useRef(new Animated.Value(0)).current
+  const pulse = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
     Animated.stagger(120, [
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
       ]),
       Animated.parallel([
@@ -53,7 +53,7 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.08, duration: 2200, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,    duration: 2200, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
       ])
     ).start()
   }, [])
@@ -77,17 +77,56 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
       const data = await res.json()
       console.log(data)
 
+      if (data?.data?.user?.identifier) {
+        await AsyncStorage.setItem(
+          'Identifier',
+          JSON.stringify(data?.data?.user?.identifier)
+        )
+      }
+
+
       if (!res.ok) {
         ToastAndroid.show(data?.message || 'Login failed', ToastAndroid.SHORT)
         return
       }
 
-      const token      = data?.data?.user?.accessToken
+      const token = data?.data?.user?.accessToken
       const customerId = data?.data?.user?.id
 
       if (!token) {
         ToastAndroid.show('Token not received', ToastAndroid.SHORT)
         return
+      }
+
+      /* ---------- FETCH PROFILE HERE ---------- */
+
+      if (token) {
+        try {
+
+          const profileRes = await fetch(
+            `${BASE_URL}/customer/business/ad1351af-4c82-4206-9dee-2db2545acd19/customer-business-profile`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+
+          const profileJson = await profileRes.json()
+          console.log(profileJson, 'Fetched profile during splash')
+
+          if (profileJson?.success && profileJson?.data) {
+            await AsyncStorage.setItem(
+              'userProfile',
+              JSON.stringify(profileJson.data)
+            )
+          }
+
+        } catch (err) {
+          console.log('Profile fetch failed during splash')
+        }
       }
 
       await AsyncStorage.setItem('userToken', token)
@@ -212,7 +251,7 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
           </AppButton>
 
           {/* Forgot password */}
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.forgot}>Forgot password?</Text>
           </TouchableOpacity>
 

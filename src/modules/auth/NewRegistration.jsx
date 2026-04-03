@@ -340,7 +340,7 @@ const styles = ScaledSheet.create({
     width: '200@s',
     height: '200@s',
     borderRadius: '100@s',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: color.secondary,
   },
   blobBottomLeft: {
     position: 'absolute',
@@ -349,7 +349,7 @@ const styles = ScaledSheet.create({
     width: '180@s',
     height: '180@s',
     borderRadius: '90@s',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: color.secondary,
   },
 
   // ── Top bar ─────────────────────────────────────────────────────────────────
@@ -466,7 +466,7 @@ const styles = ScaledSheet.create({
   heading: {
     fontSize: '22@ms',
     fontWeight: '800',
-    color: '#0F172A',
+    color: color.primary,
     fontFamily: fonts.MontBold,
     marginBottom: '4@vs',
   },

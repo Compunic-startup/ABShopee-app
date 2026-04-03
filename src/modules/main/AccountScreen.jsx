@@ -9,269 +9,177 @@ import {
   Animated,
   Image,
   RefreshControl,
-  StyleSheet,
   Platform,
   ToastAndroid,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { ScaledSheet, ms, s, vs } from 'react-native-size-matters'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import BASE_URL from '../../core/services/api'
 import FONTS from '../../core/utils/fonts'
+import color from '../../core/utils/color'
 
-/* ─── palette ─── */
-const BLUE = '#0B77A7'
-const BLUE_DARK = '#085f87'
-const BLUE_LIGHT = '#E8F4FB'
-const BLUE_MID = '#C2E0F0'
-const WHITE = '#FFFFFF'
-const BG = '#F4F9FC'
-const TEXT_DARK = '#0D1B2A'
-const TEXT_MID = '#4A6070'
-const TEXT_LIGHT = '#8FA8B8'
-const BORDER = '#DCE8F0'
-const DEALER_GOLD = '#C8973A'
-const DEALER_GOLD_BG = '#FDF6E9'
-
-/* ─── menu config ─── */
-const getUserMenu = stats => [
-  { key: 'wishlist', icon: 'heart-outline', label: 'Wishlist', subtitle: `Your saved items`, route: 'WishlistScreen' },
-  { key: 'transactions', icon: 'cash-multiple', label: 'Transactions', subtitle: 'Payment history', route: 'usertransactions' },
-  { key: 'refunds', icon: 'cash-refund', label: 'Refunds', subtitle: 'Track your refunds', route: 'userrefunds' },
-  { key: 'notifications', icon: 'bell-outline', label: 'Notifications', subtitle: 'Alerts & updates', route: 'NotificationsScreen' },
-  // { key: 'support',       icon: 'headset',                   label: 'Help & Support',    subtitle: 'FAQs, Contact us',                 route: 'HelpScreen' },
+// ─── Menu sections — Flipkart grouping ────────────────────────────────────────
+const MENU_SECTIONS = [
+  {
+    title: 'My Orders & Activity',
+    items: [
+      { key: 'orders', icon: 'package-variant', label: 'My Orders', route: 'OrdersScreen' },
+      { key: 'addresses', icon: 'map-marker-outline', label: 'My Addresses', route: 'AddressesScreen' },
+      { key: 'wishlist', icon: 'heart-outline', label: 'Wishlist', route: 'WishlistScreen' },
+      { key: 'transactions', icon: 'cash-multiple', label: 'Transactions', route: 'usertransactions' },
+      { key: 'refunds', icon: 'cash-refund', label: 'Returns & Replacements', route: 'returnreplacement' },
+    ],
+  },
+  {
+    title: 'Notifications & Communication',
+    items: [
+      { key: 'notifications', icon: 'bell-outline', label: 'Notifications', route: 'NotificationsScreen' },
+    ],
+  },
+  {
+    title: 'Account Settings',
+    items: [
+      { key: 'cart', icon: 'cart-outline', label: 'My Cart', route: 'CartScreen' },
+      { key: 'edit', icon: 'account-edit-outline', label: 'Edit Profile', route: 'EditProfileScreen' },
+    ],
+  },
 ]
 
-const getDealerMenu = stats => [
-  { key: 'orders', icon: 'clipboard-list-outline', label: 'Dealer Orders', subtitle: `${stats.orders} bulk orders`, route: 'OrdersScreen', dealerOnly: true },
-  { key: 'transactions', icon: 'bank-outline', label: 'Business Transactions', subtitle: 'B2B payment ledger', route: 'usertransactions', dealerOnly: true },
-  { key: 'refunds', icon: 'cash-refund', label: 'Refunds & Disputes', subtitle: 'Raise & track claims', route: 'userrefunds', dealerOnly: true },
-  { key: 'wishlist', icon: 'bookmark-multiple-outline', label: 'Saved Lists', subtitle: `${stats.wishlist} procurement lists`, route: 'WishlistScreen', dealerOnly: true },
-  { key: 'notifications', icon: 'bell-badge-outline', label: 'Trade Notifications', subtitle: 'Price & stock alerts', route: 'NotificationsScreen', dealerOnly: true },
-  // { key: 'support',       icon: 'face-agent',               label: 'Priority Support',         subtitle: 'Dedicated B2B assistance',            route: 'HelpScreen',          dealerOnly: true },
-]
-
-/* ─── StatCard ─── */
-function StatCard({ item, isDealer, onPress }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current
-  const onIn = () => Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true }).start()
-  const onOut = () => Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }).start()
-
+// ─── Single menu row — Flipkart style: icon + label + chevron ─────────────────
+function MenuRow({ item, isLast, onPress }) {
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], flex: 1 }}>
-      <TouchableOpacity
-        onPress={onPress} onPressIn={onIn} onPressOut={onOut}
-        activeOpacity={1}
-        style={[styles.statCard, isDealer && styles.statCardDealer]}
-      >
-        <View style={[styles.statIconWrap, isDealer ? styles.statIconWrapDealer : styles.statIconWrapUser]}>
-          <Icon name={item.icon} size={22} color={isDealer ? DEALER_GOLD : BLUE} />
-        </View>
-        <Text style={[styles.statValue, isDealer && styles.statValueDealer]}>{item.value}</Text>
-        <Text style={styles.statLabel}>{item.label}</Text>
-      </TouchableOpacity>
-    </Animated.View>
+    <TouchableOpacity
+      style={[styles.menuRow, !isLast && styles.menuRowBorder]}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
+      <View style={styles.menuIconBox}>
+        <Icon name={item.icon} size={ms(20)} color={color.primary} />
+      </View>
+      <Text style={styles.menuLabel}>{item.label}</Text>
+      <Icon name="chevron-right" size={ms(20)} color="#BDBDBD" />
+    </TouchableOpacity>
   )
 }
 
-/* ─── MenuItem ─── */
-function MenuItem({ item, isDealer, isLast, onPress }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current
-  const onIn = () => Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true }).start()
-  const onOut = () => Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }).start()
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        onPress={onPress} onPressIn={onIn} onPressOut={onOut}
-        activeOpacity={1}
-        style={[styles.menuItem, !isLast && styles.menuItemBorder]}
-      >
-        <View style={[
-          styles.menuIconWrap,
-          isDealer && item.dealerOnly ? styles.menuIconWrapDealer : styles.menuIconWrapUser,
-        ]}>
-          <Icon name={item.icon} size={20} color={isDealer && item.dealerOnly ? DEALER_GOLD : BLUE} />
-        </View>
-        <View style={styles.menuTextBlock}>
-          <Text style={styles.menuLabel}>{item.label}</Text>
-          <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-        </View>
-        <Icon name="chevron-right" size={20} color={TEXT_LIGHT} />
-      </TouchableOpacity>
-    </Animated.View>
-  )
-}
-
-/* ─── Business Info Row ─── */
-function InfoRow({ icon, label, value }) {
+// ─── Profile row (email / phone / address etc.) ────────────────────────────────
+function InfoRow({ icon, value }) {
   if (!value) return null
   return (
     <View style={styles.infoRow}>
-      <Icon name={icon} size={15} color={TEXT_LIGHT} style={{ marginTop: 1 }} />
-      <View style={styles.infoRowText}>
-        <Text style={styles.infoRowLabel}>{label}</Text>
-        <Text style={styles.infoRowValue}>{value}</Text>
-      </View>
+      <Icon name={icon} size={ms(14)} color="#888" />
+      <Text style={styles.infoText} numberOfLines={2}>{value}</Text>
     </View>
   )
 }
 
-/* ─── Main Component ─── */
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function AccountScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [profile, setProfile] = useState(null)   // raw API response data
-  const [stats, setStats] = useState({ orders: 0, wishlist: 5, addresses: 2 })
+  const [profile, setProfile] = useState(null)
 
   const fadeAnim = useRef(new Animated.Value(0)).current
-  const headerAnim = useRef(new Animated.Value(0)).current
 
-  /* ── fetch profile ── */
+  // ── fetch profile ────────────────────────────────────────────────────────
   const fetchProfile = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
-
-      const res = await fetch(`${BASE_URL}/customer/business/${businessId}/customer-business-profile`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const res = await fetch(
+        `${BASE_URL}/customer/business/${businessId}/customer-business-profile`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
+      )
       const json = await res.json()
       console.log('Profile fetch response:', json)
-
       if (json?.success && json?.data) {
-        await AsyncStorage.setItem(
-          'userProfile',
-          JSON.stringify(json.data)
-        )
-      }
-
-      if (json?.success && json?.data) {
+        await AsyncStorage.setItem('userProfile', JSON.stringify(json.data))
         setProfile(json.data)
       } else {
         const code = json?.error?.code
-        if (code === 'BUSINESS_NOT_FOUND') {
-          ToastAndroid.show('Business not found', ToastAndroid.SHORT)
-        } else if (code === 'CUSTOMER_BUSINESS_PROFILE_NOT_FOUND') {
-          ToastAndroid.show('Business profile not found', ToastAndroid.SHORT)
-        }
+        if (code === 'BUSINESS_NOT_FOUND') ToastAndroid.show('Business not found', ToastAndroid.SHORT)
+        if (code === 'CUSTOMER_BUSINESS_PROFILE_NOT_FOUND') ToastAndroid.show('Profile not found', ToastAndroid.SHORT)
       }
-    } catch (err) {
-      console.error('fetchProfile error:', err)
+    } catch {
       ToastAndroid.show('Network error. Please try again.', ToastAndroid.SHORT)
     }
   }, [])
 
-  /* ── initial load ── */
   useEffect(() => {
-    Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start()
-
-    fetchProfile().finally(() => {
-      setLoading(false)
-    })
+    fetchProfile().finally(() => setLoading(false))
   }, [])
 
-  /* ── fade-in after load ── */
   useEffect(() => {
     if (!loading) {
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
     }
   }, [loading])
 
-  /* ── pull-to-refresh ── */
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     await fetchProfile()
     setRefreshing(false)
   }, [fetchProfile])
 
-  /* ── derived display values ── */
-  const userProfile = profile?.userProfile ?? {}
-  const address = profile?.address ?? {}
-  const isDealer = profile?.businessType === 'wholesale' || profile?.businessType === 'dealer'
+  useFocusEffect(useCallback(() => { fetchProfile() }, []))
 
-  const displayName = [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ')
-    || 'Customer'
-
-  const displayEmail = profile?.email || 'No email on record'
-  const displayPhone = userProfile.phone || profile?.phone || ''
-  const avatarUrl = userProfile.avatarUrl || null
-
-  const memberLabel = isDealer
-    ? (profile?.businessType === 'wholesale' ? 'Wholesale Member' : 'Dealer Member')
-    : 'Regular Member'
-
-  const menuItems = isDealer ? getDealerMenu(stats) : getUserMenu(stats)
-
-  const statRows = [
-    { label: 'Orders', value: stats.orders, icon: 'package-variant', route: 'OrdersScreen' },
-    { label: 'Wishlist', value: stats.wishlist, icon: 'heart', route: 'WishlistScreen' },
-    { label: 'Addresses', value: stats.addresses, icon: 'map-marker', route: 'AddressesScreen' },
-  ]
-
-  const formattedAddress = [
-    address.addressLine1,
-    address.addressLine2,
-    address.city,
-    address.state,
-    address.postalCode,
-  ].filter(Boolean).join(', ')
-
-  /* ── logout ── */
+  // ── logout ────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     await AsyncStorage.multiRemove(['userToken', 'userProfile', 'Identifier'])
     setIsLoggedIn(false)
   }
 
-  /* ── loading screen ── */
+  // ── derived data — null-safe ───────────────────────────────────────────────
+  const userProfile = profile?.userProfile ?? {}
+  const firstName = userProfile.firstName || null
+  const lastName = userProfile.lastName || null
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Customer'
+  const email = profile?.email || null
+  const phone = userProfile.phone || profile?.phone || null
+  const avatarUrl = userProfile.avatarUrl || null
+  const tradeName = profile?.tradeName || null
+  const legalName = profile?.legalName || null
+  const gst = profile?.isGstRegistered && profile?.gstNumber ? profile.gstNumber : null
+  const pan = profile?.panNumber || null
+  const website = profile?.website || null
+  const isActive = profile?.status === 'active'
+
+  const addr = profile?.address ?? {}
+  const formattedAddress = [
+    addr.addressLine1, addr.addressLine2,
+    addr.city, addr.state, addr.postalCode,
+  ].filter(Boolean).join(', ') || null
+
+  const initial = (firstName?.[0] || 'U').toUpperCase()
+
+  // ── loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={BLUE_DARK} />
-        <Animated.View style={[styles.header, { opacity: headerAnim }]}>
+        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+        <View style={styles.header}>
           <Text style={styles.headerTitle}>My Account</Text>
-        </Animated.View>
+        </View>
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={BLUE} />
+          <ActivityIndicator size="large" color={color.primary} />
           <Text style={styles.loadingText}>Loading profile…</Text>
         </View>
       </View>
     )
   }
 
-  /* ── main render ── */
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={BLUE_DARK} />
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            opacity: headerAnim,
-            transform: [{
-              translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }),
-            }],
-          },
-        ]}
-      >
-        <View style={styles.headerLeft}>
-          <View style={styles.headerIconBox}>
-            <Icon name="account-circle-outline" size={20} color={WHITE} />
-          </View>
-          <View>
-            <Text style={styles.headerEyebrow}>Manage</Text>
-            <Text style={styles.headerTitle}>My Account</Text>
-          </View>
-        </View>
-      </Animated.View>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Account</Text>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -279,340 +187,263 @@ export default function AccountScreen({ setIsLoggedIn }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[BLUE]}
-            tintColor={BLUE}
+            colors={[color.primary]}
+            tintColor={color.primary}
           />
         }
       >
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ── Profile Card ── */}
-          <View style={[styles.profileCard, isDealer && styles.profileCardDealer]}>
+          {/* ── Profile Hero — Flipkart: name + email, avatar left ── */}
+          <View style={styles.profileHero}>
+            {/* Avatar */}
+            <View style={styles.avatarWrap}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </View>
+              )}
+              {/* Active dot */}
+              <View style={[
+                styles.activeDot,
+                { backgroundColor: isActive ? '#43A047' : '#BDBDBD' },
+              ]} />
+            </View>
 
-            {/* Dealer badge strip */}
-            {isDealer && (
-              <View style={styles.dealerStrip}>
-                <Icon name="crown" size={13} color={DEALER_GOLD} />
-                <Text style={styles.dealerStripText}>
-                  {profile?.tradeName || profile?.legalName || 'Business Account'}
+            {/* Name + status */}
+            <View style={styles.heroText}>
+              <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+              {tradeName && tradeName !== displayName && (
+                <Text style={styles.heroTrade} numberOfLines={1}>{tradeName}</Text>
+              )}
+              <View style={[
+                styles.statusPill,
+                { backgroundColor: isActive ? color.primary + 20 : color.background },
+              ]}>
+                <View style={[
+                  styles.statusDot,
+                  { backgroundColor: isActive ? '#43A047' : '#BDBDBD' },
+                ]} />
+                <Text style={[
+                  styles.statusTxt,
+                  { color: isActive ? '#2E7D32' : '#888' },
+                ]}>
+                  {isActive ? 'Active' : 'Inactive'}
                 </Text>
               </View>
-            )}
-
-            <View style={styles.profileHeader}>
-              {/* Avatar */}
-              <View style={styles.avatarContainer}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Icon name="account" size={38} color={BLUE} />
-                  </View>
-                )}
-                <View style={[styles.statusDot, { backgroundColor: profile?.status === 'active' ? '#4CAF50' : '#9E9E9E' }]} />
-              </View>
-
-              {/* Name + contact */}
-              <View style={styles.profileInfo}>
-                <Text style={styles.userName} numberOfLines={1}>{displayName}</Text>
-
-                {displayEmail ? (
-                  <View style={styles.infoChip}>
-                    <Icon name="email-outline" size={13} color={TEXT_MID} />
-                    <Text style={styles.infoChipText} numberOfLines={1}>{displayEmail}</Text>
-                  </View>
-                ) : null}
-
-                {displayPhone ? (
-                  <View style={styles.infoChip}>
-                    <Icon name="phone-outline" size={13} color={TEXT_MID} />
-                    <Text style={styles.infoChipText}>{displayPhone}</Text>
-                  </View>
-                ) : null}
-
-                <View style={[styles.memberBadge, isDealer && styles.memberBadgeDealer]}>
-                  <Icon name={isDealer ? 'crown' : 'account-check'} size={12} color={isDealer ? DEALER_GOLD : BLUE} />
-                  <Text style={[styles.memberText, isDealer && styles.memberTextDealer]}>{memberLabel}</Text>
-                </View>
-              </View>
             </View>
 
-            {/* Business details section */}
-            {profile && (
-              <View style={styles.businessDetails}>
-                <View style={styles.businessDetailsDivider} />
+            {/* Edit shortcut */}
+            <TouchableOpacity
+              style={styles.editHeroBtn}
+              onPress={() => navigation.navigate('EditProfileScreen', { profile })}
+              activeOpacity={0.7}
+            >
+              <Icon name="pencil-outline" size={ms(16)} color={color.primary} />
+            </TouchableOpacity>
+          </View>
 
-                {profile.legalName ? (
-                  <InfoRow icon="domain" label="Legal Name" value={profile.legalName} />
-                ) : null}
-                {profile.gstNumber && profile.isGstRegistered ? (
-                  <InfoRow icon="file-certificate-outline" label="GST No." value={profile.gstNumber} />
-                ) : null}
-                {profile.panNumber ? (
-                  <InfoRow icon="card-account-details-outline" label="PAN" value={profile.panNumber} />
-                ) : null}
-                {formattedAddress ? (
-                  <InfoRow icon="map-marker-outline" label="Address" value={formattedAddress} />
-                ) : null}
-                {profile.website ? (
-                  <InfoRow icon="web" label="Website" value={profile.website} />
-                ) : null}
+          {/* ── Contact / business info block ── */}
+          {(email || phone || legalName || gst || pan || website) && (
+            <View style={styles.infoBlock}>
+              <InfoRow icon="email-outline" value={email} />
+              <InfoRow icon="phone-outline" value={phone} />
+              <InfoRow icon="domain" value={legalName} />
+              <InfoRow icon="file-certificate-outline" value={gst ? `GST: ${gst}` : null} />
+              <InfoRow icon="card-account-details-outline" value={pan ? `PAN: ${pan}` : null} />
+              <InfoRow icon="web" value={website} />
+            </View>
+          )}
+
+          {/* ── Menu sections — Flipkart layout ── */}
+          {MENU_SECTIONS.map((section) => (
+            <View key={section.title} style={styles.section}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.sectionCard}>
+                {section.items.map((item, i) => (
+                  <MenuRow
+                    key={item.key}
+                    item={item}
+                    isLast={i === section.items.length - 1}
+                    onPress={() => {
+                      if (item.key === 'orders') {
+                        navigation.navigate('Tabs', { screen: 'Orders' })
+                      } else if (item.key === 'edit') {
+                        navigation.navigate('EditProfileScreen', { profile })
+                      } else {
+                        navigation.navigate(item.route)
+                      }
+                    }}
+                  />
+                ))}
               </View>
-            )}
-          </View>
-
-          {/* ── Menu ── */}
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionLabel}>
-              {isDealer ? 'Business Menu' : 'My Activity'}
-            </Text>
-            <View style={[styles.menuCard, isDealer && styles.menuCardDealer]}>
-              {menuItems.map((item, i) => (
-                <MenuItem
-                  key={item.key}
-                  item={item}
-                  isDealer={isDealer}
-                  isLast={i === menuItems.length - 1}
-                  onPress={() => navigation.navigate(item.route)}
-                />
-              ))}
             </View>
-          </View>
-
-          {/* ── Account Settings ── */}
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionLabel}>Settings</Text>
-            <View style={styles.menuCard}>
-              {[
-                { key: 'cart', icon: 'account-edit-outline', label: 'Cart', subtitle: 'See Your Cart', route: 'CartScreen' },
-                // { key: 'profile', icon: 'account-edit-outline', label: 'Become a B2B Customer', subtitle: 'Register your details', route: 'ProfileInfoScreen' },
-                { key: 'edit', icon: 'account-edit-outline', label: 'Edit Profile', subtitle: 'Update your details', route: 'EditProfileScreen' },
-                // { key: 'security', icon: 'shield-check-outline',  label: 'Privacy & Security', subtitle: 'Password, 2FA',         route: 'SecurityScreen' },
-                // { key: 'terms',    icon: 'file-document-outline', label: 'Terms & Conditions', subtitle: 'User agreement',        route: 'TermsScreen' },
-                // { key: 'privacy',  icon: 'shield-lock-outline',   label: 'Privacy Policy',     subtitle: 'Data protection',       route: 'PrivacyScreen' },
-              ].map((item, i, arr) => (
-                <MenuItem
-                  key={item.key}
-                  item={item}
-                  isDealer={false}
-                  isLast={i === arr.length - 1}
-                  onPress={() =>
-                    item.route === 'EditProfileScreen'
-                      ? navigation.navigate('EditProfileScreen', { profile })
-                      : navigation.navigate(item.route)
-                  }
-                />
-              ))}
-            </View>
-          </View>
+          ))}
 
           {/* ── Logout ── */}
-          <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.8} onPress={handleLogout}>
-            <Icon name="logout" size={20} color="#F44336" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-
-          <View style={{ height: 48 }} />
+          <View style={styles.section}>
+            <View style={styles.sectionCard}>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={handleLogout}
+                activeOpacity={0.6}
+              >
+                <View style={[styles.menuIconBox, styles.menuIconBoxRed]}>
+                  <Icon name="logout" size={ms(20)} color="#C62828" />
+                </View>
+                <Text style={[styles.menuLabel, { color: '#C62828' }]}>Logout</Text>
+                <Icon name="chevron-right" size={ms(20)} color="#BDBDBD" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* ── App version footer ── */}
+          <Text style={styles.versionText}>All Rights Reserved, AB Computers {'\n'} RNT Marg Silver Mall, Indore, 452012</Text>
+          <View style={{ height: vs(10) }} />
         </Animated.View>
       </ScrollView>
     </View>
   )
 }
 
-/* ─── styles ─── */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+// ─── Styles — ONLY color.* values ────────────────────────────────────────────
+const styles = ScaledSheet.create({
+  container: { flex: 1, backgroundColor: color.background },
 
-  /* Header */
+  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: '10@vs' },
+  loadingText: { fontSize: '14@ms', color: '#888', fontFamily: FONTS.Medium },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: BLUE,
-    paddingTop: Platform.OS === 'android' ? 14 : 52,
-    paddingBottom: 14,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: BLUE_DARK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerIconBox: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  headerEyebrow: {
-    fontSize: 10, color: 'rgba(255,255,255,0.65)',
-    fontFamily: FONTS.Medium, letterSpacing: 1.2, textTransform: 'uppercase',
+    backgroundColor: color.primary,
+    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
+    paddingBottom: '14@vs',
+    paddingHorizontal: '16@s',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 20, fontFamily: FONTS.Bold, color: WHITE,
-    letterSpacing: -0.3, lineHeight: 24,
-  },
-
-  /* Loader */
-  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText: { fontSize: 14, color: TEXT_MID, fontFamily: FONTS.Medium, letterSpacing: 0.4 },
-
-  /* Profile Card */
-  profileCard: {
-    margin: 16,
-    backgroundColor: WHITE,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  profileCardDealer: {
-    borderColor: '#E8D5A8',
-    shadowColor: DEALER_GOLD,
-  },
-  dealerStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: DEALER_GOLD_BG,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 14,
-    alignSelf: 'flex-start',
-  },
-  dealerStripText: {
-    fontSize: 12,
+    fontSize: '18@ms',
     fontFamily: FONTS.Bold,
-    color: DEALER_GOLD,
-    letterSpacing: 0.3,
-  },
-  profileHeader: { flexDirection: 'row', gap: 14 },
-
-  /* Avatar */
-  avatarContainer: { position: 'relative', alignSelf: 'flex-start' },
-  avatar: { width: 76, height: 76, borderRadius: 38, borderWidth: 2, borderColor: BLUE_MID },
-  avatarPlaceholder: {
-    width: 76, height: 76, borderRadius: 38,
-    backgroundColor: BLUE_LIGHT,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: BLUE_MID,
-  },
-  statusDot: {
-    position: 'absolute', bottom: 2, right: 2,
-    width: 13, height: 13, borderRadius: 7,
-    borderWidth: 2, borderColor: WHITE,
+    color: '#fff',
+    letterSpacing: 0.2,
   },
 
-  /* Profile info */
-  profileInfo: { flex: 1, justifyContent: 'center', gap: 5 },
-  userName: { fontSize: 17, fontFamily: FONTS.Bold, color: TEXT_DARK, letterSpacing: -0.2 },
-  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  infoChipText: { fontSize: 12, color: TEXT_MID, fontFamily: FONTS.Regular, flex: 1 },
-
-  memberBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: BLUE_LIGHT,
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 20, alignSelf: 'flex-start',
-  },
-  memberBadgeDealer: { backgroundColor: DEALER_GOLD_BG },
-  memberText: { fontSize: 11, fontFamily: FONTS.Medium, color: BLUE },
-  memberTextDealer: { color: DEALER_GOLD },
-
-  /* Business details */
-  businessDetails: { marginTop: 12 },
-  businessDetailsDivider: { height: 1, backgroundColor: BORDER, marginBottom: 12 },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  infoRowText: { flex: 1 },
-  infoRowLabel: { fontSize: 10, fontFamily: FONTS.Medium, color: TEXT_LIGHT, textTransform: 'uppercase', letterSpacing: 0.8 },
-  infoRowValue: { fontSize: 13, fontFamily: FONTS.Medium, color: TEXT_DARK, marginTop: 1 },
-
-  /* Stats */
-  statsContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    gap: 8,
-  },
-  statCard: {
-    backgroundColor: WHITE,
-    padding: 12,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  statCardDealer: { borderColor: '#E8D5A8' },
-  statIconWrap: {
-    width: 42, height: 42, borderRadius: 21,
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: 6,
-  },
-  statIconWrapUser: { backgroundColor: BLUE_LIGHT },
-  statIconWrapDealer: { backgroundColor: DEALER_GOLD_BG },
-  statValue: { fontSize: 18, fontFamily: FONTS.Bold, color: TEXT_DARK },
-  statValueDealer: { color: DEALER_GOLD },
-  statLabel: { fontSize: 11, color: TEXT_LIGHT, fontFamily: FONTS.Medium, marginTop: 2 },
-
-  /* Menu */
-  menuSection: { marginTop: 20, marginHorizontal: 16 },
-  sectionLabel: {
-    fontSize: 11, fontFamily: FONTS.Medium, color: TEXT_LIGHT,
-    letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 8,
-  },
-  menuCard: {
-    backgroundColor: WHITE,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  menuCardDealer: { borderColor: '#E8D5A8' },
-  menuItem: {
+  // ── Profile hero — tight Flipkart-style strip ──────────────────────────────
+  profileHero: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 12,
+    backgroundColor: '#fff',
+    paddingHorizontal: '16@s',
+    paddingVertical: '16@vs',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBEBEB',
+    gap: '12@s',
   },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: BORDER },
-  menuIconWrap: {
-    width: 38, height: 38, borderRadius: 10,
+  avatarWrap: { position: 'relative' },
+  avatar: {
+    width: '56@s', height: '56@s', borderRadius: '28@ms',
+    borderWidth: 2, borderColor: color.secondary,
+  },
+  avatarFallback: {
+    width: '56@s', height: '56@s', borderRadius: '28@ms',
+    backgroundColor: color.primary,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: color.secondary,
+  },
+  avatarInitial: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  activeDot: {
+    position: 'absolute', bottom: '1@s', right: '1@s',
+    width: '12@s', height: '12@s', borderRadius: '6@ms',
+    borderWidth: 2, borderColor: '#fff',
+  },
+  heroText: { flex: 1 },
+  heroName: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
+  heroTrade: { fontSize: '12@ms', fontFamily: FONTS.Medium, color: '#888', marginTop: '2@vs' },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: '4@s',
+    alignSelf: 'flex-start', marginTop: '5@vs',
+    paddingHorizontal: '8@s', paddingVertical: '3@vs',
+    borderRadius: '20@ms',
+    borderWidth: 1, borderColor: '#E0E0E0',
+  },
+  statusDot: { width: '6@s', height: '6@s', borderRadius: '3@ms' },
+  statusTxt: { fontSize: '11@ms', fontFamily: FONTS.Medium },
+  editHeroBtn: {
+    width: '34@s', height: '34@s', borderRadius: '17@ms',
+    backgroundColor: color.primary + 20,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#EEE',
+  },
+
+  // ── Info block (email, phone etc.) ────────────────────────────────────────
+  infoBlock: {
+    backgroundColor: '#fff',
+    paddingHorizontal: '16@s',
+    paddingVertical: '12@vs',
+    borderBottomWidth: '8@vs',
+    borderBottomColor: color.background,
+    gap: '10@vs',
+  },
+  infoRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: '10@s',
+  },
+  infoText: {
+    flex: 1, fontSize: '13@ms', color: color.text,
+    fontFamily: FONTS.Medium, lineHeight: '19@ms',
+  },
+
+  // ── Sections ──────────────────────────────────────────────────────────────
+  section: { marginTop: '8@vs' },
+  sectionTitle: {
+    fontSize: '12@ms', fontFamily: FONTS.Bold,
+    color: '#888', letterSpacing: 0.5,
+    paddingHorizontal: '16@s',
+    paddingVertical: '8@vs',
+    backgroundColor: color.background,
+    textTransform: 'uppercase',
+  },
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: '#EBEBEB',
+    borderBottomWidth: 1, borderBottomColor: '#EBEBEB',
+  },
+
+  // ── Menu row — Flipkart: icon + label + chevron, no background fill ────────
+  menuRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: '16@s', paddingVertical: '14@vs',
+    backgroundColor: '#fff',
+    gap: '14@s',
+  },
+  menuRowBorder: {
+    borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+  },
+  menuIconBox: {
+    width: '36@s', height: '36@s', borderRadius: '8@ms',
+    backgroundColor: color.primary + 20,
     justifyContent: 'center', alignItems: 'center',
   },
-  menuIconWrapUser: { backgroundColor: BLUE_LIGHT },
-  menuIconWrapDealer: { backgroundColor: DEALER_GOLD_BG },
-  menuTextBlock: { flex: 1 },
-  menuLabel: { fontSize: 14, fontFamily: FONTS.Medium, color: TEXT_DARK },
-  menuSubtitle: { fontSize: 11, color: TEXT_LIGHT, fontFamily: FONTS.Regular, marginTop: 2 },
-
-  /* Version */
-  versionCard: { alignItems: 'center', marginTop: 24, gap: 3 },
-  versionText: { fontSize: 12, color: TEXT_LIGHT, fontFamily: FONTS.Medium },
-  versionSubtext: { fontSize: 11, color: '#C0CDD6', fontFamily: FONTS.Regular },
-
-  /* Logout */
-  logoutBtn: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    marginTop: 12, marginHorizontal: 16,
-    padding: 14, backgroundColor: '#FFF5F5',
-    borderRadius: 14, gap: 8,
-    borderWidth: 1, borderColor: '#FFD5D5',
+  menuIconBoxRed: {
+    backgroundColor: '#FFEBEE',
   },
-  logoutText: { fontSize: 15, color: '#F44336', fontFamily: FONTS.Bold, letterSpacing: 0.2 },
+  menuLabel: {
+    flex: 1, fontSize: '14@ms',
+    fontFamily: FONTS.Medium, color: color.text,
+  },
+
+  // ── Version footer ────────────────────────────────────────────────────────
+  versionText: {
+    textAlign: 'center',
+    fontSize: '12@ms',
+    color: '#BDBDBD',
+    fontFamily: FONTS.Medium,
+    marginTop: '16@vs',
+    marginBottom: '4@vs',
+  },
 })

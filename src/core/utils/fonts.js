@@ -9,6 +9,7 @@ const FONTS = {
     ExtraBold: 'Inter_24pt-ExtraBold',
     MontBold: 'Montserrat-Bold',
     MontRegular: 'Montserrat-Regular',
+    MontExtraBold: 'Montserrat-ExtraBold',
 };
 
 export default FONTS;

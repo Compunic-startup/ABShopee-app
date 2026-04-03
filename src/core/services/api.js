@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://ab-shoppy.icompunic.com'
+export const BASE_URL = 'https://abshopee.com'
 
 // const request = async ({
 //   url,

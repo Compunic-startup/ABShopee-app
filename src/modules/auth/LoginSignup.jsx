@@ -17,6 +17,8 @@ import { useNavigation } from '@react-navigation/native'
 import BASE_URL from '../../core/services/api'
 import { googleLogin } from '../../core/services/googleAuth'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
+import { Linking } from 'react-native'
+import { Keyboard } from 'react-native'
 
 const { width, height } = Dimensions.get('window')
 
@@ -31,6 +33,9 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
   const cardAnim = useRef(new Animated.Value(80)).current
   const cardFade = useRef(new Animated.Value(0)).current
   const pulse = useRef(new Animated.Value(1)).current
+
+
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
 
   useEffect(() => {
     Animated.stagger(120, [
@@ -58,6 +63,11 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
   const isValidEmail = emailRegex.test(value.trim())
   const isValidPhone = phoneRegex.test(value.trim())
   const isValidInput = isValidEmail || isValidPhone
+
+
+  const openLink = (url) => {
+    Linking.openURL(url)
+  }
 
   const signupEmail = async (identifier) => {
     const res = await fetch(`${BASE_URL}/auth/signup`, {
@@ -129,6 +139,21 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
     }
   }
 
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true)
+    })
+
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false)
+    })
+
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={color.primary} />
@@ -155,8 +180,17 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
       <Animated.View
         style={[
           styles.hero,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          {
+            opacity: isKeyboardVisible ? 0 : fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: isKeyboardVisible ? 0.9 : 1 }
+            ],
+            height: isKeyboardVisible ? 0 : undefined,
+            marginTop: isKeyboardVisible ? -20 : 0,
+          },
         ]}
+        pointerEvents={isKeyboardVisible ? 'none' : 'auto'}
       >
 
         <Text style={styles.title}>
@@ -196,7 +230,7 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
             }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            keyboardType={/^\d+$/.test(value) ? 'number-pad' : 'default'}
+            keyboardType={/^\d+$/.test(value) ? 'default' : 'default'}
             outlineColor="#E8ECF4"
             activeOutlineColor={color.primary}
             outlineStyle={{ borderRadius: moderateScale(14) }}
@@ -225,15 +259,15 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
           Continue →
         </AppButton>
 
-        {/* Divider
-        <View style={styles.dividerRow}>
+        {/* Divider */}
+        {/* <View style={styles.dividerRow}>
           <Divider style={styles.divider} />
           <Text style={styles.or}>or continue with</Text>
           <Divider style={styles.divider} />
         </View> */}
 
-        {/* Google Button
-        <TouchableOpacity
+        {/* Google Button */}
+        {/* <TouchableOpacity
           style={styles.googleBtn}
           onPress={handleGoogleLogin}
           activeOpacity={0.75}
@@ -247,9 +281,14 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
 
         <Text style={styles.termsText}>
           By continuing, you agree to our{' '}
-          <Text style={styles.termsLink}>Terms of Service</Text>
-          {' '}and{' '}
-          <Text style={styles.termsLink}>Privacy Policy</Text>
+
+          <Text
+            style={styles.termsLink}
+            onPress={() => openLink('https://abshopee.com/privacy-policy')}
+          >
+            Privacy Policy
+          </Text>
+
         </Text>
       </Animated.View>
     </View>
@@ -271,7 +310,7 @@ const styles = ScaledSheet.create({
     width: '200@s',
     height: '200@s',
     borderRadius: '100@s',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: color.secondary,
   },
   blobBottomLeft: {
     position: 'absolute',
@@ -280,7 +319,7 @@ const styles = ScaledSheet.create({
     width: '180@s',
     height: '180@s',
     borderRadius: '90@s',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: color.secondary,
   },
 
   // Top bar
@@ -316,7 +355,7 @@ const styles = ScaledSheet.create({
     width: '6@ms',
     height: '6@ms',
     borderRadius: '3@ms',
-    backgroundColor: '#4ADE80',
+    backgroundColor: '#0d0080',
     marginRight: '6@s',
   },
   badgeText: {
@@ -326,7 +365,7 @@ const styles = ScaledSheet.create({
     letterSpacing: 0.4,
   },
   title: {
-    color: 'rgba(255,255,255,0.85)',
+    color: color.WHITE,
     fontSize: '22@ms',
     lineHeight: '32@vs',
     fontFamily: fonts.MontBold,
@@ -371,12 +410,12 @@ const styles = ScaledSheet.create({
   heading: {
     fontSize: '22@ms',
     fontWeight: '800',
-    color: '#0F172A',
+    color: color.primary,
     fontFamily: fonts.MontBold,
     marginBottom: '4@vs',
   },
   subHeading: {
-    color: '#64748B',
+    color: '#00285f',
     fontSize: '12@ms',
     fontFamily: fonts.MontRegular,
     lineHeight: '18@vs',

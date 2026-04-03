@@ -9,8 +9,9 @@ import {
   StatusBar,
   Image,
   ToastAndroid,
+  Clipboard,
 } from 'react-native'
-import { ScaledSheet } from 'react-native-size-matters'
+import { ScaledSheet, ms, s, vs } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import noimage from '../../../assets/images/Categories/preloader.gif'
@@ -19,38 +20,159 @@ import FileViewer from 'react-native-file-viewer'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import color from '../../../utils/color'
 
-// ─── Free Gift Badge ──────────────────────────────────────────────────────────
-const FreeGiftBadge = () => (
-  <View style={styles.freeGiftBadgeWrap}>
-    <View style={styles.freeGiftBadge}>
-      <Icon name="gift" size={11} color="#fff" />
-      <Text style={styles.freeGiftBadgeText}>FREE GIFT</Text>
+// ─── Step pipeline — keyed to real API events[].toStatus ─────────────────────
+const STEPS = [
+  { key: 'created', label: 'Order Placed', icon: 'receipt' },
+  { key: 'confirmed', label: 'Confirmed', icon: 'check-circle-outline' },
+  { key: 'fulfilled', label: 'Shipped', icon: 'truck-delivery-outline' },
+  { key: 'completed', label: 'Delivered', icon: 'home-circle-outline' },
+]
+const STEP_INDEX = { created: 0, confirmed: 1, fulfilled: 2, completed: 3 }
+
+// ─── Vertical Stepper ─────────────────────────────────────────────────────────
+function VerticalStepper({ currentStatus, events = [] }) {
+  const isCancelled = currentStatus === 'cancelled'
+  const activeIdx = isCancelled ? 0 : (STEP_INDEX[currentStatus] ?? 0)
+
+  const eventTimeMap = {}
+  events.forEach(ev => { if (ev.toStatus) eventTimeMap[ev.toStatus] = ev.createdAt })
+
+  const fmtDate = iso => iso
+    ? new Date(iso).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+    : null
+
+  if (isCancelled) {
+    return (
+      <View style={styles.vWrap}>
+        {/* Node 1 — placed */}
+        <View style={styles.vRow}>
+          <View style={styles.vLeft}>
+            <View style={[styles.vCircle, styles.vCircleDone]}>
+              <Icon name="check" size={ms(11)} color="#fff" />
+            </View>
+            <View style={[styles.vLine, styles.vLineCancelled]} />
+          </View>
+          <View style={styles.vBody}>
+            <Text style={styles.vLabel}>Order Placed</Text>
+            {eventTimeMap['created'] && <Text style={styles.vDate}>{fmtDate(eventTimeMap['created'])}</Text>}
+          </View>
+        </View>
+        {/* Node 2 — cancelled */}
+        <View style={styles.vRow}>
+          <View style={styles.vLeft}>
+            <View style={[styles.vCircle, styles.vCircleCancelled]}>
+              <Icon name="close" size={ms(11)} color="#fff" />
+            </View>
+          </View>
+          <View style={styles.vBody}>
+            <Text style={[styles.vLabel, { color: '#D32F2F' }]}>Cancelled</Text>
+            {eventTimeMap['cancelled'] && <Text style={styles.vDate}>{fmtDate(eventTimeMap['cancelled'])}</Text>}
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.vWrap}>
+      {STEPS.map((step, i) => {
+        const done = i <= activeIdx
+        const current = i === activeIdx
+        const isLast = i === STEPS.length - 1
+        return (
+          <View key={step.key} style={styles.vRow}>
+            <View style={styles.vLeft}>
+              <View style={[
+                styles.vCircle,
+                done && styles.vCircleDone,
+                current && styles.vCircleCurrent,
+                !done && styles.vCircleEmpty,
+              ]}>
+                {done
+                  ? <Icon name={current ? step.icon : 'check'} size={ms(11)} color="#fff" />
+                  : <View style={styles.vDotInner} />
+                }
+              </View>
+              {!isLast && <View style={[styles.vLine, i < activeIdx && styles.vLineDone]} />}
+            </View>
+            <View style={[styles.vBody, !isLast && { paddingBottom: vs(18) }]}>
+              <Text style={[
+                styles.vLabel,
+                done && { color: color.text, fontFamily: current ? FONTS.Bold : FONTS.SemiBold },
+                !done && { color: '#BDBDBD' },
+              ]}>
+                {step.label}
+              </Text>
+              {done && eventTimeMap[step.key] && (
+                <Text style={styles.vDate}>{fmtDate(eventTimeMap[step.key])}</Text>
+              )}
+              {current && !eventTimeMap[step.key] && (
+                <Text style={styles.vProgress}>In progress</Text>
+              )}
+            </View>
+          </View>
+        )
+      })}
     </View>
+  )
+}
+
+// ─── Dashed divider ───────────────────────────────────────────────────────────
+const DashedDivider = () => (
+  <View style={styles.dashedRow}>
+    {Array.from({ length: 36 }).map((_, i) => <View key={i} style={styles.dashedDot} />)}
   </View>
 )
 
+// ─── Price row ────────────────────────────────────────────────────────────────
+const PriceRow = ({ label, value, strike, green, bold, large }) => (
+  <View style={styles.priceRow}>
+    <Text style={[styles.priceLabel, bold && styles.priceLabelBold]}>{label}</Text>
+    <Text style={[
+      styles.priceValue,
+      strike && styles.strikethrough,
+      green && { color: '#388E3C' },
+      bold && styles.priceValueBold,
+      large && { fontSize: ms(16) },
+    ]}>
+      {value}
+    </Text>
+  </View>
+)
+
+// ─── Section card ─────────────────────────────────────────────────────────────
+const Card = ({ title, titleIcon, children }) => (
+  <View style={styles.card}>
+    {title && (
+      <View style={styles.cardTitleRow}>
+        {titleIcon && <Icon name={titleIcon} size={ms(16)} color={color.primary} />}
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+    )}
+    {children}
+  </View>
+)
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function OrderDetailsScreen() {
   const navigation = useNavigation()
   const { orderId } = useRoute().params
-
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [fadeAnim] = useState(new Animated.Value(0))
   const [downloading, setDownloading] = useState(false)
+  const [fadeAnim] = useState(new Animated.Value(0))
+
+  useEffect(() => { fetchOrder() }, [])
+
 
   useEffect(() => {
-    fetchOrder()
-  }, [])
-
-  useEffect(() => {
-    if (!loading && order) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start()
-    }
+    if (!loading && order)
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
   }, [loading, order])
 
   const fetchOrder = async () => {
@@ -62,9 +184,9 @@ export default function OrderDetailsScreen() {
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const json = await res.json()
-      console.log('Order details response:', json)
-      setOrder(json?.data)
-    } catch (e) {
+      console.log('Fetched order details:', json)
+      setOrder(json?.data)   // API shape: { data: { orderId, items, events, ... } }
+    } catch {
       ToastAndroid.show('Failed to load order details', ToastAndroid.SHORT)
     } finally {
       setLoading(false)
@@ -76,88 +198,47 @@ export default function OrderDetailsScreen() {
       setDownloading(true)
       const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
-      const url = `${BASE_URL}/customer/business/${businessId}/orders/${orderId}/invoice`
       const filePath = `${RNFS.DownloadDirectoryPath}/Invoice-${orderId}.pdf`
       const result = await RNFS.downloadFile({
-        fromUrl: url,
+        fromUrl: `${BASE_URL}/customer/business/${businessId}/orders/${orderId}/invoice`,
         toFile: filePath,
         headers: { Authorization: `Bearer ${token}` },
       }).promise
       if (result.statusCode === 200) {
-        ToastAndroid.show('Invoice downloaded successfully', ToastAndroid.SHORT)
+        ToastAndroid.show('Invoice downloaded', ToastAndroid.SHORT)
         await FileViewer.open(filePath)
       } else {
         ToastAndroid.show('Download failed', ToastAndroid.SHORT)
+        console.log('Download Result:', JSON.stringify(result, null, 2))
       }
-    } catch (err) {
+    } catch (error) {
       ToastAndroid.show('Something went wrong', ToastAndroid.SHORT)
+      console.log('Download Error:', error)
     } finally {
       setDownloading(false)
     }
   }
 
-  const getStatusConfig = status => {
-    const configs = {
-      created: { color: '#FF9800', bgColor: '#FFF3E0', icon: 'clock-outline', label: 'Order Placed' },
-      confirmed: { color: '#2196F3', bgColor: '#E3F2FD', icon: 'check-circle-outline', label: 'Confirmed' },
-      fulfilled: { color: '#9C27B0', bgColor: '#F3E5F5', icon: 'package-variant', label: 'Processing' },
-      completed: { color: '#4CAF50', bgColor: '#E8F5E9', icon: 'check-all', label: 'Completed' },
-      cancelled: { color: '#F44336', bgColor: '#FFEBEE', icon: 'close-circle-outline', label: 'Cancelled' },
-    }
-    return configs[status?.toLowerCase()] || {
-      color: '#757575', bgColor: '#F5F5F5', icon: 'help-circle-outline', label: status,
-    }
+  const copyOrderId = () => {
+    Clipboard.setString(order?.orderId ?? '')
+    ToastAndroid.show('Order ID copied', ToastAndroid.SHORT)
   }
 
-  const getShipmentStatusConfig = status => {
-    const configs = {
-      pending: { color: '#FF9800', bgColor: '#FFF3E0', icon: 'clock-outline', label: 'Pending' },
-      shipped: { color: '#2196F3', bgColor: '#E3F2FD', icon: 'truck-fast-outline', label: 'Shipped' },
-      in_transit: { color: '#9C27B0', bgColor: '#F3E5F5', icon: 'truck-delivery-outline', label: 'In Transit' },
-      delivered: { color: '#4CAF50', bgColor: '#E8F5E9', icon: 'check-circle', label: 'Delivered' },
-      returned: { color: '#F44336', bgColor: '#FFEBEE', icon: 'keyboard-return', label: 'Returned' },
-    }
-    return configs[status?.toLowerCase()] || {
-      color: '#757575', bgColor: '#F5F5F5', icon: 'truck-outline', label: status || 'Unknown',
-    }
-  }
-
-  // ─── Free gift separation logic ───────────────────────────────────────────
-  const computeItemSections = () => {
-    if (!order) return { regularItems: [], freeGiftItems: [] }
-    const metaGifts = order.metadata?.freeGifts ?? []
-    const allItems = order.items ?? []
-    const giftItemIds = new Set(metaGifts.map(g => g.itemId))
-    const itemsMap = new Map(allItems.map(i => [i.itemId, i]))
-    const regularItems = allItems.filter(i => !giftItemIds.has(i.itemId))
-    const freeGiftItems = metaGifts.map(gift => {
-      const matched = itemsMap.get(gift.itemId)
-      if (matched) return { ...matched, _isGift: true }
-      return {
-        itemId: gift.itemId,
-        quantity: gift.quantity ?? 1,
-        itemSnapshot: gift.itemSnapshot ?? gift,
-        _isGift: true,
-        _metaOnly: true,
-      }
-    })
-    return { regularItems, freeGiftItems }
-  }
-
+  // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
+        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Icon name="arrow-left" size={24} color="#fff" />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+            <Icon name="arrow-left" size={ms(22)} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Order Details</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: s(40) }} />
         </View>
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#0B77A7" />
-          <Text style={styles.loadingText}>Loading order details...</Text>
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={color.primary} />
+          <Text style={styles.loadingText}>Loading order details…</Text>
         </View>
       </View>
     )
@@ -165,717 +246,582 @@ export default function OrderDetailsScreen() {
 
   if (!order) return null
 
-  const { regularItems, freeGiftItems } = computeItemSections()
+  // ── Data derived from real API shape ──────────────────────────────────────
+  // events[] → [{ fromStatus, toStatus, createdAt, ... }]
+  const events = order.events ?? []
+  const latestEvent = events[events.length - 1]
+  const currentStatus = latestEvent?.toStatus ?? order.status ?? 'created'
+  const isCancelled = currentStatus === 'cancelled'
 
-  const addressData = order.addresses?.[0]?.addressSnapshot
-  const contactData = order.addresses?.[0]?.contactSnapshot
-  const latestEvent = order.events?.[order.events.length - 1]
-  const currentStatus = latestEvent?.toStatus || order.status
-  const statusConfig = getStatusConfig(currentStatus)
+  // items[] — deduplicate same itemId (your data has itemId 854df... twice)
   const allItems = order.items ?? []
-  const isDigital =
-    allItems.length > 0 &&
-    allItems.every(i => i.itemSnapshot?.itemType === 'digital')
+  const deduped = Object.values(
+    allItems.reduce((acc, item) => {
+      if (acc[item.itemId]) {
+        acc[item.itemId] = { ...acc[item.itemId], quantity: acc[item.itemId].quantity + item.quantity }
+      } else {
+        acc[item.itemId] = { ...item }
+      }
+      return acc
+    }, {})
+  )
 
-  // ─── Shipment data (safe — no crash if absent) ────────────────────────────
+  // Free gifts from metadata.freeGifts
+  const metaGifts = order.metadata?.freeGifts ?? []
+  const giftIds = new Set(metaGifts.map(g => g.itemId))
+  const freeGifts = metaGifts.map(gift => {
+    const match = allItems.find(i => i.itemId === gift.itemId)
+    return match
+      ? { ...match, _gift: true }
+      : { itemId: gift.itemId, quantity: gift.quantity ?? 1, itemSnapshot: gift.itemSnapshot ?? gift, _gift: true }
+  })
+
+  const isDigital = allItems.length > 0 && allItems.every(i => i.itemSnapshot?.itemType === 'digital')
+
+  // addresses[0].addressSnapshot + contactSnapshot
+  const addrEntry = order.addresses?.[0]
+  const addrSnap = addrEntry?.addressSnapshot
+  const contSnap = addrEntry?.contactSnapshot
+
+  // shipment[]
   const shipments = Array.isArray(order.shipment) && order.shipment.length > 0
-    ? order.shipment
-    : null
+    ? order.shipment : null
 
-  const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+  // pricing.pricingSnapshot — { subtotal, total, discountTotal, items[] }
+  const ps = order.pricing?.pricingSnapshot ?? {}
+  const subtotal = ps.subtotal ?? 0
+  const total = ps.total ?? parseFloat(order.pricing?.amount ?? 0)
+  const discountTotal = ps.discountTotal ?? 0
+  // delivery = total - (subtotal - discountTotal)  [clamp to 0]
+  const deliveryFee = Math.max(0, total - subtotal + discountTotal)
+
+  // payment[0] — { provider, method, status, amount, currency }
+  const payment = order.payment?.[0]
+  const isPaid = ['captured', 'success', 'paid'].includes(payment?.status)
+
+  const createdDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
-  const orderTime = new Date(order.createdAt).toLocaleTimeString('en-IN', {
+  const createdTime = new Date(order.createdAt).toLocaleTimeString('en-IN', {
     hour: '2-digit', minute: '2-digit',
   })
 
+  // Hero item for top card
+  const heroItem = deduped[0]
+  const heroSnap = heroItem?.itemSnapshot ?? {}
+  const heroAttrs = (heroItem?.selectedAttributes?.attributes ?? [])
+    .map(a => `${a.label}: ${a.displayValue}`).join(' · ')
+  const extraCount = deduped.length - 1
+
+  const statusLabel = {
+    created: 'Order Placed', confirmed: 'Confirmed',
+    fulfilled: 'Shipped', completed: 'Delivered', cancelled: 'Cancelled',
+  }[currentStatus] ?? currentStatus
+
+
+  // const canReturn =
+  //   currentStatus === 'Completed' &&
+  //   !isCancelled &&
+  //   !isDigital &&
+  //   !(order?.returnRequestExists)
+
+  const canReturn = true
+
+  const goToReturn = () => {
+    navigation.navigate('createreturn', {
+      orderId: order.orderId,
+      items: deduped,
+    })
+  }
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      {/* ── Header ── */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color="#fff" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Icon name="arrow-left" size={ms(22)} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <TouchableOpacity style={styles.headerBtn}>
-          <Icon name="share-variant" size={24} color="#fff" />
+        <TouchableOpacity style={styles.headerHelpBtn}>
+          <Text style={styles.headerHelpText}>Help</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: vs(110) }}>
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ── Status Card ── */}
-          <View style={styles.statusCard}>
-            <View style={styles.statusHeader}>
-              <View style={[styles.statusIconContainer, { backgroundColor: statusConfig.bgColor }]}>
-                <Icon name={statusConfig.icon} size={32} color={statusConfig.color} />
-              </View>
-              <View style={styles.statusTextContainer}>
-                <Text style={styles.statusLabel}>Order Status</Text>
-                <Text style={[styles.statusValue, { color: statusConfig.color }]}>
-                  {statusConfig.label}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.orderIdContainer}>
-              <Icon name="receipt" size={18} color="#666" />
-              <Text style={styles.orderId}>Order ID: #{orderId.slice(0, 12)}</Text>
-            </View>
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateTimeItem}>
-                <Icon name="calendar-outline" size={16} color="#666" />
-                <Text style={styles.dateTimeText}>{orderDate}</Text>
-              </View>
-              <View style={styles.dateTimeDivider} />
-              <View style={styles.dateTimeItem}>
-                <Icon name="clock-outline" size={16} color="#666" />
-                <Text style={styles.dateTimeText}>{orderTime}</Text>
+          {/* ── Hero product ────────────────────────────────────────────── */}
+          <View style={styles.heroCard}>
+            <Image
+              source={heroSnap.image ? { uri: heroSnap.image } : noimage}
+              style={styles.heroImg}
+            />
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroName} numberOfLines={2}>
+                {heroSnap.title || 'Product'}
+              </Text>
+              {!!heroAttrs && <Text style={styles.heroAttrs} numberOfLines={1}>{heroAttrs}</Text>}
+              <View style={styles.heroMeta}>
+                <View style={styles.qtyPill}>
+                  <Text style={styles.qtyPillTxt}>Qty: {heroItem?.quantity}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* ── Shipment Tracking Card (only renders if shipment data exists) ── */}
-          {shipments && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Icon name="truck-delivery-outline" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>
-                  Shipment{shipments.length > 1 ? 's' : ''} ({shipments.length})
+          {/* ── Order ID bar ────────────────────────────────────────────── */}
+          <TouchableOpacity style={styles.orderIdBar} onPress={copyOrderId} activeOpacity={0.7}>
+            <Icon name="receipt" size={ms(13)} color="#999" />
+            <Text style={styles.orderIdBarTxt} numberOfLines={1}>
+              Order #{order.orderId?.slice(-16).toUpperCase()}
+            </Text>
+            <Icon name="content-copy" size={ms(13)} color={color.primary} />
+          </TouchableOpacity>
+
+
+          {/* ── Status + Vertical Stepper ───────────────────────────────── */}
+          <Card>
+            <View style={styles.statusRow}>
+              <View>
+                <Text style={[styles.statusLabel, isCancelled && { color: '#D32F2F' }]}>
+                  {statusLabel}
                 </Text>
+                <Text style={styles.statusDate}>{createdDate} · {createdTime}</Text>
               </View>
+              {isCancelled && (
+                <View style={styles.cancelPill}>
+                  <Icon name="close-circle" size={ms(12)} color="#D32F2F" />
+                  <Text style={styles.cancelPillTxt}>Cancelled</Text>
+                </View>
+              )}
+            </View>
+            <VerticalStepper currentStatus={currentStatus} events={events} />
+          </Card>
 
-              {shipments.map((shipment, index) => {
-                const shipConfig = getShipmentStatusConfig(shipment.status)
-                const shippedOn = shipment.createdAt
-                  ? new Date(shipment.createdAt).toLocaleDateString('en-IN', {
-                    day: 'numeric', month: 'short', year: 'numeric',
-                  })
-                  : null
+          {/* ── Shipments ───────────────────────────────────────────────── */}
+          {shipments?.map((sh, i) => (
+            <Card key={i} title="Shipment Info" titleIcon="truck-fast-outline">
+              <View style={styles.shipRow}>
+                <View style={styles.shipIconWrap}>
+                  <Icon name="truck-outline" size={ms(18)} color={color.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.shipCarrier}>{sh.carrier || 'Courier Partner'}</Text>
+                  {sh.trackingId && <Text style={styles.shipTrack}>ID: {sh.trackingId}</Text>}
+                </View>
+                <View style={styles.shipPill}>
+                  <Text style={styles.shipPillTxt}>
+                    {sh.status?.charAt(0).toUpperCase() + sh.status?.slice(1)}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          ))}
 
-                return (
-                  <View key={shipment.id ?? index} style={styles.shipmentCard}>
-                    {/* Top row: carrier + status pill */}
-                    <View style={styles.shipmentTopRow}>
-                      <View style={styles.shipmentCarrierRow}>
-                        <View style={styles.shipmentCarrierIconWrap}>
-                          <Icon name="truck-outline" size={20} color="#0B77A7" />
-                        </View>
-                        <View>
-                          <Text style={styles.shipmentCarrierLabel}>Courier Partner</Text>
-                          <Text style={styles.shipmentCarrierName}>
-                            {shipment.carrier || 'N/A'}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={[styles.shipmentStatusPill, { backgroundColor: shipConfig.bgColor }]}>
-                        <Icon name={shipConfig.icon} size={12} color={shipConfig.color} />
-                        <Text style={[styles.shipmentStatusText, { color: shipConfig.color }]}>
-                          {shipConfig.label}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Divider */}
-                    <View style={styles.shipmentDivider} />
-
-                    {/* Tracking ID row */}
-                    <View style={styles.shipmentDetailRow}>
-                      <Icon name="barcode-scan" size={16} color="#666" />
-                      <Text style={styles.shipmentDetailLabel}>Tracking ID</Text>
-                      <Text style={styles.shipmentDetailValue} numberOfLines={1}>
-                        {shipment.trackingId || '—'}
+          {/* ── Items list ──────────────────────────────────────────────── */}
+          <Card title={`Items (${deduped.length})`} titleIcon="package-variant">
+            {deduped.map((item, idx) => {
+              const snap = item.itemSnapshot ?? {}
+              const isGift = giftIds.has(item.itemId)
+              // per-item price from pricingSnapshot.items[idx]
+              const psItem = ps.items?.[idx]
+              const lineTotal = psItem?.finalLineTotal ?? (snap.price ?? 0) * item.quantity
+              return (
+                <View key={item.itemId + idx} style={[styles.itemRow, idx > 0 && styles.itemRowBorder]}>
+                  <Image
+                    source={snap.image ? { uri: snap.image } : noimage}
+                    style={styles.itemImg}
+                  />
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName} numberOfLines={2}>{snap.title || 'Product'}</Text>
+                    {(item.selectedAttributes?.attributes ?? []).length > 0 && (
+                      <Text style={styles.itemAttrs} numberOfLines={1}>
+                        {item.selectedAttributes.attributes.map(a => `${a.label}: ${a.displayValue}`).join(' · ')}
                       </Text>
-                    </View>
-
-                    {/* Shipped on */}
-                    {shippedOn && (
-                      <View style={styles.shipmentDetailRow}>
-                        <Icon name="calendar-check-outline" size={16} color="#666" />
-                        <Text style={styles.shipmentDetailLabel}>Shipped On</Text>
-                        <Text style={styles.shipmentDetailValue}>{shippedOn}</Text>
-                      </View>
                     )}
-
-                    {/* Info note */}
-                    <View style={styles.shipmentNote}>
-                      <Icon name="information-outline" size={13} color="#0B77A7" />
-                      <Text style={styles.shipmentNoteText}>
-                        Use the tracking ID on the courier's website to track your package
-                      </Text>
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          )}
-
-          {/* ── Regular Items Section ── */}
-          {regularItems.length > 0 && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Icon name="package-variant" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>Items ({regularItems.length})</Text>
-              </View>
-
-              {regularItems.map((item, index) => {
-                const snapshot = item.itemSnapshot
-                const pricingItems = order.pricing?.pricingSnapshot?.items ?? []
-                const originalIndex = order.items.findIndex(i => i.itemId === item.itemId)
-
-                return (
-                  <View key={item.itemId + index} style={styles.itemCard}>
-                    <Image
-                      source={snapshot?.image ? { uri: snapshot.image } : noimage}
-                      style={styles.itemImage}
-                    />
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemTitle} numberOfLines={2}>{snapshot?.title}</Text>
-                      <View style={styles.itemMetaRow}>
-                        <View style={styles.qtyBadge}>
-                          <Text style={styles.qtyText}>Qty: {item.quantity}</Text>
-                        </View>
-                        {snapshot?.itemType === 'digital' && (
-                          <View style={styles.digitalBadge}>
-                            <Icon name="download" size={10} color="#1976D2" />
-                            <Text style={styles.digitalText}>Digital</Text>
-                          </View>
-                        )}
+                    <View style={styles.itemFoot}>
+                      <View style={styles.qtyPill}>
+                        <Text style={styles.qtyPillTxt}>Qty: {item.quantity}</Text>
                       </View>
-                      <Text style={styles.itemPrice}>
-                        ₹{(pricingItems[originalIndex]?.finalLineTotal || 0).toFixed(2)}
-                      </Text>
+                      {isGift && (
+                        <View style={styles.freePill}>
+                          <Icon name="gift" size={ms(9)} color="#fff" />
+                          <Text style={styles.freePillTxt}>FREE</Text>
+                        </View>
+                      )}
+                      {snap.itemType === 'digital' && (
+                        <View style={styles.digitalPill}>
+                          <Icon name="download" size={ms(9)} color={color.primary} />
+                          <Text style={styles.digitalPillTxt}>Digital</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
-                )
-              })}
-            </View>
-          )}
-
-          {/* ── Free Gift Section ── */}
-          {freeGiftItems.length > 0 && (
-            <View style={styles.freeGiftSection}>
-              <View style={styles.freeGiftSectionHeader}>
-                <View style={styles.freeGiftHeaderLeft}>
-                  <Icon name="gift-open" size={20} color="#0b81b8" />
-                  <Text style={styles.freeGiftSectionTitle}>
-                    Free Gift{freeGiftItems.length > 1 ? 's' : ''} Included
+                  <Text style={styles.itemPrice}>
+                    {isGift ? 'FREE' : `₹${lineTotal?.toFixed(0)}`}
                   </Text>
                 </View>
-                <View style={styles.freeGiftCountPill}>
-                  <Text style={styles.freeGiftCountText}>{freeGiftItems.length}</Text>
-                </View>
-              </View>
+              )
+            })}
+          </Card>
 
-              {freeGiftItems.map((item, index) => {
-                const snapshot = item.itemSnapshot
-                return (
-                  <View key={item.itemId + index} style={styles.freeGiftCard}>
-                    <View style={styles.freeGiftTopAccent} />
-                    <View style={styles.freeGiftCardInner}>
-                      <View style={styles.freeGiftImageWrap}>
-                        <Image
-                          source={snapshot?.image ? { uri: snapshot.image } : noimage}
-                          style={styles.freeGiftImage}
-                        />
-                        <FreeGiftBadge />
-                      </View>
-                      <View style={styles.freeGiftDetails}>
-                        <Text style={styles.freeGiftTitle} numberOfLines={2}>
-                          {snapshot?.title || 'Surprise Gift'}
-                        </Text>
-                        {snapshot?.description && (
-                          <Text style={styles.freeGiftDesc} numberOfLines={1}>
-                            {snapshot.description}
-                          </Text>
-                        )}
-                        <View style={styles.freeGiftFooter}>
-                          <View style={styles.freeGiftQtyPill}>
-                            <Icon name="package-variant" size={12} color="#0b81b8" />
-                            <Text style={styles.freeGiftQtyText}>Qty: {item.quantity}</Text>
-                          </View>
-                          <View style={styles.complimentaryPill}>
-                            <Icon name="check-circle" size={12} color="#fff" />
-                            <Text style={styles.complimentaryText}>Complimentary</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.freeGiftNote}>
-                      <Icon name="information-outline" size={13} color="#0b81b8" />
-                      <Text style={styles.freeGiftNoteText}>
-                        This item was added as a free gift with your order
-                      </Text>
-                    </View>
+          {/* ── Delivery address ────────────────────────────────────────── */}
+          {!isDigital && (addrSnap || contSnap) && (
+            <Card title="Delivery details" titleIcon="map-marker-outline">
+              {addrSnap && (
+                <View style={styles.addrBox}>
+                  <View style={styles.addrTypeRow}>
+                    <Icon name="map-marker" size={ms(13)} color="#999" />
+                    <Text style={styles.addrType}>{addrEntry?.type === 'shipping' ? 'Shipping' : 'Other'}</Text>
                   </View>
-                )
-              })}
-            </View>
+                  <Text style={styles.addrLine}>
+                    {[addrSnap.line1, addrSnap.city, addrSnap.state].filter(Boolean).join(', ')}
+                  </Text>
+                  <Text style={styles.addrLine}>{addrSnap.pincode} · {addrSnap.country}</Text>
+                </View>
+              )}
+              {contSnap && (
+                <View style={[styles.addrBox, styles.contRow]}>
+                  <Icon name="account-circle-outline" size={ms(15)} color="#999" />
+                  <Text style={styles.contName}>{contSnap.name}</Text>
+                  <Text style={styles.contPhone}>{contSnap.phone}</Text>
+                </View>
+              )}
+            </Card>
           )}
 
-          {/* ── Price Summary ── */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Icon name="calculator" size={22} color="#0B77A7" />
-              <Text style={styles.sectionTitle}>Price Summary</Text>
-            </View>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Subtotal</Text>
-              <Text style={styles.priceValue}>₹{order.pricing?.pricingSnapshot?.subtotal}</Text>
-            </View>
-            {order.pricing?.pricingSnapshot?.discountTotal > 0 && (
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Discount</Text>
-                <Text style={[styles.priceValue, { color: '#4CAF50' }]}>
-                  - ₹{order.pricing.pricingSnapshot.discountTotal}
+          {/* ── Digital delivery ────────────────────────────────────────── */}
+          {isDigital && (
+            <Card title="Digital Delivery" titleIcon="download-circle-outline">
+              <View style={styles.digitalBox}>
+                <Icon name="email-check-outline" size={ms(22)} color={color.primary} />
+                <Text style={styles.digitalTxt}>
+                  Your digital product(s) have been sent to your registered email address.
                 </Text>
               </View>
-            )}
-            {freeGiftItems.length > 0 && (
-              <View style={styles.priceRow}>
-                <View style={styles.priceDiscountLabel}>
-                  <Icon name="gift" size={13} color="#0b81b8" />
-                  <Text style={[styles.priceLabel, { color: '#0b81b8', marginLeft: 5 }]}>
-                    Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
-                  </Text>
-                </View>
-                <Text style={[styles.priceValue, { color: '#0b81b8', fontFamily: FONTS.Bold }]}>FREE</Text>
-              </View>
-            )}
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Delivery Charges</Text>
-              <Text style={[styles.priceValue, { color: '#4CAF50' }]}>FREE</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₹{order.pricing?.pricingSnapshot?.total}</Text>
-            </View>
-          </View>
+            </Card>
+          )}
 
-          {/* ── Payment Info ── */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Icon name="credit-card-outline" size={22} color="#0B77A7" />
-              <Text style={styles.sectionTitle}>Payment Information</Text>
-            </View>
-            {order.payment?.map((pay, index) => (
-              <View key={index} style={styles.paymentInfoCard}>
-                <View style={styles.paymentRow}>
-                  <Icon name={pay.provider === 'razorpay' ? 'cellphone' : 'cash'} size={22} color="#0B77A7" />
-                  <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={styles.paymentMethod}>{pay.method?.toUpperCase()}</Text>
-                    <Text style={[styles.paymentStatus, {
-                      color: pay.status === 'captured' || pay.status === 'success' ? '#4CAF50' : '#FF9800',
-                    }]}>
-                      {pay.status?.toUpperCase()}
+          {/* ── Price details ───────────────────────────────────────────── */}
+          <Card title="Price details" titleIcon="tag-outline">
+            <PriceRow label="Subtotal" value={`₹${subtotal.toFixed(2)}`} />
+            {discountTotal > 0 && (
+              <PriceRow label="Discount" value={`-₹${discountTotal.toFixed(2)}`} green />
+            )}
+            <PriceRow
+              label="Delivery charges"
+              value={deliveryFee === 0 ? 'FREE' : `₹${deliveryFee.toFixed(2)}`}
+              green={deliveryFee === 0}
+            />
+            {freeGifts.length > 0 && (
+              <PriceRow
+                label={`Free gift${freeGifts.length > 1 ? 's' : ''} (${freeGifts.length})`}
+                value="FREE"
+                green
+              />
+            )}
+            <DashedDivider />
+            <PriceRow label="Total amount" value={`₹${parseFloat(total).toFixed(2)}`} bold large />
+
+            {/* Payment method inline — matching Flipkart layout */}
+            {payment && (
+              <View style={styles.payRow}>
+                <Text style={styles.payLbl}>Payment{'\n'}method</Text>
+                <View style={styles.payRight}>
+                  <View style={styles.payIconBox}>
+                    <Icon
+                      name={
+                        payment.method === 'cod' ? 'cash' :
+                          payment.provider === 'razorpay' ? 'cellphone' :
+                            'credit-card-outline'
+                      }
+                      size={ms(16)}
+                      color={color.primary}
+                    />
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.payMethod}>
+                      {payment.method === 'cod'
+                        ? 'Cash on\nDelivery'
+                        : payment.method?.charAt(0).toUpperCase() + payment.method?.slice(1)}
                     </Text>
-                    <Text style={styles.paymentMeta}>Amount: ₹{parseFloat(pay.amount).toFixed(2)}</Text>
-                    <Text style={styles.paymentMeta}>Currency: {pay.currency}</Text>
-                    <Text style={styles.paymentMeta}>
-                      Paid On: {new Date(pay.createdAt).toLocaleString('en-IN')}
+                    <Text style={[styles.payStatus, { color: isPaid ? '#388E3C' : '#E65100' }]}>
+                      {isPaid ? 'Paid' : payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1)}
                     </Text>
                   </View>
                 </View>
+              </View>
+            )}
+          </Card>
+
+          {/* ── Order info ──────────────────────────────────────────────── */}
+          <Card title="Order information" titleIcon="information-outline">
+            {[
+              { label: 'Order ID', value: order.orderId?.toUpperCase(), copy: true },
+              { label: 'Placed on', value: `${createdDate} · ${createdTime}` },
+              { label: 'Items', value: `${deduped.length} item${deduped.length > 1 ? 's' : ''}` },
+              { label: 'Currency', value: payment?.currency ?? 'INR' },
+            ].map((row, i) => (
+              <View key={i} style={[styles.infoRow, i < 3 && styles.infoRowBorder]}>
+                <Text style={styles.infoLbl}>{row.label}</Text>
+                <TouchableOpacity
+                  style={styles.infoValRow}
+                  onPress={row.copy ? copyOrderId : undefined}
+                  activeOpacity={row.copy ? 0.6 : 1}
+                >
+                  <Text style={styles.infoVal} numberOfLines={1}>{row.value}</Text>
+                  {row.copy && <Icon name="content-copy" size={ms(12)} color={color.primary} />}
+                </TouchableOpacity>
               </View>
             ))}
-          </View>
-
-          {/* ── Delivery Address ── */}
-          {!isDigital && addressData && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Icon name="map-marker" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>Delivery Address</Text>
-              </View>
-              <View style={styles.addressCard}>
-                <Text style={styles.addressName}>{contactData?.name}</Text>
-                <Text style={styles.addressPhone}>{contactData?.phone}</Text>
-                <Text style={styles.addressText}>{addressData?.line1}</Text>
-                <Text style={styles.addressText}>
-                  {addressData?.city}, {addressData?.state} - {addressData?.pincode}
-                </Text>
-                <Text style={styles.addressText}>{addressData?.country}</Text>
-              </View>
-              <View style={styles.deliveryInfoBox}>
-                <Icon name="truck-fast" size={20} color="#4CAF50" />
-                <Text style={styles.deliveryInfoText}>Expected delivery in 3-5 business days</Text>
-              </View>
-            </View>
-          )}
-
-          {/* ── Digital Delivery ── */}
-          {isDigital && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Icon name="download-circle" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>Digital Delivery</Text>
-              </View>
-              <View style={styles.digitalDeliveryCard}>
-                <Icon name="email-check" size={32} color="#1976D2" />
-                <Text style={styles.digitalDeliveryTitle}>Delivered to Email</Text>
-                <Text style={styles.digitalDeliveryText}>
-                  Your digital products have been sent to your registered email address.
-                  Check your inbox for download links.
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* ── Order Timeline ── */}
-          {order.events?.length > 0 && (
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Icon name="timeline-clock" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>Order Timeline</Text>
-              </View>
-              {order.events.map((event, index) => {
-                const eventConfig = getStatusConfig(event.toStatus)
-                const eventDate = new Date(event.createdAt).toLocaleString('en-IN', {
-                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                })
-                return (
-                  <View key={index} style={styles.timelineItem}>
-                    <View style={[styles.timelineDot, { backgroundColor: eventConfig.color }]}>
-                      <Icon name={eventConfig.icon} size={12} color="#fff" />
-                    </View>
-                    {index < order.events.length - 1 && <View style={styles.timelineLine} />}
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineTitle}>{eventConfig.label}</Text>
-                      <Text style={styles.timelineDate}>{eventDate}</Text>
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          )}
-
-          {/* ── Help Card ── */}
-          <View style={styles.helpCard}>
-            <Icon name="help-circle-outline" size={24} color="#0B77A7" />
-            <View style={styles.helpTextContainer}>
-              <Text style={styles.helpTitle}>Need Help?</Text>
-              <Text style={styles.helpText}>
-                Contact our support team for any queries about your order
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.helpBtn}>
-              <Icon name="message-text" size={20} color="#0B77A7" />
-            </TouchableOpacity>
-          </View>
+          </Card>
 
         </Animated.View>
       </ScrollView>
 
-      {/* ── Floating Invoice Button ── */}
-      <View style={styles.floatingContainer}>
+      {/* ── Bottom bar ──────────────────────────────────────────────────── */}
+      <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={styles.floatingBtn}
-          activeOpacity={0.8}
+          style={styles.invoiceBtn}
           onPress={downloadInvoice}
           disabled={downloading}
+          activeOpacity={0.8}
         >
           {downloading
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Icon name="file-download-outline" size={22} color="#fff" />}
-          <Text style={styles.floatingText}>
-            {downloading ? 'Downloading...' : 'Download Invoice'}
+            ? <ActivityIndicator size="small" color={color.primary} />
+            : <Icon name="file-download-outline" size={ms(17)} color={color.primary} />
+          }
+          <Text style={styles.invoiceBtnTxt}>
+            {downloading ? 'Downloading…' : 'Download Invoice'}
           </Text>
         </TouchableOpacity>
+
+        {canReturn && (
+          <TouchableOpacity
+            style={styles.returnBtn}
+            onPress={goToReturn}
+            activeOpacity={0.8}
+          >
+            <Icon name="refresh" size={ms(17)} color="#fff" />
+            <Text style={styles.returnBtnTxt}>Replace</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   )
 }
 
+// ─── Styles — ONLY color.* values ────────────────────────────────────────────
 const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: color.background },
+  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: '12@vs', fontSize: '14@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  // ── Header ──
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: '16@s', paddingVertical: '12@vs', backgroundColor: '#0B77A7',
-    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2, shadowRadius: 4,
+    backgroundColor: color.primary,
+    paddingHorizontal: '14@s', paddingVertical: '13@vs',
+    elevation: 4,
   },
-  backBtn: { width: '40@s', height: '40@s', borderRadius: '20@s', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff', flex: 1, textAlign: 'center' },
-  headerBtn: { width: '40@s', height: '40@s', borderRadius: '20@s', justifyContent: 'center', alignItems: 'center' },
+  headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: '17@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  headerHelpBtn: {
+    borderWidth: 1.5, borderColor: color.primary,
+    borderRadius: '6@ms', paddingHorizontal: '12@s', paddingVertical: '5@vs',
+  },
+  headerHelpText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.primary },
 
-  // ── Status Card ──
-  statusCard: {
-    backgroundColor: '#fff', marginHorizontal: '16@s', marginTop: '16@vs',
-    padding: '16@s', borderRadius: '16@ms', elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4,
+  // ── Hero card ─────────────────────────────────────────────────────────────
+  heroCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', paddingHorizontal: '16@s', paddingVertical: '14@vs',
   },
-  statusHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '16@vs' },
-  statusIconContainer: {
-    width: '56@s', height: '56@s', borderRadius: '28@s',
-    justifyContent: 'center', alignItems: 'center', marginRight: '12@s',
+  heroImg: {
+    width: '64@s', height: '64@s', borderRadius: '8@ms',
+    backgroundColor: color.secondarylight, resizeMode: 'contain',
+    marginRight: '12@s', borderWidth: 1, borderColor: '#EEE',
   },
-  statusTextContainer: { flex: 1 },
-  statusLabel: { fontSize: '12@ms', color: '#666', marginBottom: '4@vs' },
-  statusValue: { fontSize: '18@ms', fontFamily: FONTS.Bold },
-  orderIdContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F7FA',
-    padding: '10@s', borderRadius: '8@ms', marginBottom: '12@vs', gap: '8@s',
-  },
-  orderId: { fontSize: '13@ms', color: '#666', fontFamily: FONTS.Medium },
-  dateTimeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '12@s' },
-  dateTimeItem: { flexDirection: 'row', alignItems: 'center', gap: '6@s' },
-  dateTimeText: { fontSize: '13@ms', color: '#666', fontFamily: FONTS.Medium },
-  dateTimeDivider: { width: 1, height: '14@vs', backgroundColor: '#E0E0E0' },
+  heroInfo: { flex: 1 },
+  heroName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '20@ms' },
+  heroAttrs: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs' },
+  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginTop: '6@vs' },
+  extraTxt: { fontSize: '12@ms', color: color.primary, fontFamily: FONTS.Bold },
 
-  // ── Section Card ──
-  sectionCard: {
-    backgroundColor: '#fff', marginHorizontal: '16@s', marginTop: '12@vs',
-    padding: '16@s', borderRadius: '16@ms', elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4,
+  // ── Order ID bar ──────────────────────────────────────────────────────────
+  orderIdBar: {
+    flexDirection: 'row', alignItems: 'center', gap: '8@s',
+    backgroundColor: '#fff', paddingHorizontal: '16@s', paddingVertical: '10@vs',
+    borderTopWidth: 1, borderTopColor: '#F0F0F0',
+    borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '16@vs', gap: '10@s' },
-  sectionTitle: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
+  orderIdBarTxt: { flex: 1, fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  // ── Shipment Card ──
-  shipmentCard: {
-    backgroundColor: '#F0F8FF',
-    borderRadius: '12@ms',
-    borderWidth: 1,
-    borderColor: '#BBDEFB',
-    marginBottom: '10@vs',
-    overflow: 'hidden',
+  // ── Card ──────────────────────────────────────────────────────────────────
+  card: { backgroundColor: '#fff', marginTop: '8@vs', paddingHorizontal: '16@s', paddingVertical: '16@vs' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: '7@s', marginBottom: '14@vs' },
+  cardTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
+
+  // ── Status head ───────────────────────────────────────────────────────────
+  statusRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    marginBottom: '20@vs',
   },
-  shipmentTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14@s',
+  statusLabel: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
+  statusDate: { fontSize: '12@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs' },
+  cancelPill: {
+    flexDirection: 'row', alignItems: 'center', gap: '4@s',
+    borderWidth: 1, borderColor: '#D32F2F',
+    paddingHorizontal: '8@s', paddingVertical: '3@vs', borderRadius: '20@ms',
   },
-  shipmentCarrierRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '10@s',
+  cancelPillTxt: { fontSize: '11@ms', color: '#D32F2F', fontFamily: FONTS.Bold },
+
+  // ── Vertical stepper ──────────────────────────────────────────────────────
+  vWrap: { paddingLeft: '2@s' },
+  vRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  vLeft: { alignItems: 'center', width: '28@s' },
+  vCircle: {
+    width: '26@s', height: '26@s', borderRadius: '13@ms',
+    backgroundColor: '#E0E0E0', borderWidth: 2, borderColor: '#E0E0E0',
+    justifyContent: 'center', alignItems: 'center',
   },
-  shipmentCarrierIconWrap: {
-    width: '40@s',
-    height: '40@s',
-    borderRadius: '20@s',
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
+  vCircleDone: { backgroundColor: color.primary, borderColor: color.primary },
+  vCircleCurrent: { backgroundColor: color.primary, borderColor: color.secondary, borderWidth: 2.5 },
+  vCircleEmpty: { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' },
+  vCircleCancelled: { backgroundColor: '#D32F2F', borderColor: '#D32F2F' },
+  vDotInner: { width: '8@s', height: '8@s', borderRadius: '4@ms', backgroundColor: '#BDBDBD' },
+  vLine: {
+    width: 2, flex: 1, minHeight: '30@vs',
+    backgroundColor: '#E0E0E0', marginVertical: '2@vs',
   },
-  shipmentCarrierLabel: {
-    fontSize: '11@ms',
-    color: '#888',
-    fontFamily: FONTS.Medium,
-    marginBottom: '2@vs',
+  vLineDone: { backgroundColor: color.primary },
+  vLineCancelled: { backgroundColor: '#D32F2F' },
+  vBody: { flex: 1, paddingLeft: '14@s', paddingBottom: vs(18) },
+  vLabel: { fontSize: '13@ms', fontFamily: FONTS.SemiBold, color: color.text },
+  vDate: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs' },
+  vProgress: { fontSize: '11@ms', color: color.primary, fontFamily: FONTS.Medium, marginTop: '3@vs' },
+
+  // ── Shipment ──────────────────────────────────────────────────────────────
+  shipRow: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  shipIconWrap: {
+    width: '40@s', height: '40@s', borderRadius: '20@ms',
+    backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center',
   },
-  shipmentCarrierName: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Bold,
-    color: '#0B77A7',
+  shipCarrier: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
+  shipTrack: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '2@vs' },
+  shipPill: {
+    backgroundColor: color.secondarylight,
+    paddingHorizontal: '10@s', paddingVertical: '4@vs', borderRadius: '20@ms',
   },
-  shipmentStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    paddingHorizontal: '10@s',
-    paddingVertical: '5@vs',
-    borderRadius: '20@ms',
+  shipPillTxt: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: color.primary },
+
+  // ── Items ─────────────────────────────────────────────────────────────────
+  itemRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: '10@vs' },
+  itemRowBorder: { borderTopWidth: 1, borderTopColor: '#F5F5F5' },
+  itemImg: {
+    width: '60@s', height: '60@s', borderRadius: '8@ms',
+    backgroundColor: color.secondarylight, resizeMode: 'contain',
+    marginRight: '12@s', borderWidth: 1, borderColor: '#EEE',
   },
-  shipmentStatusText: {
-    fontSize: '11@ms',
-    fontFamily: FONTS.Bold,
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms' },
+  itemAttrs: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs' },
+  itemFoot: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginTop: '6@vs', flexWrap: 'wrap' },
+  itemPrice: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, paddingTop: '2@vs' },
+
+  qtyPill: { backgroundColor: color.background, paddingHorizontal: '7@s', paddingVertical: '2@vs', borderRadius: '4@ms', borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyPillTxt: { fontSize: '10@ms', color: '#666', fontFamily: FONTS.Medium },
+  freePill: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, paddingHorizontal: '7@s', paddingVertical: '2@vs', borderRadius: '4@ms' },
+  freePillTxt: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  digitalPill: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.secondarylight, paddingHorizontal: '7@s', paddingVertical: '2@vs', borderRadius: '4@ms' },
+  digitalPillTxt: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: color.primary },
+
+  // ── Address ───────────────────────────────────────────────────────────────
+  addrBox: { backgroundColor: color.background, borderRadius: '8@ms', padding: '12@s', marginBottom: '4@vs' },
+  addrTypeRow: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginBottom: '6@vs' },
+  addrType: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#888' },
+  addrLine: { fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '20@ms' },
+  contRow: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: 0 },
+  contName: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
+  contPhone: { fontSize: '13@ms', fontFamily: FONTS.Medium, color: '#888' },
+
+  // ── Digital delivery ──────────────────────────────────────────────────────
+  digitalBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: '12@s',
+    backgroundColor: color.secondarylight, borderRadius: '8@ms', padding: '12@s',
   },
-  shipmentDivider: {
-    height: 1,
-    backgroundColor: '#BBDEFB',
-    marginHorizontal: '14@s',
+  digitalTxt: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '20@ms' },
+
+  // ── Price ─────────────────────────────────────────────────────────────────
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '11@vs' },
+  priceLabel: { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium },
+  priceLabelBold: { fontFamily: FONTS.Bold },
+  priceValue: { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium },
+  priceValueBold: { fontFamily: FONTS.Bold },
+  strikethrough: { textDecorationLine: 'line-through', color: '#BDBDBD' },
+  dashedRow: { flexDirection: 'row', marginVertical: '12@vs' },
+  dashedDot: { flex: 1, height: 1, backgroundColor: '#BDBDBD', marginRight: '3@s' },
+
+  // Payment row (inline in price card)
+  payRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: '8@vs', paddingTop: '12@vs',
+    borderTopWidth: 1, borderTopColor: '#F0F0F0',
   },
-  shipmentDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-    paddingHorizontal: '14@s',
-    paddingVertical: '9@vs',
+  payLbl: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
+  payRight: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  payIconBox: {
+    width: '34@s', height: '34@s', borderRadius: '6@ms',
+    backgroundColor: color.secondarylight,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#EEE',
   },
-  shipmentDetailLabel: {
-    fontSize: '12@ms',
-    color: '#666',
-    fontFamily: FONTS.Medium,
-    width: '80@s',
+  payMethod: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, textAlign: 'right' },
+  payStatus: { fontSize: '11@ms', fontFamily: FONTS.Medium, marginTop: '2@vs' },
+
+  // ── Order info ────────────────────────────────────────────────────────────
+  infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '9@vs' },
+  infoRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  infoLbl: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
+  infoValRow: { flexDirection: 'row', alignItems: 'center', gap: '6@s', flex: 1, justifyContent: 'flex-end' },
+  infoVal: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, textAlign: 'right', flex: 1 },
+
+  // ── Bottom bar ────────────────────────────────────────────────────────────
+  bottomBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', paddingHorizontal: '16@s', paddingVertical: '12@vs',
+    borderTopWidth: 1, borderTopColor: '#EBEBEB',
+    gap: '10@s', elevation: 10,
   },
-  shipmentDetailValue: {
+  invoiceBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: '6@s', paddingVertical: '11@vs',
+    borderRadius: '8@ms', borderWidth: 1.5, borderColor: color.primary,
+  },
+  invoiceBtnTxt: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary },
+  shopMoreBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: '11@vs', borderRadius: '8@ms',
+    backgroundColor: color.primary,
+  },
+  shopMoreTxt: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  returnBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6@s',
+    paddingVertical: '11@vs',
+    borderRadius: '8@ms',
+    backgroundColor: color.primary,
+  },
+
+  returnBtnTxt: {
     fontSize: '13@ms',
     fontFamily: FONTS.Bold,
-    color: '#1a1a1a',
+    color: '#fff',
   },
-  shipmentNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '6@s',
-    backgroundColor: '#DDEEFF',
-    paddingHorizontal: '14@s',
-    paddingVertical: '8@vs',
-    borderTopWidth: 1,
-    borderTopColor: '#BBDEFB',
-  },
-  shipmentNoteText: {
-    flex: 1,
-    fontSize: '11@ms',
-    color: '#0B77A7',
-    fontFamily: FONTS.Medium,
-  },
-
-  // ── Item Card ──
-  itemCard: {
-    flexDirection: 'row', backgroundColor: '#F8F9FA', padding: '12@s',
-    borderRadius: '12@ms', marginBottom: '12@vs',
-  },
-  itemImage: { width: '70@s', height: '70@s', borderRadius: '10@ms', marginRight: '12@s', backgroundColor: '#E0E0E0' },
-  itemDetails: { flex: 1, justifyContent: 'space-between' },
-  itemTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '6@vs' },
-  itemMetaRow: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: '4@vs' },
-  qtyBadge: { flexDirection: 'row', alignItems: 'center', gap: '4@s' },
-  qtyText: { fontSize: '12@ms', color: '#666', fontFamily: FONTS.Medium },
-  digitalBadge: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E3F2FD',
-    paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '8@ms', gap: '3@s',
-  },
-  digitalText: { fontSize: '10@ms', color: '#1976D2', fontFamily: FONTS.Bold },
-  itemPrice: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
-
-  // ── Free Gift Section ──
-  freeGiftSection: { marginHorizontal: '16@s', marginTop: '12@vs' },
-  freeGiftSectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: '10@vs', paddingHorizontal: '2@s',
-  },
-  freeGiftHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
-  freeGiftSectionTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#00457a', letterSpacing: 0.3 },
-  freeGiftCountPill: {
-    backgroundColor: '#cdd4ff', borderRadius: '10@ms',
-    paddingHorizontal: '8@s', paddingVertical: '2@vs',
-    borderWidth: 1, borderColor: '#1756d4',
-  },
-  freeGiftCountText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#0b81b8' },
-  freeGiftCard: {
-    backgroundColor: '#f5fdff', borderRadius: '14@ms',
-    borderWidth: 1.5, borderColor: '#1756d4', overflow: 'hidden', marginBottom: '10@vs',
-    elevation: 3, shadowColor: '#1756d4', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18, shadowRadius: 8,
-  },
-  freeGiftTopAccent: { height: '3@vs', backgroundColor: '#1756d4' },
-  freeGiftCardInner: { flexDirection: 'row', padding: '14@s', gap: '12@s' },
-  freeGiftImageWrap: {
-    position: 'relative', width: '80@s', height: '80@s', borderRadius: '10@ms',
-    backgroundColor: '#e1eeff', borderWidth: 1, borderColor: '#70a7f0',
-  },
-  freeGiftImage: { width: '100%', height: '100%', borderRadius: '10@ms', resizeMode: 'contain' },
-  freeGiftBadgeWrap: {
-    position: 'absolute', bottom: '-1@vs', left: '-1@s', right: '-1@s', alignItems: 'center',
-  },
-  freeGiftBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: '#0a69c8',
-    paddingHorizontal: '6@s', paddingVertical: '3@vs', borderRadius: '6@ms',
-    borderTopLeftRadius: 0, borderTopRightRadius: 0,
-  },
-  freeGiftBadgeText: { fontSize: '8@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.5 },
-  freeGiftDetails: { flex: 1, justifyContent: 'space-between' },
-  freeGiftTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#00223d', marginBottom: '4@vs', lineHeight: '20@vs' },
-  freeGiftDesc: { fontSize: '12@ms', color: '#557d8b', marginBottom: '8@vs' },
-  freeGiftFooter: { flexDirection: 'row', alignItems: 'center', gap: '8@s', flexWrap: 'wrap' },
-  freeGiftQtyPill: {
-    flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: '#cde6ff',
-    borderRadius: '8@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs',
-    borderWidth: 1, borderColor: '#7090f0',
-  },
-  freeGiftQtyText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#0b81b8' },
-  complimentaryPill: {
-    flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: '#0a69c8',
-    borderRadius: '8@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs',
-  },
-  complimentaryText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.3 },
-  freeGiftNote: {
-    flexDirection: 'row', alignItems: 'center', gap: '6@s', backgroundColor: '#dcefff',
-    paddingHorizontal: '14@s', paddingVertical: '8@vs',
-    borderTopWidth: 1, borderTopColor: '#928aed',
-  },
-  freeGiftNoteText: { fontSize: '11@ms', color: '#0a20c8', fontFamily: FONTS.Medium, flex: 1 },
-
-  // ── Price Summary ──
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12@vs' },
-  priceLabel: { fontSize: '14@ms', color: '#666' },
-  priceValue: { fontSize: '14@ms', fontFamily: FONTS.Medium, color: '#1a1a1a' },
-  priceDiscountLabel: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  divider: { height: 1, backgroundColor: '#E8E8E8', marginVertical: '12@vs' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  totalValue: { fontSize: '20@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
-
-  // ── Payment ──
-  paymentInfoCard: { backgroundColor: '#F8F9FA', padding: '14@s', borderRadius: '12@ms' },
-  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: '12@s' },
-  paymentMethod: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  paymentStatus: { fontSize: '12@ms', fontFamily: FONTS.Medium, marginTop: '2@vs' },
-  paymentMeta: { fontSize: '12@ms', color: '#666', marginTop: '2@vs' },
-
-  // ── Address ──
-  addressCard: { backgroundColor: '#F8F9FA', padding: '14@s', borderRadius: '12@ms', marginBottom: '12@vs' },
-  addressName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '4@vs' },
-  addressPhone: { fontSize: '13@ms', color: '#666', marginBottom: '8@vs' },
-  addressText: { fontSize: '13@ms', color: '#555', lineHeight: '20@vs' },
-  deliveryInfoBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F8F4',
-    padding: '12@s', borderRadius: '10@ms', gap: '10@s',
-  },
-  deliveryInfoText: { flex: 1, fontSize: '13@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
-
-  // ── Digital Delivery ──
-  digitalDeliveryCard: { alignItems: 'center', padding: '20@s', backgroundColor: '#F8F9FA', borderRadius: '12@ms' },
-  digitalDeliveryTitle: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginTop: '12@vs', marginBottom: '6@vs' },
-  digitalDeliveryText: { fontSize: '13@ms', color: '#666', textAlign: 'center', lineHeight: '20@vs' },
-
-  // ── Timeline ──
-  timelineItem: { flexDirection: 'row', marginBottom: '16@vs', position: 'relative' },
-  timelineDot: {
-    width: '24@s', height: '24@s', borderRadius: '12@s',
-    justifyContent: 'center', alignItems: 'center', marginRight: '12@s', zIndex: 2,
-  },
-  timelineLine: {
-    position: 'absolute', left: '12@s', top: '24@vs', bottom: '-16@vs',
-    width: 2, backgroundColor: '#E0E0E0',
-  },
-  timelineContent: { flex: 1, paddingTop: '2@vs' },
-  timelineTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '2@vs' },
-  timelineDate: { fontSize: '12@ms', color: '#666' },
-
-  // ── Help Card ──
-  helpCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E3F2FD',
-    marginHorizontal: '16@s', marginTop: '12@vs', padding: '16@s',
-    borderRadius: '12@ms', gap: '12@s',
-  },
-  helpTextContainer: { flex: 1 },
-  helpTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '2@vs' },
-  helpText: { fontSize: '12@ms', color: '#666' },
-  helpBtn: {
-    width: '40@s', height: '40@s', borderRadius: '20@s', backgroundColor: '#fff',
-    justifyContent: 'center', alignItems: 'center', elevation: 2,
-  },
-
-  // ── Floating Button ──
-  floatingContainer: { position: 'absolute', bottom: '20@vs', left: '16@s', right: '16@s' },
-  floatingBtn: {
-    flexDirection: 'row', backgroundColor: '#0B77A7', paddingVertical: '14@vs',
-    paddingHorizontal: '24@s', borderRadius: '30@ms', alignItems: 'center',
-    justifyContent: 'center', gap: '8@s', elevation: 6,
-    shadowColor: '#0B77A7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-  },
-  floatingText: { color: '#fff', fontSize: '15@ms', fontFamily: FONTS.Bold },
-
-  // ── Loader ──
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: '16@vs', fontSize: '14@ms', color: '#666', fontFamily: FONTS.Medium },
 })

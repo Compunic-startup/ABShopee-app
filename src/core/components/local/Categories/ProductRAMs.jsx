@@ -621,7 +621,6 @@ export default function ProductTiles({ categoryId }) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
         <SkeletonGrid />
       </View>
     )

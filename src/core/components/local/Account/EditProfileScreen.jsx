@@ -14,48 +14,41 @@ import {
   KeyboardAvoidingView,
   Image,
 } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import BASE_URL from '../../../services/api'
 import FONTS from '../../../utils/fonts'
+import color from '../../../utils/color'
 
-/* ─── palette ─── */
-const BLUE        = '#0B77A7'
-const BLUE_DARK   = '#085f87'
-const BLUE_LIGHT  = '#E8F4FB'
-const BLUE_MID    = '#C2E0F0'
-const WHITE       = '#FFFFFF'
-const BG          = '#F4F9FC'
-const TEXT_DARK   = '#0D1B2A'
-const TEXT_MID    = '#4A6070'
-const TEXT_LIGHT  = '#8FA8B8'
-const BORDER      = '#DCE8F0'
-const DEALER_GOLD    = '#C8973A'
-const DEALER_GOLD_BG = '#FDF6E9'
-const ERROR       = '#E53935'
-const ERROR_BG    = '#FFF5F5'
-const SUCCESS     = '#2E7D32'
+/* ─── tokens from color.js ─── */
+const PRIMARY = color.primary
+const BG = color.background
+const TEXT_DARK = color.text
 
-/* ─── helpers ─── */
+const PRIMARY_DARK = color.primary
+const PRIMARY_LIGHT = '#E3F2FA'
+const PRIMARY_MID = '#B3D8EE'
+const WHITE = '#FFFFFF'
+const TEXT_MID = '#5A6A75'
+const TEXT_LIGHT = '#9EB0BC'
+const BORDER = '#DDE8EE'
+const DIVIDER = '#EEF3F6'
+const ERROR = '#E53935'
+const ERROR_BG = '#FFF0F0'
+
+/* ─── business type options ─── */
 const BUSINESS_TYPES = [
-  'sole_proprietorship',
-  'partnership',
-  'private_limited',
-  'public_limited',
-  'llp',
-  'wholesale',
-  'dealer',
-  'retailer',
+  'sole_proprietorship', 'partnership', 'private_limited',
+  'public_limited', 'llp', 'wholesale', 'dealer', 'retailer', 'other'
 ]
 
-/* ─── sub-components ─── */
-
-function SectionHeader({ icon, title, subtitle, isDealer }) {
+/* ─── SectionHeader ─── */
+function SectionHeader({ icon, title, subtitle }) {
   return (
     <View style={styles.sectionHeader}>
-      <View style={[styles.sectionIconBox, isDealer && styles.sectionIconBoxDealer]}>
-        <Icon name={icon} size={18} color={isDealer ? DEALER_GOLD : BLUE} />
+      <View style={styles.sectionIconBox}>
+        <Icon name={icon} size={18} color={PRIMARY} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.sectionTitle}>{title}</Text>
@@ -65,23 +58,23 @@ function SectionHeader({ icon, title, subtitle, isDealer }) {
   )
 }
 
+/* ─── FieldInput ─── */
 function FieldInput({
-  label, value, onChangeText, placeholder, keyboardType = 'default',
-  autoCapitalize = 'sentences', icon, error, multiline = false,
-  editable = true, hint,
+  label, value, onChangeText, placeholder,
+  keyboardType = 'default', autoCapitalize = 'sentences',
+  icon, error, multiline = false, editable = true, hint,
 }) {
   const [focused, setFocused] = useState(false)
-
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={[
         styles.inputWrap,
         focused && styles.inputWrapFocused,
-        error  && styles.inputWrapError,
+        error && styles.inputWrapError,
         !editable && styles.inputWrapDisabled,
       ]}>
-        {icon ? <Icon name={icon} size={16} color={focused ? BLUE : TEXT_LIGHT} style={styles.inputIcon} /> : null}
+        {icon ? <Icon name={icon} size={16} color={focused ? PRIMARY : TEXT_LIGHT} style={styles.inputIcon} /> : null}
         <TextInput
           style={[styles.input, multiline && styles.inputMultiline]}
           value={value}
@@ -109,12 +102,12 @@ function FieldInput({
   )
 }
 
+/* ─── TypePicker ─── */
 function TypePicker({ value, onChange }) {
   const [open, setOpen] = useState(false)
   const display = value
     ? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     : 'Select business type'
-
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>Business Type</Text>
@@ -123,11 +116,10 @@ function TypePicker({ value, onChange }) {
         onPress={() => setOpen(o => !o)}
         activeOpacity={0.8}
       >
-        <Icon name="briefcase-outline" size={16} color={value ? BLUE : TEXT_LIGHT} style={styles.inputIcon} />
+        <Icon name="briefcase-outline" size={16} color={value ? PRIMARY : TEXT_LIGHT} style={styles.inputIcon} />
         <Text style={[styles.input, !value && { color: TEXT_LIGHT }]}>{display}</Text>
         <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={TEXT_LIGHT} />
       </TouchableOpacity>
-
       {open && (
         <View style={styles.pickerDropdown}>
           {BUSINESS_TYPES.map(type => (
@@ -140,7 +132,7 @@ function TypePicker({ value, onChange }) {
               <Text style={[styles.pickerOptionText, type === value && styles.pickerOptionTextActive]}>
                 {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
               </Text>
-              {type === value && <Icon name="check" size={16} color={BLUE} />}
+              {type === value && <Icon name="check" size={16} color={PRIMARY} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -149,148 +141,183 @@ function TypePicker({ value, onChange }) {
   )
 }
 
-function GstToggle({ value, onChange }) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>GST Registered?</Text>
-      <View style={styles.toggleRow}>
-        {[true, false].map(opt => (
-          <TouchableOpacity
-            key={String(opt)}
-            style={[styles.toggleBtn, value === opt && styles.toggleBtnActive]}
-            onPress={() => onChange(opt)}
-            activeOpacity={0.8}
-          >
-            <Icon
-              name={opt ? 'check-circle-outline' : 'close-circle-outline'}
-              size={16}
-              color={value === opt ? WHITE : TEXT_LIGHT}
-            />
-            <Text style={[styles.toggleText, value === opt && styles.toggleTextActive]}>
-              {opt ? 'Yes' : 'No'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  )
-}
-
-/* ─── Saving overlay ─── */
+/* ─── SavingOverlay ─── */
 function SavingOverlay({ visible }) {
   if (!visible) return null
   return (
     <View style={styles.overlay}>
       <View style={styles.overlayCard}>
-        <ActivityIndicator size="large" color={BLUE} />
+        <ActivityIndicator size="large" color={PRIMARY} />
         <Text style={styles.overlayText}>Saving changes…</Text>
       </View>
     </View>
   )
 }
 
-/* ─── Main Screen ─── */
+/* ════════════════════════════════════════════
+   Main Screen
+════════════════════════════════════════════ */
 export default function EditProfileScreen() {
   const navigation = useNavigation()
-  const route      = useRoute()
+  const route = useRoute()
 
-  /* profile passed from AccountScreen via navigation params */
   const initialProfile = route.params?.profile ?? null
 
-  const [loading,  setLoading]  = useState(!initialProfile)
-  const [saving,   setSaving]   = useState(false)
-  const [profile,  setProfile]  = useState(initialProfile)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [profile, setProfile] = useState(initialProfile)
+
+  // ─── Profile incomplete guard (same as AddressesScreen) ───────────────────
+  const [userProfile, setUserProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+
+  const isProfileEmpty = (p) => {
+    if (!p) return true
+    const addrEmpty =
+      !p.address ||
+      !p.address.addressLine1 ||
+      !p.address.city ||
+      !p.address.state ||
+      !p.address.postalCode
+    const upEmpty =
+      !p.userProfile ||
+      !p.userProfile.firstName ||
+      !p.userProfile.phone
+    return addrEmpty || upEmpty
+  }
+
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      setProfileLoading(true)
+      const token = await AsyncStorage.getItem('userToken')
+      const bId = await AsyncStorage.getItem('businessId')
+      const res = await fetch(
+        `${BASE_URL}/customer/business/${bId}/customer-business-profile`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      const json = await res.json()
+      setUserProfile(json?.success && json?.data ? json.data : null)
+    } catch (err) {
+      console.log('Error fetching profile:', err)
+      setUserProfile(null)
+    } finally {
+      setProfileLoading(false)
+    }
+  }, [])
+  // ──────────────────────────────────────────────────────────────────────────
 
   const headerAnim = useRef(new Animated.Value(0)).current
-  const fadeAnim   = useRef(new Animated.Value(initialProfile ? 1 : 0)).current
+  const fadeAnim = useRef(new Animated.Value(initialProfile ? 1 : 0)).current
 
-  /* ── User profile fields ── */
-  const [firstName,   setFirstName]   = useState('')
-  const [lastName,    setLastName]    = useState('')
+  /* ── personal fields ── */
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [userPhone,   setUserPhone]   = useState('')
-  const [avatarUrl,   setAvatarUrl]   = useState('')
+  const [userPhone, setUserPhone] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
 
-  /* ── Business profile fields ── */
-  const [legalName,      setLegalName]      = useState('')
-  const [tradeName,      setTradeName]      = useState('')
-  const [logoUrl,        setLogoUrl]        = useState('')
-  const [businessType,   setBusinessType]   = useState('')
-  const [gstNumber,      setGstNumber]      = useState('')
-  const [panNumber,      setPanNumber]      = useState('')
-  const [isGstRegistered,setIsGstRegistered]= useState(false)
-  const [email,          setEmail]          = useState('')
-  const [bizPhone,       setBizPhone]       = useState('')
-  const [website,        setWebsite]        = useState('')
+  /* ── business fields ── */
+  const [legalName, setLegalName] = useState('')
+  const [tradeName, setTradeName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [businessType, setBusinessType] = useState('')
+  const [gstNumber, setGstNumber] = useState('')
+  const [panNumber, setPanNumber] = useState('')
+  const [isGstRegistered, setIsGstRegistered] = useState(false)
+  const [email, setEmail] = useState('')
+  const [bizPhone, setBizPhone] = useState('')
+  const [website, setWebsite] = useState('')
 
-  /* ── Address fields ── */
+  /* ── Auto-detect GST registration based on GST number ── */
+  const handleGstNumberChange = (value) => {
+    setGstNumber(value.toUpperCase())
+    if (value.trim().length > 0) {
+      setIsGstRegistered(true)
+    } else {
+      setIsGstRegistered(false)
+    }
+  }
+
+  /* ── address fields ── */
   const [addressLine1, setAddressLine1] = useState('')
   const [addressLine2, setAddressLine2] = useState('')
-  const [city,         setCity]         = useState('')
-  const [state,        setState]        = useState('')
-  const [postalCode,   setPostalCode]   = useState('')
-  const [country,      setCountry]      = useState('India')
+  const [city, setCity] = useState('')
+  const [stateVal, setStateVal] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [country, setCountry] = useState('India')
 
-  /* ── Validation errors ── */
   const [errors, setErrors] = useState({})
 
-  /* ── populate form when profile available ── */
+  /* ── populate ── */
   const populateForm = useCallback((p) => {
     if (!p) return
     const up = p.userProfile ?? {}
-    const ad = p.address     ?? {}
+    const ad = p.address ?? {}
 
-    setFirstName(up.firstName    || '')
-    setLastName(up.lastName      || '')
+    setFirstName(up.firstName || '')
+    setLastName(up.lastName || '')
     setDisplayName(up.displayName || '')
-    setUserPhone(up.phone        || '')
-    setAvatarUrl(up.avatarUrl    || '')
+    setUserPhone(up.phone || '')
+    setAvatarUrl(up.avatarUrl || '')
 
-    setLegalName(p.legalName      || '')
-    setTradeName(p.tradeName      || '')
-    setLogoUrl(p.logoUrl          || '')
+    setLegalName(p.legalName || '')
+    setTradeName(p.tradeName || '')
+    setLogoUrl(p.logoUrl || '')
     setBusinessType(p.businessType || '')
-    setGstNumber(p.gstNumber      || '')
-    setPanNumber(p.panNumber      || '')
+    setGstNumber(p.gstNumber || '')
+    setPanNumber(p.panNumber || '')
     setIsGstRegistered(p.isGstRegistered ?? false)
-    setEmail(p.email              || '')
-    setBizPhone(p.phone           || '')
-    setWebsite(p.website          || '')
+    setEmail(p.email || '')
+    setBizPhone(p.phone || '')
+    setWebsite(p.website || '')
 
     setAddressLine1(ad.addressLine1 || '')
     setAddressLine2(ad.addressLine2 || '')
-    setCity(ad.city                 || '')
-    setState(ad.state               || '')
-    setPostalCode(ad.postalCode     || '')
-    setCountry(ad.country           || 'India')
+    setCity(ad.city || '')
+    setStateVal(ad.state || '')
+    setPostalCode(ad.postalCode || '')
+    setCountry(ad.country || 'India')
   }, [])
 
-  /* ── fetch profile if not passed ── */
+  /* ── fetch profile + form data ── */
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start()
 
-    if (initialProfile) {
-      populateForm(initialProfile)
-      return
-    }
-
     const load = async () => {
       try {
-        const token      = await AsyncStorage.getItem('userToken')
+        const token = await AsyncStorage.getItem('userToken')
         const businessId = await AsyncStorage.getItem('businessId')
-        const res  = await fetch(`${BASE_URL}/customer/business/${businessId}/customer-business-profile`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        })
-        const json = await res()
-        console.log('Profile fetch response:', json)
-        if (json?.success && json?.data) {
-          setProfile(json.data)
-          populateForm(json.data)
+
+        // Fetch profile for incomplete guard
+        setProfileLoading(true)
+        const guardRes = await fetch(
+          `${BASE_URL}/customer/business/${businessId}/customer-business-profile`,
+          {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          }
+        )
+        const guardJson = await guardRes.json()
+        const profileData = guardJson?.success && guardJson?.data ? guardJson.data : null
+        setUserProfile(profileData)
+        setProfileLoading(false)
+
+        // Populate form
+        if (initialProfile) {
+          populateForm(initialProfile)
+        } else if (profileData) {
+          setProfile(profileData)
+          populateForm(profileData)
         }
-      } catch (err) {
-        // console.error('EditProfileScreen fetch error:', err)
+      } catch {
         ToastAndroid.show('Failed to load profile data', ToastAndroid.SHORT)
+        setProfileLoading(false)
       } finally {
         setLoading(false)
         Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
@@ -299,16 +326,23 @@ export default function EditProfileScreen() {
     load()
   }, [])
 
+  // Re-check on screen focus (same pattern as AddressesScreen)
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserProfile()
+    }, [fetchUserProfile])
+  )
+
   /* ── validation ── */
   const validate = () => {
     const e = {}
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))        e.email      = 'Enter a valid email address'
-    if (website && !/^https?:\/\/.+/.test(website))                  e.website    = 'Must start with http:// or https://'
-    if (gstNumber && gstNumber.length !== 15)                        e.gstNumber  = 'GST number must be 15 characters'
-    if (panNumber && panNumber.length !== 10)                        e.panNumber  = 'PAN must be 10 characters'
-    if (postalCode && !/^\d{6}$/.test(postalCode))                   e.postalCode = 'Enter a valid 6-digit postal code'
-    if (avatarUrl && !/^https?:\/\/.+/.test(avatarUrl))              e.avatarUrl  = 'Must start with http:// or https://'
-    if (logoUrl   && !/^https?:\/\/.+/.test(logoUrl))                e.logoUrl    = 'Must start with http:// or https://'
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email address'
+    if (website && !/^https?:\/\/.+/.test(website)) e.website = 'Must start with http:// or https://'
+    if (gstNumber && gstNumber.length !== 15) e.gstNumber = 'GST number must be 15 characters'
+    if (panNumber && panNumber.length !== 10) e.panNumber = 'PAN must be 10 characters'
+    if (postalCode && !/^\d{6}$/.test(postalCode)) e.postalCode = 'Enter a valid 6-digit postal code'
+    if (logoUrl && !/^https?:\/\/.+/.test(logoUrl)) e.logoUrl = 'Must start with http:// or https://'
+    if (avatarUrl && !/^https?:\/\/.+/.test(avatarUrl)) e.avatarUrl = 'Must start with http:// or https://'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -319,146 +353,162 @@ export default function EditProfileScreen() {
       ToastAndroid.show('Please fix the errors below', ToastAndroid.SHORT)
       return
     }
-
     setSaving(true)
     try {
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
 
-      /* ── 1. Update user profile ── */
+      /* 1. Update user profile */
       const userPayload = {}
-      if (firstName)   userPayload.firstName   = firstName.trim()
-      if (lastName)    userPayload.lastName    = lastName.trim()
+      if (firstName) userPayload.firstName = firstName.trim()
+      if (lastName) userPayload.lastName = lastName.trim()
       if (displayName) userPayload.displayName = displayName.trim()
-      if (userPhone)   userPayload.phone       = userPhone.trim()
-      if (avatarUrl)   userPayload.avatarUrl   = avatarUrl.trim()
+      if (userPhone) userPayload.phone = userPhone.trim()
+      if (avatarUrl) userPayload.avatarUrl = avatarUrl.trim()
 
       if (Object.keys(userPayload).length > 0) {
-        const userRes  = await fetch(`${BASE_URL}/user/profile`, {
-          method:  'POST',
+        const userRes = await fetch(`${BASE_URL}/user/profile`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body:    JSON.stringify(userPayload),
+          body: JSON.stringify(userPayload),
         })
         const userJson = await userRes.json()
+        console.log(userJson)
         if (!userJson?.success) {
-          // const msg = userJson?.error?.message || 'Failed to update user profile'
-          ToastAndroid.show(msg, ToastAndroid.LONG)
+          ToastAndroid.show(userJson?.error?.message, ToastAndroid.LONG)
           setSaving(false)
           return
         }
       }
 
-      /* ── 2. Update business profile ── */
+      /* 2. Update business profile */
       const bizPayload = {}
-      if (legalName)    bizPayload.legalName    = legalName.trim()
-      if (tradeName)    bizPayload.tradeName    = tradeName.trim()
-      if (logoUrl)      bizPayload.logoUrl      = logoUrl.trim()
+      if (legalName) bizPayload.legalName = legalName.trim()
+      if (tradeName) bizPayload.tradeName = tradeName.trim()
+      if (logoUrl) bizPayload.logoUrl = logoUrl.trim()
       if (businessType) bizPayload.businessType = businessType
-      if (gstNumber)    bizPayload.gstNumber    = gstNumber.trim().toUpperCase()
-      if (panNumber)    bizPayload.panNumber    = panNumber.trim().toUpperCase()
+      if (gstNumber) bizPayload.gstNumber = gstNumber.trim().toUpperCase()
+      if (panNumber) bizPayload.panNumber = panNumber.trim().toUpperCase()
       bizPayload.isGstRegistered = isGstRegistered
-      if (email)        bizPayload.email        = email.trim()
-      if (bizPhone)     bizPayload.phone        = bizPhone.trim()
-      if (website)      bizPayload.website      = website.trim()
+      if (email) bizPayload.email = email.trim()
+      if (bizPhone) bizPayload.phone = bizPhone.trim()
+      if (website) bizPayload.website = website.trim()
       if (addressLine1) bizPayload.addressLine1 = addressLine1.trim()
       if (addressLine2) bizPayload.addressLine2 = addressLine2.trim()
-      if (city)         bizPayload.city         = city.trim()
-      if (state)        bizPayload.state        = state.trim()
-      if (postalCode)   bizPayload.postalCode   = postalCode.trim()
-      if (country)      bizPayload.country      = country.trim()
+      if (city) bizPayload.city = city.trim()
+      if (stateVal) bizPayload.state = stateVal.trim()
+      if (postalCode) bizPayload.postalCode = postalCode.trim()
+      if (country) bizPayload.country = country.trim()
 
       if (Object.keys(bizPayload).length > 0) {
-        const bizRes  = await fetch(`${BASE_URL}/seller/business/${businessId}/customer-business-profile`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body:    JSON.stringify(bizPayload),
-        })
+        const bizRes = await fetch(
+          `${BASE_URL}/customer/business/${businessId}/customer-business-profile`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(bizPayload),
+          }
+        )
         const bizJson = await bizRes.json()
         if (!bizJson?.success) {
           const code = bizJson?.error?.code
-          const msg  = bizJson?.error?.message
-          if (code === 'BUSINESS_NOT_FOUND')  ToastAndroid.show('Business not found', ToastAndroid.SHORT)
-          else if (code === 'FORBIDDEN')       ToastAndroid.show('You do not have permission to update this profile', ToastAndroid.LONG)
+          const msg = bizJson?.error?.message
+          if (code === 'BUSINESS_NOT_FOUND') ToastAndroid.show('Business not found', ToastAndroid.SHORT)
+          else if (code === 'FORBIDDEN') ToastAndroid.show('Permission denied', ToastAndroid.LONG)
           else if (code === 'VALIDATION_ERROR') ToastAndroid.show(msg || 'Validation error', ToastAndroid.LONG)
-          // else ToastAndroid.show(msg || 'Failed to update business profile', ToastAndroid.LONG)
           setSaving(false)
           return
         }
       }
 
-      ToastAndroid.show('Profile updated successfully ✓', ToastAndroid.SHORT)
+      ToastAndroid.show('Profile updated successfully', ToastAndroid.SHORT)
       navigation.goBack()
-    } catch (err) {
-      console.error('handleSave error:', err)
+    } catch {
       ToastAndroid.show('Network error. Please try again.', ToastAndroid.SHORT)
     } finally {
       setSaving(false)
     }
   }
 
-  const isDealer = profile?.businessType === 'wholesale' || profile?.businessType === 'dealer'
+  /* ── Header (shared between all states) ── */
+  const renderHeader = () => (
+    <Animated.View
+      style={[
+        styles.header,
+        {
+          opacity: headerAnim,
+          transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }],
+        },
+      ]}
+    >
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
+        <Icon name="arrow-left" size={22} color={WHITE} />
+      </TouchableOpacity>
+      <View style={styles.headerCenter}>
+        <Text style={styles.headerEyebrow}>Account</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+      </View>
+      {/* Spacer to balance the back button */}
+      <View style={{ width: 40 }} />
+    </Animated.View>
+  )
 
-  /* ── loading ── */
-  if (loading) {
+  /* ── Loading screen ── */
+  if (profileLoading || loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={BLUE_DARK} />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Icon name="arrow-left" size={22} color={WHITE} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <StatusBar barStyle="light-content" backgroundColor={PRIMARY_DARK} />
+        {renderHeader()}
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={BLUE} />
-          <Text style={styles.loadingText}>Loading profile…</Text>
+          <ActivityIndicator size="large" color={PRIMARY} />
+          <Text style={styles.loadingText}>
+            {profileLoading ? 'Checking profile...' : 'Loading profile…'}
+          </Text>
         </View>
       </View>
     )
   }
 
+  /* ── Profile incomplete guard (exact same UI as AddressesScreen) ── */
+  if (isProfileEmpty(userProfile)) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={PRIMARY_DARK} />
+        {renderHeader()}
+        <View style={styles.incompleteContainer}>
+          <View style={styles.incompleteIconWrap}>
+            <Icon name="account-alert-outline" size={64} color={PRIMARY} />
+          </View>
+          <Text style={styles.incompleteTitle}>Profile Incomplete</Text>
+          <Text style={styles.incompleteText}>
+            To edit your profile, you need to complete your basic information first.
+            Please add your personal details and business address.
+          </Text>
+          <TouchableOpacity
+            style={styles.completeProfileBtn}
+            onPress={() => navigation.navigate('ProfileInfoScreen')}
+            activeOpacity={0.8}
+          >
+            <Icon name="account-edit-outline" size={20} color={WHITE} />
+            <Text style={styles.completeProfileText}>Complete Profile</Text>
+            <Icon name="arrow-right" size={20} color={WHITE} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
+
+  /* ── Main edit form ── */
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={BLUE_DARK} />
+      <StatusBar barStyle="light-content" backgroundColor={PRIMARY_DARK} />
       <SavingOverlay visible={saving} />
 
-      {/* ── Header ── */}
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            opacity: headerAnim,
-            transform: [{
-              translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }),
-            }],
-          },
-        ]}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
-          <Icon name="arrow-left" size={22} color={WHITE} />
-        </TouchableOpacity>
-
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerEyebrow}>Account</Text>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={handleSave}
-          style={styles.saveBtn}
-          activeOpacity={0.8}
-          disabled={saving}
-        >
-          <Icon name="check" size={18} color={BLUE} />
-          <Text style={styles.saveBtnText}>Save</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {renderHeader()}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
       >
         <Animated.ScrollView
           style={{ opacity: fadeAnim }}
@@ -473,12 +523,13 @@ export default function EditProfileScreen() {
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={styles.avatarPreviewImg} />
               ) : (
-                <Icon name="account" size={48} color={BLUE} />
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>
+                    {(firstName?.[0] || 'U').toUpperCase()}
+                  </Text>
+                </View>
               )}
             </View>
-            <Text style={styles.avatarHint}>
-              {avatarUrl ? 'Avatar URL preview' : 'Enter an avatar URL below to set your photo'}
-            </Text>
           </View>
 
           {/* ════════════════════════════════
@@ -494,53 +545,28 @@ export default function EditProfileScreen() {
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <FieldInput
-                  label="First Name"
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="Rahul"
-                  icon="account-outline"
+                  label="First Name" value={firstName} onChangeText={setFirstName}
+                  placeholder="Rahul" icon="account-outline"
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <FieldInput
-                  label="Last Name"
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Sharma"
-                  icon="account-outline"
+                  label="Last Name" value={lastName} onChangeText={setLastName}
+                  placeholder="Sharma" icon="account-outline"
                 />
               </View>
             </View>
 
             <FieldInput
-              label="Display Name"
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Rahul S"
-              icon="badge-account-horizontal-outline"
+              label="Display Name" value={displayName} onChangeText={setDisplayName}
+              placeholder="Rahul S" icon="badge-account-horizontal-outline"
               hint="This is the name shown on your account"
             />
 
             <FieldInput
-              label="Phone Number"
-              value={userPhone}
-              onChangeText={setUserPhone}
-              placeholder="+91 98765 43210"
-              icon="phone-outline"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-            />
-
-            <FieldInput
-              label="Avatar URL"
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              placeholder="https://cdn.example.com/avatar.png"
-              icon="image-outline"
-              keyboardType="url"
-              autoCapitalize="none"
-              error={errors.avatarUrl}
-              hint="Paste a public image link for your profile photo"
+              label="Phone Number" value={userPhone} onChangeText={setUserPhone}
+              placeholder="+91 98765 43210" icon="phone-outline"
+              keyboardType="phone-pad" autoCapitalize="none"
             />
           </View>
 
@@ -552,37 +578,17 @@ export default function EditProfileScreen() {
               icon="domain"
               title="Business Identity"
               subtitle="Legal and trade details"
-              isDealer={isDealer}
             />
 
             <FieldInput
-              label="Legal Name"
-              value={legalName}
-              onChangeText={setLegalName}
-              placeholder="ABC Private Limited"
-              icon="office-building-outline"
+              label="Legal Name" value={legalName} onChangeText={setLegalName}
+              placeholder="ABC Private Limited" icon="office-building-outline"
             />
-
             <FieldInput
-              label="Trade / Brand Name"
-              value={tradeName}
-              onChangeText={setTradeName}
-              placeholder="ABC Store"
-              icon="store-outline"
+              label="Trade / Brand Name" value={tradeName} onChangeText={setTradeName}
+              placeholder="ABC Store" icon="store-outline"
             />
-
             <TypePicker value={businessType} onChange={setBusinessType} />
-
-            <FieldInput
-              label="Business Logo URL"
-              value={logoUrl}
-              onChangeText={setLogoUrl}
-              placeholder="https://cdn.example.com/logo.png"
-              icon="image-outline"
-              keyboardType="url"
-              autoCapitalize="none"
-              error={errors.logoUrl}
-            />
           </View>
 
           {/* ════════════════════════════════
@@ -592,40 +598,29 @@ export default function EditProfileScreen() {
             <SectionHeader
               icon="file-certificate-outline"
               title="Tax & Compliance"
-              subtitle="GST, PAN registration details"
-              isDealer={isDealer}
+              subtitle="GST and PAN details"
             />
 
-            <GstToggle value={isGstRegistered} onChange={setIsGstRegistered} />
-
-            {isGstRegistered && (
-              <FieldInput
-                label="GST Number"
-                value={gstNumber}
-                onChangeText={t => setGstNumber(t.toUpperCase())}
-                placeholder="27ABCDE1234F1Z5"
-                icon="identifier"
-                autoCapitalize="characters"
-                keyboardType="default"
-                error={errors.gstNumber}
-                hint="15-character GSTIN"
-              />
-            )}
+            <FieldInput
+              label="GST Number (Optional)" value={gstNumber}
+              onChangeText={handleGstNumberChange}
+              placeholder="27ABCDE1234F1Z5" icon="identifier"
+              autoCapitalize="characters"
+              error={errors.gstNumber}
+              hint="15-character GSTIN"
+            />
 
             <FieldInput
-              label="PAN Number"
-              value={panNumber}
+              label="PAN Number" value={panNumber}
               onChangeText={t => setPanNumber(t.toUpperCase())}
-              placeholder="ABCDE1234F"
-              icon="card-account-details-outline"
+              placeholder="ABCDE1234F" icon="card-account-details-outline"
               autoCapitalize="characters"
-              error={errors.panNumber}
-              hint="10-character PAN"
+              error={errors.panNumber} hint="10-character PAN"
             />
           </View>
 
           {/* ════════════════════════════════
-              SECTION 4 — Contact
+              SECTION 4 — Business Contact
           ════════════════════════════════ */}
           <View style={styles.section}>
             <SectionHeader
@@ -635,111 +630,25 @@ export default function EditProfileScreen() {
             />
 
             <FieldInput
-              label="Business Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="contact@example.com"
-              icon="email-outline"
-              keyboardType="email-address"
-              autoCapitalize="none"
+              label="Business Email" value={email} onChangeText={setEmail}
+              placeholder="contact@example.com" icon="email-outline"
+              keyboardType="email-address" autoCapitalize="none"
               error={errors.email}
             />
-
             <FieldInput
-              label="Business Phone"
-              value={bizPhone}
-              onChangeText={setBizPhone}
-              placeholder="+91 98765 43210"
-              icon="phone-outline"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
+              label="Business Phone" value={bizPhone} onChangeText={setBizPhone}
+              placeholder="+91 98765 43210" icon="phone-outline"
+              keyboardType="phone-pad" autoCapitalize="none"
             />
-
             <FieldInput
-              label="Website"
-              value={website}
-              onChangeText={setWebsite}
-              placeholder="https://yourstore.com"
-              icon="web"
-              keyboardType="url"
-              autoCapitalize="none"
+              label="Website" value={website} onChangeText={setWebsite}
+              placeholder="https://yourstore.com" icon="web"
+              keyboardType="url" autoCapitalize="none"
               error={errors.website}
             />
           </View>
 
-          {/* ════════════════════════════════
-              SECTION 5 — Address
-          ════════════════════════════════ */}
-          <View style={styles.section}>
-            <SectionHeader
-              icon="map-marker-outline"
-              title="Business Address"
-              subtitle="Registered location details"
-            />
-
-            <FieldInput
-              label="Address Line 1"
-              value={addressLine1}
-              onChangeText={setAddressLine1}
-              placeholder="Shop 12, Market Road"
-              icon="map-marker-outline"
-            />
-
-            <FieldInput
-              label="Address Line 2"
-              value={addressLine2}
-              onChangeText={setAddressLine2}
-              placeholder="Near City Mall"
-              icon="map-marker-radius-outline"
-            />
-
-            <View style={styles.row2}>
-              <View style={{ flex: 1 }}>
-                <FieldInput
-                  label="City"
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="Pune"
-                  icon="city-variant-outline"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FieldInput
-                  label="State"
-                  value={state}
-                  onChangeText={setState}
-                  placeholder="Maharashtra"
-                  icon="map-outline"
-                />
-              </View>
-            </View>
-
-            <View style={styles.row2}>
-              <View style={{ flex: 1 }}>
-                <FieldInput
-                  label="Postal Code"
-                  value={postalCode}
-                  onChangeText={setPostalCode}
-                  placeholder="411001"
-                  icon="mailbox-outline"
-                  keyboardType="number-pad"
-                  autoCapitalize="none"
-                  error={errors.postalCode}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FieldInput
-                  label="Country"
-                  value={country}
-                  onChangeText={setCountry}
-                  placeholder="India"
-                  icon="earth"
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* ── Save button (bottom) ── */}
+          {/* ── Save button ── */}
           <TouchableOpacity
             style={[styles.saveBtnBottom, saving && styles.saveBtnBottomDisabled]}
             onPress={handleSave}
@@ -751,7 +660,7 @@ export default function EditProfileScreen() {
             ) : (
               <>
                 <Icon name="content-save-outline" size={20} color={WHITE} />
-                <Text style={styles.saveBtnBottomText}>Save All Changes</Text>
+                <Text style={styles.saveBtnBottomText}>Save Changes</Text>
               </>
             )}
           </TouchableOpacity>
@@ -762,94 +671,127 @@ export default function EditProfileScreen() {
   )
 }
 
-/* ─── styles ─── */
+/* ─── Styles ─── */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
 
   /* Header */
   header: {
-    backgroundColor: BLUE,
+    backgroundColor: PRIMARY,
     paddingTop: Platform.OS === 'android' ? 14 : 52,
     paddingBottom: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: BLUE_DARK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
+    shadowColor: PRIMARY_DARK,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerEyebrow: {
-    fontSize: 10, color: 'rgba(255,255,255,0.65)',
-    fontFamily: FONTS.Medium, letterSpacing: 1.2, textTransform: 'uppercase',
+    fontSize: 10, color: 'rgba(255,255,255,0.6)',
+    fontFamily: FONTS.Medium, letterSpacing: 1.1, textTransform: 'uppercase',
   },
-  headerTitle: {
-    fontSize: 18, fontFamily: FONTS.Bold, color: WHITE, letterSpacing: -0.2,
-  },
-  saveBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: WHITE,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 20,
-  },
-  saveBtnText: { fontSize: 13, fontFamily: FONTS.Bold, color: BLUE },
+  headerTitle: { fontSize: 18, fontFamily: FONTS.Bold, color: WHITE, letterSpacing: -0.2 },
 
   /* Loader */
-  loaderWrap:  { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   loadingText: { fontSize: 14, color: TEXT_MID, fontFamily: FONTS.Medium },
 
-  /* Avatar preview */
-  avatarPreviewWrap: {
+  /* ── Profile Incomplete state (matches AddressesScreen exactly) ── */
+  incompleteContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 24,
-    gap: 8,
+    paddingHorizontal: 30,
   },
+  incompleteIconWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: color.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: color.primary + '40',
+  },
+  incompleteTitle: {
+    fontSize: 20,
+    fontFamily: FONTS.Bold,
+    color: color.text,
+    marginBottom: 8,
+  },
+  incompleteText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 20,
+    fontFamily: FONTS.Medium,
+    marginBottom: 24,
+  },
+  completeProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: color.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  completeProfileText: {
+    fontSize: 15,
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+  },
+
+  /* Avatar preview */
+  avatarPreviewWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
   avatarPreviewCircle: {
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: BLUE_LIGHT,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: BLUE_MID,
     overflow: 'hidden',
+    borderWidth: 2.5, borderColor: PRIMARY_MID,
   },
-  avatarPreviewImg: { width: 90, height: 90, borderRadius: 45 },
-  avatarHint: { fontSize: 12, color: TEXT_LIGHT, fontFamily: FONTS.Regular },
+  avatarPreviewImg: { width: 90, height: 90 },
+  avatarFallback: {
+    flex: 1, backgroundColor: PRIMARY,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarInitial: { fontSize: 36, fontFamily: FONTS.Bold, color: WHITE },
 
   /* Section */
   section: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: WHITE,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: WHITE, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: BORDER,
     elevation: 1,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 6,
   },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center',
     gap: 10, marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
+    paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: BORDER,
   },
   sectionIconBox: {
     width: 36, height: 36, borderRadius: 9,
-    backgroundColor: BLUE_LIGHT,
+    backgroundColor: PRIMARY_LIGHT,
     justifyContent: 'center', alignItems: 'center',
   },
-  sectionIconBoxDealer: { backgroundColor: DEALER_GOLD_BG },
-  sectionTitle:    { fontSize: 15, fontFamily: FONTS.Bold,   color: TEXT_DARK },
+  sectionTitle: { fontSize: 15, fontFamily: FONTS.Bold, color: TEXT_DARK },
   sectionSubtitle: { fontSize: 11, fontFamily: FONTS.Regular, color: TEXT_LIGHT, marginTop: 1 },
 
   /* Field */
@@ -860,24 +802,20 @@ const styles = StyleSheet.create({
   },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: BORDER,
-    borderRadius: 10, backgroundColor: BG,
-    paddingHorizontal: 12, minHeight: 46,
+    borderWidth: 1.5, borderColor: BORDER, borderRadius: 10,
+    backgroundColor: BG, paddingHorizontal: 12, minHeight: 46,
   },
-  inputWrapFocused:  { borderColor: BLUE, backgroundColor: '#F0F8FC' },
-  inputWrapError:    { borderColor: ERROR, backgroundColor: ERROR_BG },
+  inputWrapFocused: { borderColor: PRIMARY, backgroundColor: '#F0F8FC' },
+  inputWrapError: { borderColor: ERROR, backgroundColor: ERROR_BG },
   inputWrapDisabled: { opacity: 0.5 },
   inputIcon: { marginRight: 8 },
-  input: {
-    flex: 1, fontSize: 14, fontFamily: FONTS.Regular,
-    color: TEXT_DARK, paddingVertical: 0,
-  },
+  input: { flex: 1, fontSize: 14, fontFamily: FONTS.Regular, color: TEXT_DARK, paddingVertical: 0 },
   inputMultiline: { textAlignVertical: 'top', paddingTop: 10, minHeight: 80 },
   fieldError: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   fieldErrorText: { fontSize: 11, color: ERROR, fontFamily: FONTS.Regular },
   fieldHint: { fontSize: 11, color: TEXT_LIGHT, fontFamily: FONTS.Regular, marginTop: 4 },
 
-  /* Row of 2 */
+  /* Row 2 */
   row2: { flexDirection: 'row', gap: 10 },
 
   /* Type picker */
@@ -891,54 +829,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: BORDER,
   },
-  pickerOptionActive:     { backgroundColor: BLUE_LIGHT },
-  pickerOptionText:       { fontSize: 14, fontFamily: FONTS.Regular, color: TEXT_DARK },
-  pickerOptionTextActive: { color: BLUE, fontFamily: FONTS.Medium },
-
-  /* GST toggle */
-  toggleRow: { flexDirection: 'row', gap: 10 },
-  toggleBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 12,
-    borderRadius: 10, borderWidth: 1.5, borderColor: BORDER,
-    backgroundColor: BG,
-  },
-  toggleBtnActive: { backgroundColor: BLUE, borderColor: BLUE },
-  toggleText:       { fontSize: 14, fontFamily: FONTS.Medium, color: TEXT_LIGHT },
-  toggleTextActive: { color: WHITE },
+  pickerOptionActive: { backgroundColor: PRIMARY_LIGHT },
+  pickerOptionText: { fontSize: 14, fontFamily: FONTS.Regular, color: TEXT_DARK },
+  pickerOptionTextActive: { color: PRIMARY, fontFamily: FONTS.Medium },
 
   /* Save bottom */
   saveBtnBottom: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, marginHorizontal: 16, marginTop: 8,
-    backgroundColor: BLUE, paddingVertical: 15,
-    borderRadius: 14,
-    shadowColor: BLUE_DARK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    backgroundColor: PRIMARY, paddingVertical: 15, borderRadius: 14,
     elevation: 4,
+    shadowColor: PRIMARY_DARK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8,
   },
   saveBtnBottomDisabled: { opacity: 0.6 },
-  saveBtnBottomText: {
-    fontSize: 16, fontFamily: FONTS.Bold, color: WHITE, letterSpacing: 0.2,
-  },
+  saveBtnBottomText: { fontSize: 16, fontFamily: FONTS.Bold, color: WHITE, letterSpacing: 0.2 },
 
   /* Overlay */
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.35)',
-    zIndex: 99,
-    justifyContent: 'center',
-    alignItems: 'center',
+    zIndex: 99, justifyContent: 'center', alignItems: 'center',
   },
   overlayCard: {
     backgroundColor: WHITE, borderRadius: 16,
     paddingHorizontal: 36, paddingVertical: 28,
     alignItems: 'center', gap: 14,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+    shadowOpacity: 0.15, shadowRadius: 12,
   },
   overlayText: { fontSize: 14, fontFamily: FONTS.Medium, color: TEXT_DARK },
 })

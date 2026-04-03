@@ -365,12 +365,12 @@ const styles = ScaledSheet.create({
   heading: {
     fontSize: '22@ms',
     fontWeight: '800',
-    color: '#0F172A',
+    color: color.primary,
     fontFamily: fonts.MontBold,
     marginBottom: '4@vs',
   },
   subHeading: {
-    color: '#64748B',
+    color: '#002456',
     fontSize: '12@ms',
     fontFamily: fonts.MontRegular,
     lineHeight: '18@vs',
@@ -471,7 +471,7 @@ const styles = ScaledSheet.create({
   googleText: {
     fontSize: '14@ms',
     fontWeight: '600',
-    color: '#1E293B',
+    color: color.primary,
     fontFamily: fonts.MontBold,
   },
 })

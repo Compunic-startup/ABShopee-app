@@ -106,14 +106,14 @@ android {
         applicationId "com.abshopee"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 4
+        versionName "1.3"
     }
     signingConfigs {
         debug {
-            storeFile file('my-release-key.jks')
+            storeFile file('my-release.jks')
             storePassword 'abshopee'
-            keyAlias 'abshopee'
+            keyAlias 'my-key-alias'
             keyPassword 'abshopee'
         }
     }

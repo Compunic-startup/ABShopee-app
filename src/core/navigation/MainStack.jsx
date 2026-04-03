@@ -13,6 +13,10 @@ import UserTransactions from '../../core/components/local/payments/UserTransacti
 import NotificationsScreen from '../components/local/Home/NotificationsScreen'
 import EditProfileScreen from '../components/local/Account/EditProfileScreen'
 import ProfileInfoScreen from '../components/global/ProfileInfoScreen'
+import AddressesScreen from '../components/local/Account/AddressesScreen'
+import ReturnsReplacemnet from '../components/local/payments/ReturnsReplacement'
+import ReturnReplaceDetails from '../components/local/payments/ReturnReplaceDetails'
+import CreateReturn from '../components/local/payments/CreateReturn'
 
 const Stack = createNativeStackNavigator()
 
@@ -61,8 +65,20 @@ export default function MainStack({setIsLoggedIn}) {
         component={UserRefunds} options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="returnreplacement"
+        component={ReturnsReplacemnet} options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="returnreplacedetails"
+        component={ReturnReplaceDetails} options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="usertransactions"
         component={UserTransactions} options={{ headerShown: false }}
+      />
+       <Stack.Screen
+        name="createreturn"
+        component={CreateReturn} options={{ headerShown: false }}
       />
       <Stack.Screen
         name="NotificationsScreen"
@@ -75,6 +91,10 @@ export default function MainStack({setIsLoggedIn}) {
       <Stack.Screen
         name="ProfileInfoScreen"
         component={ProfileInfoScreen} options={{ headerShown: false }}
+      />
+       <Stack.Screen
+        name="AddressesScreen"
+        component={AddressesScreen} options={{ headerShown: false }}
       />
     </Stack.Navigator>
   )

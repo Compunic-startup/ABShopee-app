@@ -15,13 +15,13 @@ const CATEGORIES = [
   {
     id: 2,
     title: 'Shop By\nCategory',
-    image: require('../../../assets/images/Categories/category.png'),
-    screen: 'CategoryScreen',
+    image: require('../../../assets/images/Categories/category.webp'),
+    screen: 'Categories',
   },
   {
     id: 3,
-    title: 'Coupons &\nDiscounts',
-    image: require('../../../assets/images/Categories/discount.png'),
+    title: 'Coupons\nDiscounts',
+    image: require('../../../assets/images/Categories/discount.webp'),
     screen: 'coupondiscounts',
   },
 ]
@@ -39,7 +39,13 @@ export default function HomeCategories() {
         {CATEGORIES.map(item => (
           <TouchableOpacity
             key={item.id}
-            onPress={() => navigation.navigate(item.screen)}
+            onPress={() => {
+              if (item.screen === 'Categories') {
+                navigation.navigate('Tabs', { screen: 'Categories' })
+              } else {
+                navigation.navigate(item.screen)
+              }
+            }}
             activeOpacity={0.85}
             style={styles.card}
           >
@@ -59,36 +65,35 @@ export default function HomeCategories() {
 
 const styles = ScaledSheet.create({
   container: {
-    paddingVertical: '16@vs',
+    paddingVertical: '14@vs',
   },
 
   scrollContainer: {
-    paddingHorizontal: '16@s',
+    paddingHorizontal: '12@s',
   },
 
   card: {
-    width: '96@s',
-    height: '100@vs',
-    backgroundColor: '#f5f5f5',
+    width: '102@s',
+    height: '110@vs',
+    backgroundColor: color.primary,
     borderRadius: '8@ms',
-    marginRight: '14@s',
+    marginRight: '10@s',
     padding: '14@s',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth:0.7,
-    borderColor:color.primary
+    borderWidth: 1.5,
+    borderColor: color.primary,
   },
 
   title: {
     textAlign: 'center',
-    fontSize: '10@ms',
-    color: color.primary,
-    fontFamily: FONTS.Bold,
+    fontSize: '13@ms',
+    color: color.secondary,
+    fontFamily: FONTS.MontExtraBold,
   },
 
   image: {
-    width: '70@s',
-    height: '70@vs',
-    marginBottom: '10@vs',
+    width: '80@s',
+    height: '75@vs',
   },
 })

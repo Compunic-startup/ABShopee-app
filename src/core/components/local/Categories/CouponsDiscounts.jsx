@@ -1,94 +1,35 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-  StatusBar,
-  TextInput,
-  RefreshControl,
-  Clipboard,
-  ToastAndroid,
-  Dimensions,
-  FlatList,
+  View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
+  Animated, StatusBar, TextInput, RefreshControl,
+  Clipboard, ToastAndroid, Dimensions, FlatList, Platform,
 } from 'react-native'
-import { ScaledSheet } from 'react-native-size-matters'
+import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
+import color from '../../../utils/color'
 
 const { width } = Dimensions.get('window')
 
-// ─── Config ───────────────────────────────────────────────────────────────────
 const TABS = [
   { key: 'all', label: 'All Offers', icon: 'tag-multiple' },
   { key: 'promotion', label: 'Promo', icon: 'ticket-percent' },
   { key: 'wholesale', label: 'Wholesale', icon: 'store' },
 ]
 
-const CATEGORY_CONFIG = {
-  promotion: { color: '#1565C0', bg: '#e7ebfb', gradientStart: '#4398ff', gradientEnd: '#1565C0', icon: 'fire', label: 'PROMO' },
-  wholesale: { color: '#1565C0', bg: '#E3F2FD', gradientStart: '#42A5F5', gradientEnd: '#1565C0', icon: 'store-check', label: 'WHOLESALE' },
-}
-
-const TYPE_CONFIG = {
-  percentage: { icon: 'percent', label: 'Percentage Off' },
-  flat: { icon: 'currency-inr', label: 'Flat Discount' },
-  bogo: { icon: 'gift-open', label: 'Buy 1 Get 1' },
-  free_gift: { icon: 'gift', label: 'Free Gift' },
-  free_shipping: { icon: 'truck-fast', label: 'Free Shipping' },
-}
-
-// ─── Conditional discount type config (no code) ───────────────────────────────
-const CONDITIONAL_CONFIG = {
-  bogo: {
-    icon: 'gift-open-outline',
-    color: '#7B1FA2',
-    bg: '#F3E5F5',
-    accentBg: '#7B1FA2',
-    label: 'BUY 1 GET 1',
-    tagline: 'Auto-applied at checkout',
-  },
-  free_gift: {
-    icon: 'gift-outline',
-    color: '#E65100',
-    bg: '#FFF3E0',
-    accentBg: '#E65100',
-    label: 'FREE GIFT',
-    tagline: 'Added automatically to your order',
-  },
-  free_shipping: {
-    icon: 'truck-fast-outline',
-    color: '#00695C',
-    bg: '#E0F2F1',
-    accentBg: '#00695C',
-    label: 'FREE SHIPPING',
-    tagline: 'Auto-applied when conditions are met',
-  },
-  percentage: {
-    icon: 'percent-outline',
-    color: '#1565C0',
-    bg: '#E3F2FD',
-    accentBg: '#1565C0',
-    label: 'AUTO DISCOUNT',
-    tagline: 'Discount applied automatically',
-  },
-  flat: {
-    icon: 'tag-outline',
-    color: '#2E7D32',
-    bg: '#E8F5E9',
-    accentBg: '#2E7D32',
-    label: 'INSTANT SAVINGS',
-    tagline: 'Discount applied automatically',
-  },
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers (unchanged) ─────────────────────────────────────────────────────
 const formatValue = (discountType, value) => {
+  if (discountType === 'percentage') return `${parseFloat(value).toFixed(0)}% OFF`
+  if (discountType === 'flat') return `Save ₹${parseFloat(value).toFixed(0)}`
+  if (discountType === 'bogo') return 'Buy 1 Get 1'
+  if (discountType === 'free_gift') return 'Free Gift'
+  if (discountType === 'free_shipping') return 'Free Delivery'
+  return value
+}
+const formatValueShort = (discountType, value) => {
   if (discountType === 'percentage') return `${parseFloat(value).toFixed(0)}%`
   if (discountType === 'flat') return `₹${parseFloat(value).toFixed(0)}`
   if (discountType === 'bogo') return 'B1G1'
@@ -96,384 +37,173 @@ const formatValue = (discountType, value) => {
   if (discountType === 'free_shipping') return 'FREE'
   return value
 }
-
 const getExpiryInfo = endsAt => {
   if (!endsAt) return null
-  const now = Date.now()
-  const end = new Date(endsAt).getTime()
-  const diff = end - now
+  const diff = new Date(endsAt).getTime() - Date.now()
   if (diff <= 0) return { expired: true, label: 'Expired' }
   const days = Math.floor(diff / 86400000)
   const hours = Math.floor((diff % 86400000) / 3600000)
-  if (days > 7) return { expired: false, label: `Ends ${new Date(endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, urgent: false }
-  if (days >= 1) return { expired: false, label: `${days}d ${hours}h left`, urgent: days <= 2 }
+  if (days > 7) return { expired: false, label: `Valid till ${new Date(endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, urgent: false }
+  if (days >= 1) return { expired: false, label: `Ends in ${days}d`, urgent: days <= 2 }
   const mins = Math.floor((diff % 3600000) / 60000)
-  return { expired: false, label: `${hours}h ${mins}m left`, urgent: true }
+  return { expired: false, label: `${hours}h ${mins}m left!`, urgent: true }
 }
 
-// ─── Shimmer skeleton ─────────────────────────────────────────────────────────
+const CONDITIONAL_CONFIG = {
+  bogo: { icon: 'gift-open-outline', humanLabel: 'Buy one, get one free' },
+  free_gift: { icon: 'gift-outline', humanLabel: 'Free gift with your order' },
+  free_shipping: { icon: 'truck-fast-outline', humanLabel: 'Free delivery on this order' },
+  percentage: { icon: 'percent-outline', humanLabel: 'Automatic percentage discount' },
+  flat: { icon: 'tag-outline', humanLabel: 'Fixed rupee discount' },
+}
+
+
+// ─── Skeleton (unchanged) ─────────────────────────────────────────────────────
 function SkeletonCard() {
   const anim = useRef(new Animated.Value(0)).current
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 900, useNativeDriver: true }),
-      ])
-    ).start()
+    Animated.loop(Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 0, duration: 900, useNativeDriver: true }),
+    ])).start()
   }, [])
   const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.8] })
   return (
-    <Animated.View style={[styles.skeletonCard, { opacity }]}>
-      <View style={styles.skeletonLeft} />
-      <View style={styles.skeletonRight}>
-        <View style={styles.skeletonLine1} />
-        <View style={styles.skeletonLine2} />
-        <View style={styles.skeletonLine3} />
+    <Animated.View style={[S.skeletonCard, { opacity }]}>
+      <View style={S.skeletonLeft} />
+      <View style={S.skeletonRight}>
+        <View style={S.skeletonLine1} />
+        <View style={S.skeletonLine2} />
+        <View style={S.skeletonLine3} />
       </View>
     </Animated.View>
   )
 }
 
-// ─── Conditional Discount Card (no code — auto-applied) ───────────────────────
+// ─── Auto-deal card ───────────────────────────────────────────────────────────
 function ConditionalDiscountCard({ item }) {
-  const condConfig = CONDITIONAL_CONFIG[item.discountType] ?? CONDITIONAL_CONFIG.percentage
-  const catConfig = CATEGORY_CONFIG[item.discountCategory] ?? CATEGORY_CONFIG.promotion
+  const cfg = CONDITIONAL_CONFIG[item.discountType] ?? CONDITIONAL_CONFIG.percentage
   const expiry = getExpiryInfo(item.endsAt)
-  const valueDisplay = formatValue(item.discountType, item.value)
-  const scaleAnim = useRef(new Animated.Value(1)).current
-
-  const pressIn = () => Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true }).start()
-  const pressOut = () => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start()
+  const valueLine =
+    item.discountType === 'percentage' ? `${parseFloat(item.value).toFixed(0)}% off on your order` :
+      item.discountType === 'flat' ? `₹${parseFloat(item.value).toFixed(0)} off on your order` :
+        cfg.humanLabel
 
   return (
-    <Animated.View style={[conditionalStyles.card, { transform: [{ scale: scaleAnim }] }]}>
-      {/* Left accent stripe */}
-      <View style={[conditionalStyles.accentStripe, { backgroundColor: condConfig.accentBg }]} />
-
-      <View style={conditionalStyles.body}>
-        {/* Top: icon + value + name */}
-        <View style={conditionalStyles.topRow}>
-          <View style={[conditionalStyles.iconCircle, { backgroundColor: condConfig.bg }]}>
-            <Icon name={condConfig.icon} size={24} color={condConfig.color} />
+    <View style={S.autoCard}>
+      <View style={S.autoBar} />
+      <View style={S.autoBody}>
+        <View style={S.autoTopRow}>
+          <View style={S.autoIconBox}>
+            <Icon name={cfg.icon} size={ms(20)} color={color.primary} />
           </View>
-
-          <View style={conditionalStyles.topMeta}>
-            <View style={conditionalStyles.topMetaRow}>
-              <Text style={conditionalStyles.discountName} numberOfLines={1}>{item.name}</Text>
-              <View style={[conditionalStyles.typePill, { backgroundColor: condConfig.bg }]}>
-                <Text style={[conditionalStyles.typePillText, { color: condConfig.color }]}>
-                  {condConfig.label}
-                </Text>
-              </View>
-            </View>
-
-            {/* Value display for percentage/flat */}
-            {(item.discountType === 'percentage' || item.discountType === 'flat') && (
-              <Text style={[conditionalStyles.valueText, { color: condConfig.color }]}>
-                {valueDisplay} OFF — {condConfig.tagline}
-              </Text>
-            )}
-            {(item.discountType === 'bogo' || item.discountType === 'free_gift' || item.discountType === 'free_shipping') && (
-              <Text style={[conditionalStyles.valueText, { color: condConfig.color }]}>
-                {condConfig.tagline}
-              </Text>
-            )}
+          <View style={{ flex: 1 }}>
+            <Text style={S.autoName} numberOfLines={2}>{item.name}</Text>
+            <Text style={S.autoValue}>{valueLine}</Text>
+          </View>
+          <View style={S.autoPill}>
+            <Icon name="lightning-bolt" size={ms(9)} color="#fff" />
+            <Text style={S.autoPillText}>AUTO</Text>
           </View>
         </View>
 
-        {/* Description */}
-        {item.description ? (
-          <Text style={conditionalStyles.desc}>{item.description}</Text>
-        ) : null}
+        {/* {!!item.description && <Text style={S.autoDesc} numberOfLines={2}>{item.description}</Text>} */}
 
-        {/* Condition banner */}
-        <View style={[conditionalStyles.conditionBanner, { borderColor: condConfig.color + '40', backgroundColor: condConfig.bg }]}>
-          <Icon name="information-outline" size={14} color={condConfig.color} />
-          <Text style={[conditionalStyles.conditionText, { color: condConfig.color }]}>
+        <View style={S.autoStrip}>
+          <Icon name="information-outline" size={ms(13)} color={color.primary} />
+          <Text style={S.autoStripText}>
             {item.minAmount && parseFloat(item.minAmount) > 0
-              ? `Add items worth ₹${parseFloat(item.minAmount).toFixed(0)} or more to unlock this offer`
-              : 'Add eligible items to your cart — this discount applies automatically'}
+              ? `Shop for ₹${parseFloat(item.minAmount).toFixed(0)} or more to unlock this discount automatically`
+              : 'Add eligible items — discount applied automatically, no coupon needed'}
           </Text>
         </View>
 
-        {/* Footer chips */}
-        <View style={conditionalStyles.footer}>
-          <View style={conditionalStyles.autoChip}>
-            <Icon name="lightning-bolt" size={11} color="#fff" />
-            <Text style={conditionalStyles.autoChipText}>Auto-applied</Text>
-          </View>
-
-          {item.stackable && (
-            <View style={[conditionalStyles.chip, { backgroundColor: '#E8F5E9', borderColor: '#A5D6A7' }]}>
-              <Icon name="layers-triple" size={11} color="#2E7D32" />
-              <Text style={[conditionalStyles.chipText, { color: '#2E7D32' }]}>Stackable</Text>
-            </View>
-          )}
-          {item.exclusive && (
-            <View style={[conditionalStyles.chip, { backgroundColor: '#E3F2FD', borderColor: '#90CAF9' }]}>
-              <Icon name="crown" size={11} color="#1565C0" />
-              <Text style={[conditionalStyles.chipText, { color: '#1565C0' }]}>Exclusive</Text>
-            </View>
-          )}
-
-          {/* Expiry */}
+        <View style={S.chipRow}>
+          {item.stackable && <View style={S.chip}><Icon name="layers-triple" size={ms(10)} color={color.primary} /><Text style={S.chipText}>Stackable</Text></View>}
+          {item.exclusive && <View style={S.chip}><Icon name="crown" size={ms(10)} color={color.primary} /><Text style={S.chipText}>Exclusive</Text></View>}
           {expiry && !expiry.expired && (
-            <View style={[conditionalStyles.chip, expiry.urgent
-              ? { backgroundColor: '#FFF3E0', borderColor: '#FFCC80' }
-              : { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' }
-            ]}>
-              <Icon name={expiry.urgent ? 'clock-alert' : 'clock-outline'} size={11} color={expiry.urgent ? '#E65100' : '#888'} />
-              <Text style={[conditionalStyles.chipText, { color: expiry.urgent ? '#E65100' : '#888' }]}>{expiry.label}</Text>
+            <View style={[S.chip, expiry.urgent && S.chipUrgent]}>
+              <Icon name={expiry.urgent ? 'clock-alert' : 'clock-outline'} size={ms(10)} color={expiry.urgent ? '#C62828' : '#888'} />
+              <Text style={[S.chipText, expiry.urgent && { color: '#C62828', fontFamily: FONTS.Bold }]}>{expiry.label}</Text>
             </View>
           )}
-          {expiry?.expired && (
-            <View style={[conditionalStyles.chip, { backgroundColor: '#EEEEEE', borderColor: '#E0E0E0' }]}>
-              <Text style={[conditionalStyles.chipText, { color: '#aaa' }]}>Expired</Text>
-            </View>
-          )}
+          {expiry?.expired && <View style={[S.chip, S.chipExpired]}><Text style={S.chipExpiredText}>Expired</Text></View>}
         </View>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 
-const conditionalStyles = ScaledSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: '16@ms',
-    marginBottom: '14@vs',
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: '#EFEFEF',
-  },
-  accentStripe: {
-    width: '5@s',
-    borderTopLeftRadius: '16@ms',
-    borderBottomLeftRadius: '16@ms',
-  },
-  body: {
-    flex: 1,
-    padding: '14@s',
-    gap: '10@vs',
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: '12@s',
-  },
-  iconCircle: {
-    width: '48@s',
-    height: '48@s',
-    borderRadius: '14@ms',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  topMeta: {
-    flex: 1,
-  },
-  topMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-    flexWrap: 'wrap',
-    marginBottom: '4@vs',
-  },
-  discountName: {
-    fontSize: '15@ms',
-    fontFamily: FONTS.Bold,
-    color: '#1a1a1a',
-    flex: 1,
-  },
-  typePill: {
-    borderRadius: '5@ms',
-    paddingHorizontal: '7@s',
-    paddingVertical: '2@vs',
-  },
-  typePillText: {
-    fontSize: '9@ms',
-    fontFamily: FONTS.Bold,
-    letterSpacing: 0.6,
-  },
-  valueText: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Medium,
-    lineHeight: '16@vs',
-  },
-  desc: {
-    fontSize: '12@ms',
-    color: '#555',
-    lineHeight: '18@vs',
-    marginTop: '-2@vs',
-  },
-  conditionBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: '8@s',
-    borderWidth: 1,
-    borderRadius: '10@ms',
-    padding: '10@s',
-  },
-  conditionText: {
-    flex: 1,
-    fontSize: '12@ms',
-    fontFamily: FONTS.Medium,
-    lineHeight: '17@vs',
-  },
-  footer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: '6@s',
-    alignItems: 'center',
-  },
-  autoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    backgroundColor: '#2894c6',
-    borderRadius: '20@ms',
-    paddingHorizontal: '8@s',
-    paddingVertical: '3@vs',
-  },
-  autoChipText: {
-    fontSize: '10@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    borderRadius: '6@ms',
-    borderWidth: 1,
-    paddingHorizontal: '7@s',
-    paddingVertical: '3@vs',
-  },
-  chipText: {
-    fontSize: '10@ms',
-    fontFamily: FONTS.Medium,
-  },
-})
-
-// ─── Coupon Card (has code — manual) ─────────────────────────────────────────
+// ─── Coupon card — Flipkart dashed style ──────────────────────────────────────
 function CouponCard({ item, onCopy, appliedCode }) {
-  const catConfig = CATEGORY_CONFIG[item.discountCategory] ?? CATEGORY_CONFIG.promotion
   const expiry = getExpiryInfo(item.endsAt)
   const isApplied = appliedCode === item.code
-  const scaleAnim = useRef(new Animated.Value(1)).current
-
-  const pressIn = () => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start()
-  const pressOut = () => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start()
-
-  const valueDisplay = formatValue(item.discountType, item.value)
+  const shortValue = formatValueShort(item.discountType, item.value)
+  const humanValue = formatValue(item.discountType, item.value)
 
   return (
-    <Animated.View style={[styles.couponCard, isApplied && styles.couponCardApplied, { transform: [{ scale: scaleAnim }] }]}>
-      {/* Applied banner */}
+    <View style={[S.couponCard, isApplied && S.couponCardApplied]}>
       {isApplied && (
-        <View style={styles.appliedBanner}>
-          <Icon name="check-circle" size={12} color="#fff" />
-          <Text style={styles.appliedBannerText}>APPLIED</Text>
+        <View style={S.appliedBanner}>
+          <Icon name="check-circle" size={ms(11)} color="#fff" />
+          <Text style={S.appliedBannerText}>COUPON APPLIED ✓</Text>
         </View>
       )}
 
-      {/* ── Top row ── */}
-      <View style={styles.couponTop}>
-        {/* Left: value pill */}
-        <View style={[styles.valuePill, { backgroundColor: catConfig.bg }]}>
-          <Text style={[styles.valuePillNumber, { color: catConfig.color }]}>{valueDisplay}</Text>
-          {item.discountType === 'percentage' && (
-            <Text style={[styles.valuePillOff, { color: catConfig.color }]}>OFF</Text>
-          )}
+      {/* Top */}
+      <View style={S.couponTop}>
+        <View style={S.couponValueBox}>
+          <Text style={S.couponValueNum}>{shortValue}</Text>
+          {item.discountType === 'percentage' && <Text style={S.couponValueOff}>OFF</Text>}
         </View>
-
-        {/* Middle: name + description */}
-        <View style={styles.couponMeta}>
-          <View style={styles.couponNameRow}>
-            <Text style={styles.couponName} numberOfLines={1}>{item.name}</Text>
-            <View style={[styles.catPill, { backgroundColor: catConfig.bg }]}>
-              <Icon name={catConfig.icon} size={10} color={catConfig.color} />
-              <Text style={[styles.catPillText, { color: catConfig.color }]}>Code: </Text>
-              <Text style={styles.couponCode} numberOfLines={1}>{item.code}</Text>
-            </View>
+        <View style={{ flex: 1 }}>
+          <Text style={S.couponName} numberOfLines={1}>{item.name}</Text>
+          <Text style={S.couponSavings}>{humanValue}</Text>
+          {!!item.description && <Text style={S.couponDesc} numberOfLines={2}>{item.description}</Text>}
+          {/* Dashed code box */}
+          <View style={S.codeBox}>
+            <Text style={S.codeText}>{item.code}</Text>
           </View>
-          <Text style={styles.couponDesc} numberOfLines={2}>{item.description}</Text>
         </View>
       </View>
 
-      {/* ── Dashed divider ── */}
-      <View style={styles.dashedDividerWrap}>
-        <View style={[styles.notchLeft, isApplied && { backgroundColor: '#e8edf5' }]} />
-        <View style={styles.dashedLine} />
-        <View style={[styles.notchRight, isApplied && { backgroundColor: '#e8edf5' }]} />
+      {/* Dashed separator with notches */}
+      <View style={S.dashedRow}>
+        <View style={S.notchL} />
+        <View style={S.dashedLine} />
+        <View style={S.notchR} />
       </View>
 
-      {/* ── Bottom row ── */}
-      <View style={styles.couponBottom}>
-        {/* Conditions */}
-        <View style={styles.conditionsRow}>
+      {/* Bottom */}
+      <View style={S.couponBottom}>
+        <View style={S.chipRow}>
           {item.minAmount && parseFloat(item.minAmount) > 0 && (
-            <View style={styles.conditionChip}>
-              <Icon name="cart-check" size={11} color="#666" />
-              <Text style={styles.conditionText}>Min ₹{parseFloat(item.minAmount).toFixed(0)}</Text>
-            </View>
+            <View style={S.chip}><Icon name="cart-check" size={ms(10)} color="#888" /><Text style={S.chipText}>Min ₹{parseFloat(item.minAmount).toFixed(0)}</Text></View>
           )}
-          {item.scopeType !== 'business' && (
-            <View style={styles.conditionChip}>
-              <Icon name="shape-outline" size={11} color="#666" />
-              <Text style={styles.conditionText}>{item.scopeType}</Text>
-            </View>
+          {item.scopeType && item.scopeType !== 'business' && (
+            <View style={S.chip}><Icon name="shape-outline" size={ms(10)} color="#888" /><Text style={S.chipText}>{item.scopeType}</Text></View>
           )}
-          {item.exclusive && (
-            <View style={[styles.conditionChip, { backgroundColor: '#e0ecff' }]}>
-              <Icon name="crown" size={11} color="#008ee6" />
-              <Text style={[styles.conditionText, { color: '#0058e6' }]}>Exclusive</Text>
-            </View>
-          )}
-          {item.stackable && (
-            <View style={[styles.conditionChip, { backgroundColor: '#e8edf5' }]}>
-              <Icon name="layers-triple" size={11} color="#2E7D32" />
-              <Text style={[styles.conditionText, { color: '#2E7D32' }]}>Stackable</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Right actions */}
-        <View style={styles.couponActions}>
-          {/* Expiry */}
+          {item.exclusive && <View style={[S.chip, S.chipHL]}><Icon name="crown" size={ms(10)} color={color.primary} /><Text style={[S.chipText, { color: color.primary }]}>Exclusive</Text></View>}
+          {item.stackable && <View style={[S.chip, S.chipHL]}><Icon name="layers-triple" size={ms(10)} color={color.primary} /><Text style={[S.chipText, { color: color.primary }]}>Stackable</Text></View>}
           {expiry && !expiry.expired && (
-            <View style={[styles.expiryChip, expiry.urgent && styles.expiryChipUrgent]}>
-              <Icon name={expiry.urgent ? 'clock-alert' : 'clock-outline'} size={11} color={expiry.urgent ? '#2867c6' : '#666'} />
-              <Text style={[styles.expiryText, expiry.urgent && styles.expiryTextUrgent]}>{expiry.label}</Text>
+            <View style={[S.chip, expiry.urgent && S.chipUrgent]}>
+              <Icon name={expiry.urgent ? 'clock-alert' : 'clock-outline'} size={ms(10)} color={expiry.urgent ? '#C62828' : '#888'} />
+              <Text style={[S.chipText, expiry.urgent && { color: '#C62828', fontFamily: FONTS.Bold }]}>{expiry.label}</Text>
             </View>
           )}
-          {expiry?.expired && (
-            <View style={styles.expiryChipExpired}>
-              <Text style={styles.expiryTextExpired}>Expired</Text>
-            </View>
-          )}
-
-          {/* Copy button */}
-          <TouchableOpacity
-            style={[styles.copyBtn, isApplied && styles.copyBtnApplied]}
-            onPress={() => onCopy(item.code)}
-            activeOpacity={0.7}
-          >
-            <Icon name={isApplied ? 'check' : 'content-copy'} size={13} color={isApplied ? '#2E7D32' : '#0B77A7'} />
-            <Text style={[styles.copyBtnText, isApplied && styles.copyBtnTextApplied]}>
-              {isApplied ? 'Copied' : 'Copy'}
-            </Text>
-          </TouchableOpacity>
+          {expiry?.expired && <View style={[S.chip, S.chipExpired]}><Text style={S.chipExpiredText}>Expired</Text></View>}
         </View>
+
+        <TouchableOpacity
+          style={[S.copyBtn, isApplied && S.copyBtnApplied]}
+          onPress={() => onCopy(item.code)}
+          activeOpacity={0.75}
+        >
+          <Icon name={isApplied ? 'check' : 'content-copy'} size={ms(13)} color="#fff" />
+          <Text style={S.copyBtnText}>{isApplied ? 'Copied!' : 'Copy Code'}</Text>
+        </TouchableOpacity>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -492,28 +222,18 @@ export default function CouponDiscountScreen() {
   const [total, setTotal] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [copiedCode, setCopiedCode] = useState(null)
-  const [headerAnim] = useState(new Animated.Value(0))
-  const tabIndicatorX = useRef(new Animated.Value(0)).current
+
   const tabWidth = (width - 32) / TABS.length
+  const tabIndicatorX = useRef(new Animated.Value(0)).current
 
-  useEffect(() => {
-    fetchDiscounts(1, true)
-  }, [activeTab])
-
-  useEffect(() => {
-    Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start()
-  }, [])
+  useEffect(() => { fetchDiscounts(1, true) }, [activeTab])
 
   useEffect(() => {
     const idx = TABS.findIndex(t => t.key === activeTab)
-    Animated.spring(tabIndicatorX, {
-      toValue: idx * tabWidth,
-      useNativeDriver: true,
-      tension: 60,
-      friction: 10,
-    }).start()
+    Animated.spring(tabIndicatorX, { toValue: idx * tabWidth, useNativeDriver: true, tension: 60, friction: 10 }).start()
   }, [activeTab])
 
+  // ── All fetch logic unchanged ──────────────────────────────────────────────
   const fetchDiscounts = async (pageNum = 1, reset = false) => {
     try {
       if (pageNum === 1) reset ? setLoading(true) : setRefreshing(true)
@@ -521,7 +241,6 @@ export default function CouponDiscountScreen() {
 
       const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
-
       const params = new URLSearchParams({ page: pageNum, limit: 20 })
       if (activeTab !== 'all') params.append('discountCategory', activeTab)
 
@@ -530,248 +249,196 @@ export default function CouponDiscountScreen() {
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const json = await res.json()
-      console.log(json)
-
       if (json.success) {
         const list = json.data.discounts ?? []
         setDiscounts(prev => (reset || pageNum === 1) ? list : [...prev, ...list])
         setTotal(json.data.total ?? 0)
         setPage(pageNum)
       }
-    } catch (err) {
-      console.log('Fetch discounts error', err)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-      setLoadingMore(false)
-    }
+    } catch (err) { console.log('Fetch discounts error', err) }
+    finally { setLoading(false); setRefreshing(false); setLoadingMore(false) }
   }
 
   const onRefresh = () => fetchDiscounts(1, false)
-
-  const handleLoadMore = () => {
-    if (!loadingMore && discounts.length < total) {
-      fetchDiscounts(page + 1)
-    }
-  }
+  const handleLoadMore = () => { if (!loadingMore && discounts.length < total) fetchDiscounts(page + 1) }
 
   const handleCopy = useCallback(code => {
     Clipboard.setString(code)
     setCopiedCode(code)
-    ToastAndroid.show(`"${code}" copied to clipboard!`, ToastAndroid.SHORT)
+    ToastAndroid.show(`"${code}" copied! Apply at checkout.`, ToastAndroid.SHORT)
     setTimeout(() => setCopiedCode(null), 2500)
   }, [])
 
-  const handleGoToCart = () => {
-    navigation.navigate('CartScreen', { appliedCode })
-  }
+  const handleGoToCart = () => navigation.navigate('CartScreen', { appliedCode })
 
-  // Filter by search
   const filtered = discounts.filter(d =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+    (d.description ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (d.code ?? '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Split: conditional (no code) vs coupon (has code)
   const conditionalDiscounts = filtered.filter(d => !d.code)
   const couponDiscounts = filtered.filter(d => !!d.code)
 
-  const headerTranslateY = headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] })
-  const headerOpacity = headerAnim
-
-  // Combined render data with section separators
   const renderData = []
   if (conditionalDiscounts.length > 0) {
-    renderData.push({ type: 'section', id: 'sec_auto', title: 'Auto-Applied Deals', subtitle: 'No code needed — these apply automatically', icon: 'lightning-bolt', count: conditionalDiscounts.length })
+    renderData.push({ type: 'section', id: 'sec_auto', title: 'Auto Deals', subtitle: 'Applied automatically — no code needed', icon: 'lightning-bolt', count: conditionalDiscounts.length })
     conditionalDiscounts.forEach(d => renderData.push({ type: 'conditional', id: d.discountId, data: d }))
   }
   if (couponDiscounts.length > 0) {
-    renderData.push({ type: 'section', id: 'sec_coupon', title: 'Coupon Codes', subtitle: 'Copy & apply at checkout', icon: 'ticket-confirmation-outline', count: couponDiscounts.length })
+    renderData.push({ type: 'section', id: 'sec_coupon', title: 'Coupon Codes', subtitle: 'Copy code & apply at checkout', icon: 'ticket-confirmation-outline', count: couponDiscounts.length })
     couponDiscounts.forEach(d => renderData.push({ type: 'coupon', id: d.discountId, data: d }))
   }
 
+  const shouldScroll = renderData.length > 3
+
   const renderItem = ({ item }) => {
-    if (item.type === 'section') {
-      return (
-        <View style={styles.sectionSeparator}>
-          <View style={styles.sectionSeparatorLeft}>
-            <View style={styles.sectionIconWrap}>
-              <Icon name={item.icon} size={14} color="#2894c6" />
-            </View>
-            <View>
-              <Text style={styles.sectionSepTitle}>{item.title}</Text>
-              <Text style={styles.sectionSepSubtitle}>{item.subtitle}</Text>
-            </View>
+    if (item.type === 'section') return (
+      <View style={S.sectionHead}>
+        <View style={S.sectionHeadLeft}>
+          <View style={S.sectionIconBox}>
+            <Icon name={item.icon} size={ms(13)} color={color.primary} />
           </View>
-          <View style={styles.sectionCountPill}>
-            <Text style={styles.sectionCountText}>{item.count}</Text>
+          <View>
+            <Text style={S.sectionTitle}>{item.title}</Text>
+            <Text style={S.sectionSub}>{item.subtitle}</Text>
           </View>
         </View>
-      )
-    }
-    if (item.type === 'conditional') {
-      return <ConditionalDiscountCard item={item.data} />
-    }
-    return (
-      <CouponCard
-        item={item.data}
-        onCopy={handleCopy}
-        appliedCode={appliedCode}
-        copiedCode={copiedCode}
-      />
+        <View style={S.sectionCountPill}>
+          <Text style={S.sectionCountText}>{item.count}</Text>
+        </View>
+      </View>
     )
+    if (item.type === 'conditional') return <ConditionalDiscountCard item={item.data} />
+    return <CouponCard item={item.data} onCopy={handleCopy} appliedCode={appliedCode} copiedCode={copiedCode} />
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2894c6" />
+    <View style={S.container}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <Animated.View style={[styles.header, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
-          <Icon name="arrow-left" size={24} color="#fff" />
+      {/* ── Header ── */}
+      <View style={S.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={S.headerBtn}>
+          <Icon name="arrow-left" size={ms(22)} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Coupons & Offers</Text>
-          {total > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{total} available</Text>
-            </View>
-          )}
-        </View>
-        <TouchableOpacity style={styles.headerCartBtn} onPress={handleGoToCart}>
-          <Icon name="cart-outline" size={24} color="#fff" />
-          {appliedCode && <View style={styles.cartDot} />}
+        <Text style={S.headerTitle}>Coupons & Offers</Text>
+        <TouchableOpacity onPress={handleGoToCart} style={S.headerBtn}>
+          <Icon name="cart-outline" size={ms(22)} color="#fff" />
+          {appliedCode && <View style={S.cartDot} />}
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
-      {/* ── Search bar ─────────────────────────────────────────────────────── */}
-      <View style={styles.searchWrap}>
-        <View style={styles.searchBar}>
-          <Icon name="magnify" size={20} color="#999" />
+      {/* ── Search (continues primary strip) ── */}
+      <View style={S.searchStrip}>
+        <View style={S.searchBar}>
+          <Icon name="magnify" size={ms(17)} color="#999" />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search coupons or offers..."
-            placeholderTextColor="#bbb"
+            style={S.searchInput}
+            placeholder="Search offers or coupon code…"
+            placeholderTextColor="#BDBDBD"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="characters"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Icon name="close-circle" size={18} color="#bbb" />
+              <Icon name="close-circle" size={ms(16)} color="#BDBDBD" />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <View style={styles.tabsContainer}>
-        <Animated.View
-          style={[
-            styles.tabIndicator,
-            { width: tabWidth - 8, transform: [{ translateX: tabIndicatorX }] },
-          ]}
-        />
+      {/* ── Tabs ── */}
+      <View style={S.tabBar}>
+        <Animated.View style={[S.tabIndicator, { width: tabWidth - 8, transform: [{ translateX: tabIndicatorX }] }]} />
         {TABS.map(tab => {
-          const isActive = activeTab === tab.key
+          const active = activeTab === tab.key
           return (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.tab, { width: tabWidth }]}
+              style={[S.tab, { width: tabWidth }]}
               onPress={() => { setActiveTab(tab.key); setSearchQuery('') }}
               activeOpacity={0.75}
             >
-              <Icon name={tab.icon} size={16} color={isActive ? '#2894c6' : '#888'} />
-              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
+              <Icon name={tab.icon} size={ms(13)} color={active ? color.primary : '#888'} />
+              <Text style={[S.tabText, active && S.tabTextActive]}>{tab.label}</Text>
             </TouchableOpacity>
           )
         })}
       </View>
 
-      {/* ── Applied Code Bar ───────────────────────────────────────────────── */}
+      {/* ── Applied bar ── */}
       {appliedCode && (
-        <View style={styles.appliedBar}>
-          <View style={styles.appliedBarLeft}>
-            <Icon name="ticket-confirmation" size={18} color="#2E7D32" />
+        <View style={S.appliedBar}>
+          <View style={S.appliedBarL}>
+            <Icon name="ticket-confirmation" size={ms(15)} color={color.primary} />
             <View>
-              <Text style={styles.appliedBarLabel}>Active Coupon</Text>
-              <Text style={styles.appliedBarCode}>{appliedCode}</Text>
+              <Text style={S.appliedBarLabel}>Coupon active</Text>
+              <Text style={S.appliedBarCode}>{appliedCode}</Text>
             </View>
           </View>
-          <View style={styles.appliedBarRight}>
-            <TouchableOpacity
-              style={styles.goToCartBtn}
-              onPress={handleGoToCart}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.goToCartBtnText}>Go to Cart</Text>
-              <Icon name="arrow-right" size={14} color="#fff" />
+          <View style={S.appliedBarR}>
+            <TouchableOpacity style={S.goCartBtn} onPress={handleGoToCart} activeOpacity={0.8}>
+              <Text style={S.goCartText}>Go to Cart</Text>
+              <Icon name="arrow-right" size={ms(13)} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setAppliedCode(null)} style={styles.removeAppliedBtn}>
-              <Icon name="close" size={16} color="#999" />
+            <TouchableOpacity onPress={() => setAppliedCode(null)} style={{ padding: s(4) }}>
+              <Icon name="close" size={ms(15)} color="#999" />
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* ── Body ───────────────────────────────────────────────────────────── */}
+      {/* ── Body ── */}
       {loading ? (
-        <ScrollView contentContainerStyle={styles.skeletonContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={S.skeletonWrap} showsVerticalScrollIndicator={false}>
           {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
         </ScrollView>
       ) : filtered.length === 0 ? (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconWrap}>
-            <Icon name="ticket-outline" size={64} color="#cde8ff" />
+        <View style={S.emptyWrap}>
+          <View style={S.emptyIconBox}>
+            <Icon name="ticket-outline" size={ms(44)} color={color.primary} />
           </View>
-          <Text style={styles.emptyTitle}>
-            {searchQuery ? 'No results found' : 'No coupons available'}
-          </Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={S.emptyTitle}>{searchQuery ? 'No matching offers' : 'No offers right now'}</Text>
+          <Text style={S.emptySubtitle}>
             {searchQuery
-              ? `No coupons match "${searchQuery}"`
-              : 'Check back later for exciting offers!'}
+              ? `Nothing matched "${searchQuery}". Try a different search.`
+              : 'Check back later — new deals are added regularly!'}
           </Text>
-          {searchQuery ? (
-            <TouchableOpacity style={styles.clearSearchBtn} onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearSearchText}>Clear Search</Text>
+          {!!searchQuery && (
+            <TouchableOpacity style={S.clearBtn} onPress={() => setSearchQuery('')}>
+              <Text style={S.clearBtnText}>Clear Search</Text>
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
       ) : (
         <FlatList
           data={renderData}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={S.listContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#2894c6']}
-              tintColor="#2894c6"
-            />
-          }
+          scrollEnabled={shouldScroll}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[color.primary]} tintColor={color.primary} />}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <Text style={styles.listHeaderText}>
+            <View style={S.listHeader}>
+              <Text style={S.listHeaderText}>
                 {filtered.length} offer{filtered.length !== 1 ? 's' : ''} for you
               </Text>
-              <View style={styles.savingsTagWrap}>
-                <Icon name="lightning-bolt" size={12} color="#fff" />
-                <Text style={styles.savingsTagText}>Best Deals First</Text>
+              <View style={S.bestPill}>
+                <Icon name="lightning-bolt" size={ms(10)} color="#fff" />
+                <Text style={S.bestPillText}>Best Deals First</Text>
               </View>
             </View>
           }
           ListFooterComponent={
-            loadingMore ? (
-              <View style={styles.loadMoreIndicator}>
-                <ActivityIndicator size="small" color="#2894c6" />
+            loadingMore
+              ? <View style={{ paddingVertical: vs(20), alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={color.primary} />
               </View>
-            ) : null
+              : null
           }
           renderItem={renderItem}
         />
@@ -780,248 +447,122 @@ export default function CouponDiscountScreen() {
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+// ─── Styles — ONLY color.* ────────────────────────────────────────────────────
+const S = ScaledSheet.create({
+  container: { flex: 1, backgroundColor: color.background },
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  // Header
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: '16@s', paddingVertical: '14@vs',
-    backgroundColor: '#2894c6',
-    elevation: 6, shadowColor: '#2894c6',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: color.primary,
+    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
+    paddingBottom: '13@vs', paddingHorizontal: '14@s',
+    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
   },
-  headerBackBtn: { padding: '4@s' },
-  headerCenter: { flex: 1, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: '8@s' },
+  headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center', position: 'relative' },
   headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff' },
-  headerBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: '10@ms', paddingHorizontal: '8@s', paddingVertical: '2@vs',
-  },
-  headerBadgeText: { fontSize: '11@ms', color: '#fff', fontFamily: FONTS.Bold },
-  headerCartBtn: { padding: '4@s', position: 'relative' },
-  cartDot: {
-    position: 'absolute', top: '2@vs', right: '2@s',
-    width: '8@s', height: '8@s', borderRadius: '4@s',
-    backgroundColor: '#FFD600', borderWidth: 1.5, borderColor: '#2894c6',
-  },
+  cartDot: { position: 'absolute', top: '2@vs', right: '2@s', width: '8@s', height: '8@s', borderRadius: '4@ms', backgroundColor: color.secondary, borderWidth: 1.5, borderColor: color.primary },
 
-  // ── Search ────────────────────────────────────────────────────────────────
-  searchWrap: {
-    backgroundColor: '#2894c6',
-    paddingHorizontal: '16@s', paddingBottom: '14@vs', paddingTop: '4@vs',
-  },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: '10@s',
-    backgroundColor: '#fff', borderRadius: '12@ms',
-    paddingHorizontal: '14@s', paddingVertical: '10@vs',
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1, fontSize: '14@ms', color: '#1a1a1a',
-    fontFamily: FONTS.Medium, padding: 0,
-  },
+  // Search strip
+  searchStrip: { backgroundColor: color.primary, paddingHorizontal: '14@s', paddingBottom: '14@vs', paddingTop: '4@vs' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: '#fff', borderRadius: '8@ms', paddingHorizontal: '12@s', paddingVertical: '9@vs' },
+  searchInput: { flex: 1, fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium, padding: 0 },
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  tabsContainer: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    marginHorizontal: '16@s', marginTop: '12@vs', marginBottom: '4@vs',
-    borderRadius: '14@ms', overflow: 'hidden',
-    elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
-    position: 'relative',
-  },
-  tabIndicator: {
-    position: 'absolute', top: '4@vs', bottom: '4@vs', left: '4@s',
-    backgroundColor: '#ebf3ff', borderRadius: '10@ms', zIndex: 0,
-  },
-  tab: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: '12@vs', gap: '6@s', zIndex: 1,
-  },
+  // Tabs
+  tabBar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#EBEBEB', position: 'relative' },
+  tabIndicator: { position: 'absolute', bottom: 0, left: '4@s', height: '2@vs', backgroundColor: color.primary, borderRadius: '2@ms', zIndex: 1 },
+  tab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: '12@vs', gap: '5@s' },
   tabText: { fontSize: '13@ms', fontFamily: FONTS.Medium, color: '#888' },
-  tabTextActive: { color: '#2894c6', fontFamily: FONTS.Bold },
+  tabTextActive: { color: color.primary, fontFamily: FONTS.Bold },
 
-  // ── Applied bar ───────────────────────────────────────────────────────────
-  appliedBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: '16@s', marginTop: '8@vs', marginBottom: '4@vs',
-    backgroundColor: '#e8edf5', borderRadius: '12@ms',
-    paddingHorizontal: '14@s', paddingVertical: '10@vs',
-    borderWidth: 1.5, borderColor: '#A5D6A7',
-    elevation: 1,
-  },
-  appliedBarLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
-  appliedBarLabel: { fontSize: '11@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
-  appliedBarCode: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1B5E20', letterSpacing: 0.5 },
-  appliedBarRight: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
-  goToCartBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: '4@s',
-    backgroundColor: '#2E7D32', borderRadius: '20@ms',
-    paddingHorizontal: '12@s', paddingVertical: '6@vs',
-  },
-  goToCartBtnText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#fff' },
-  removeAppliedBtn: { padding: '4@s' },
+  // Applied bar
+  appliedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: color.secondarylight, paddingHorizontal: '14@s', paddingVertical: '10@vs', borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
+  appliedBarL: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  appliedBarLabel: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium },
+  appliedBarCode: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.primary },
+  appliedBarR: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
+  goCartBtn: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.primary, borderRadius: '20@ms', paddingHorizontal: '12@s', paddingVertical: '6@vs' },
+  goCartText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
-  // ── Section separator ─────────────────────────────────────────────────────
-  sectionSeparator: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: '12@vs', marginTop: '6@vs',
-  },
-  sectionSeparatorLeft: {
-    flexDirection: 'row', alignItems: 'center', gap: '10@s',
-  },
-  sectionIconWrap: {
-    width: '30@s', height: '30@s', borderRadius: '10@ms',
-    backgroundColor: '#ebf3ff', justifyContent: 'center', alignItems: 'center',
-  },
-  sectionSepTitle: {
-    fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a',
-  },
-  sectionSepSubtitle: {
-    fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '1@vs',
-  },
-  sectionCountPill: {
-    backgroundColor: '#2894c6', borderRadius: '10@ms',
-    paddingHorizontal: '9@s', paddingVertical: '3@vs',
-  },
-  sectionCountText: {
-    fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#fff',
-  },
+  // Section header
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10@vs', marginTop: '8@vs' },
+  sectionHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  sectionIconBox: { width: '28@s', height: '28@s', borderRadius: '8@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  sectionSub: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '1@vs' },
+  sectionCountPill: { backgroundColor: color.primary, borderRadius: '10@ms', paddingHorizontal: '9@s', paddingVertical: '3@vs' },
+  sectionCountText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
-  // ── List ──────────────────────────────────────────────────────────────────
-  listContent: { paddingHorizontal: '16@s', paddingBottom: '24@vs', paddingTop: '8@vs' },
-  listHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: '12@vs',
-  },
-  listHeaderText: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
-  savingsTagWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: '4@s',
-    backgroundColor: '#2894c6', borderRadius: '20@ms',
-    paddingHorizontal: '10@s', paddingVertical: '4@vs',
-  },
-  savingsTagText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#fff' },
-  loadMoreIndicator: { paddingVertical: '20@vs', alignItems: 'center' },
+  // List
+  listContent: { paddingHorizontal: '14@s', paddingBottom: '24@vs', paddingTop: '10@vs' },
+  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12@vs' },
+  listHeaderText: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  bestPill: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.primary, borderRadius: '20@ms', paddingHorizontal: '10@s', paddingVertical: '4@vs' },
+  bestPillText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
-  // ── Coupon Card ───────────────────────────────────────────────────────────
-  couponCard: {
-    backgroundColor: '#fff', borderRadius: '16@ms',
-    marginBottom: '14@vs', overflow: 'hidden',
-    elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8,
-    borderWidth: 1, borderColor: '#F0F0F0',
-  },
-  couponCardApplied: {
-    borderColor: '#A5D6A7', borderWidth: 2,
-    backgroundColor: '#FAFFFE',
-    elevation: 3, shadowColor: '#4CAF50',
-  },
-  appliedBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: '5@s',
-    backgroundColor: '#2E7D32', alignSelf: 'flex-start',
-    borderBottomRightRadius: '8@ms',
-    paddingHorizontal: '10@s', paddingVertical: '4@vs',
-  },
-  appliedBannerText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.8 },
+  // Shared chips
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: '6@s', alignItems: 'center' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.background, borderRadius: '4@ms', paddingHorizontal: '7@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  chipHL: { backgroundColor: color.secondarylight, borderColor: color.primary },
+  chipUrgent: { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' },
+  chipExpired: { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' },
+  chipText: { fontSize: '10@ms', color: '#888', fontFamily: FONTS.Medium },
+  chipExpiredText: { fontSize: '10@ms', color: '#BDBDBD', fontFamily: FONTS.Medium },
 
-  couponTop: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: '14@s',
-    paddingHorizontal: '16@s', paddingTop: '16@vs', paddingBottom: '12@vs',
-  },
-  valuePill: {
-    minWidth: '68@s', alignItems: 'center', justifyContent: 'center',
-    borderRadius: '12@ms', paddingVertical: '10@vs', paddingHorizontal: '10@s',
-    flexShrink: 0,
-  },
-  valuePillNumber: { fontSize: '22@ms', fontFamily: FONTS.Bold, lineHeight: '26@ms' },
-  valuePillOff: { fontSize: '11@ms', fontFamily: FONTS.Bold, letterSpacing: 1, marginTop: '1@vs' },
-  couponMeta: { flex: 1 },
-  couponNameRow: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: '6@vs', flexWrap: 'wrap' },
-  couponName: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', letterSpacing: 0.3 },
-  couponCode: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', letterSpacing: 0.5 },
-  catPill: {
-    flexDirection: 'row', alignItems: 'center', gap: '3@s',
-    borderRadius: '4@ms', paddingHorizontal: '6@s', paddingVertical: '2@vs',
-  },
-  catPillText: { fontSize: '11@ms', fontFamily: FONTS.Bold, letterSpacing: 0.5 },
-  couponDesc: { fontSize: '12@ms', color: '#666', lineHeight: '18@vs' },
+  // Auto card
+  autoCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: '8@ms', marginBottom: '10@vs', overflow: 'hidden', borderWidth: 1, borderColor: '#EBEBEB', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+  autoBar: { width: '4@s', backgroundColor: color.primary },
+  autoBody: { flex: 1, padding: '12@s', gap: '8@vs' },
+  autoTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s' },
+  autoIconBox: { width: '40@s', height: '40@s', borderRadius: '8@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  autoName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '3@vs' },
+  autoValue: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.primary },
+  autoPill: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, borderRadius: '4@ms', paddingHorizontal: '6@s', paddingVertical: '2@vs' },
+  autoPillText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.5 },
+  autoDesc: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium, lineHeight: '17@ms' },
+  autoStrip: { flexDirection: 'row', alignItems: 'flex-start', gap: '6@s', backgroundColor: color.secondarylight, borderRadius: '6@ms', padding: '8@s' },
+  autoStripText: { flex: 1, fontSize: '11@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '16@ms' },
 
-  dashedDividerWrap: {
-    flexDirection: 'row', alignItems: 'center', marginVertical: '4@vs',
-  },
-  notchLeft: {
-    width: '16@s', height: '16@s', borderRadius: '8@s',
-    backgroundColor: '#F5F5F5', marginLeft: '-8@s',
-    borderWidth: 1, borderColor: '#F0F0F0',
-  },
-  dashedLine: {
-    flex: 1, height: 1,
-    borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dashed',
-  },
-  notchRight: {
-    width: '16@s', height: '16@s', borderRadius: '8@s',
-    backgroundColor: '#F5F5F5', marginRight: '-8@s',
-    borderWidth: 1, borderColor: '#F0F0F0',
-  },
+  // Coupon card
+  couponCard: { backgroundColor: '#fff', borderRadius: '8@ms', marginBottom: '10@vs', overflow: 'hidden', borderWidth: 1, borderColor: '#EBEBEB', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+  couponCardApplied: { borderColor: color.primary, borderWidth: 1.5, backgroundColor: color.secondarylight },
+  appliedBanner: { flexDirection: 'row', alignItems: 'center', gap: '5@s', backgroundColor: color.primary, alignSelf: 'flex-start', borderBottomRightRadius: '6@ms', paddingHorizontal: '10@s', paddingVertical: '4@vs' },
+  appliedBannerText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.8 },
 
-  couponBottom: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: '16@s', paddingTop: '8@vs', paddingBottom: '12@vs',
-    flexWrap: 'wrap', gap: '6@s',
-  },
-  conditionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: '6@s', flex: 1 },
-  conditionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: '3@s',
-    backgroundColor: '#F5F5F5', borderRadius: '6@ms',
-    paddingHorizontal: '7@s', paddingVertical: '3@vs',
-  },
-  conditionText: { fontSize: '10@ms', color: '#666', fontFamily: FONTS.Medium },
-  couponActions: { flexDirection: 'row', alignItems: 'center', gap: '8@s' },
-  expiryChip: {
-    flexDirection: 'row', alignItems: 'center', gap: '3@s',
-    backgroundColor: '#F5F5F5', borderRadius: '6@ms',
-    paddingHorizontal: '7@s', paddingVertical: '3@vs',
-  },
-  expiryChipUrgent: { backgroundColor: '#FFEBEE' },
-  expiryChipExpired: { backgroundColor: '#EEEEEE', borderRadius: '6@ms', paddingHorizontal: '7@s', paddingVertical: '3@vs' },
-  expiryText: { fontSize: '10@ms', color: '#666', fontFamily: FONTS.Medium },
-  expiryTextUrgent: { color: '#2894c6', fontFamily: FONTS.Bold },
-  expiryTextExpired: { fontSize: '10@ms', color: '#aaa', fontFamily: FONTS.Medium },
-  copyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: '4@s',
-    borderWidth: 1.5, borderColor: '#0B77A7', borderRadius: '6@ms',
-    paddingHorizontal: '8@s', paddingVertical: '3@vs', borderStyle: 'dashed',
-  },
-  copyBtnApplied: { borderColor: '#2E7D32', borderStyle: 'solid' },
-  copyBtnText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
-  copyBtnTextApplied: { color: '#2E7D32' },
+  couponTop: { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', paddingHorizontal: '14@s', paddingTop: '14@vs', paddingBottom: '10@vs' },
+  couponValueBox: { width: '64@s', minHeight: '64@s', backgroundColor: color.secondarylight, borderRadius: '8@ms', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderWidth: 1, borderColor: '#E0E0E0' },
+  couponValueNum: { fontSize: '20@ms', fontFamily: FONTS.Bold, color: color.primary, lineHeight: '24@ms' },
+  couponValueOff: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: color.primary, letterSpacing: 1 },
+  couponName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '3@vs' },
+  couponSavings: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.primary, marginBottom: '4@vs' },
+  couponDesc: { fontSize: '11@ms', color: '#888', lineHeight: '16@ms', marginBottom: '6@vs' },
+  codeBox: { alignSelf: 'flex-start', borderWidth: 1.5, borderColor: color.primary, borderStyle: 'dashed', borderRadius: '4@ms', paddingHorizontal: '10@s', paddingVertical: '4@vs' },
+  codeText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary, letterSpacing: 1.5 },
 
-  // ── Skeleton ──────────────────────────────────────────────────────────────
-  skeletonContainer: { paddingHorizontal: '16@s', paddingTop: '12@vs' },
-  skeletonCard: {
-    backgroundColor: '#fff', borderRadius: '16@ms', padding: '16@s',
-    marginBottom: '14@vs', flexDirection: 'row', gap: '14@s', elevation: 1,
-  },
-  skeletonLeft: { width: '68@s', height: '60@vs', borderRadius: '12@ms', backgroundColor: '#EEEEEE' },
+  dashedRow: { flexDirection: 'row', alignItems: 'center' },
+  notchL: { width: '14@s', height: '14@s', borderRadius: '7@ms', backgroundColor: color.background, marginLeft: '-7@s', borderWidth: 1, borderColor: '#EBEBEB' },
+  dashedLine: { flex: 1, height: 1, borderWidth: 1, borderColor: '#E0E0E0', borderStyle: 'dashed' },
+  notchR: { width: '14@s', height: '14@s', borderRadius: '7@ms', backgroundColor: color.background, marginRight: '-7@s', borderWidth: 1, borderColor: '#EBEBEB' },
+
+  couponBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: '8@vs', paddingBottom: '12@vs', flexWrap: 'wrap', gap: '6@s' },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: '5@s', backgroundColor: color.primary, borderRadius: '6@ms', paddingHorizontal: '12@s', paddingVertical: '8@vs' },
+  copyBtnApplied: { backgroundColor: '#2E7D32' },
+  copyBtnText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#fff' },
+
+  // Skeleton
+  skeletonWrap: { paddingHorizontal: '14@s', paddingTop: '12@vs' },
+  skeletonCard: { backgroundColor: '#fff', borderRadius: '8@ms', padding: '16@s', marginBottom: '10@vs', flexDirection: 'row', gap: '14@s', elevation: 1 },
+  skeletonLeft: { width: '64@s', height: '60@vs', borderRadius: '8@ms', backgroundColor: color.secondarylight },
   skeletonRight: { flex: 1, gap: '10@vs', justifyContent: 'center' },
-  skeletonLine1: { height: '16@vs', backgroundColor: '#EEEEEE', borderRadius: '6@ms', width: '70%' },
-  skeletonLine2: { height: '12@vs', backgroundColor: '#EEEEEE', borderRadius: '6@ms', width: '90%' },
-  skeletonLine3: { height: '10@vs', backgroundColor: '#EEEEEE', borderRadius: '6@ms', width: '50%' },
+  skeletonLine1: { height: '14@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '70%' },
+  skeletonLine2: { height: '11@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '90%' },
+  skeletonLine3: { height: '10@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '45%' },
 
-  // ── Empty ─────────────────────────────────────────────────────────────────
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: '32@s' },
-  emptyIconWrap: {
-    width: '100@s', height: '100@s', borderRadius: '50@s',
-    backgroundColor: '#FFF5F5', justifyContent: 'center', alignItems: 'center',
-    marginBottom: '16@vs',
-  },
-  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '8@vs', textAlign: 'center' },
-  emptySubtitle: { fontSize: '13@ms', color: '#999', textAlign: 'center', lineHeight: '20@vs', marginBottom: '20@vs' },
-  clearSearchBtn: {
-    backgroundColor: '#2894c6', borderRadius: '20@ms',
-    paddingHorizontal: '24@s', paddingVertical: '10@vs',
-  },
-  clearSearchText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  // Empty
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: '32@s' },
+  emptyIconBox: { width: '88@s', height: '88@s', borderRadius: '44@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center', marginBottom: '16@vs', borderWidth: 1, borderColor: '#EEE' },
+  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '8@vs', textAlign: 'center' },
+  emptySubtitle: { fontSize: '13@ms', color: '#888', textAlign: 'center', lineHeight: '20@ms', marginBottom: '20@vs' },
+  clearBtn: { backgroundColor: color.primary, borderRadius: '6@ms', paddingHorizontal: '24@s', paddingVertical: '10@vs' },
+  clearBtnText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#fff' },
 })

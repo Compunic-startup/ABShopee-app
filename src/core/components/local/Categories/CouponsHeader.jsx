@@ -12,18 +12,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useNavigation } from '@react-navigation/native'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
+import color from '../../../utils/color'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const CARD_WIDTH = s(150)
 const CARD_GAP = s(10)
-const SCROLL_SPEED = 40 // px per second — lower = slower
+const SCROLL_SPEED = 40
 
 const TYPE_CONFIG = {
-  percentage: { icon: 'percent-circle',     color: '#1565C0', bg: '#E3F2FD', label: 'OFF'      },
-  flat:        { icon: 'currency-inr',       color: '#1565C0', bg: '#E8F5E9', label: 'FLAT'     },
-  bogo:        { icon: 'gift-open',          color: '#1565C0', bg: '#F3E5F5', label: 'B1G1'     },
-  free_gift:   { icon: 'gift',              color: '#1565C0', bg: '#FFF3E0', label: 'FREE GIFT' },
-  free_shipping:{ icon: 'truck-fast',       color: '#1565C0', bg: '#E0F2F1', label: 'SHIPPING'  },
+  percentage: { icon: 'brightness-percent',     color: color.primary, bg: '#E3F2FD', label: 'OFF'      },
+  flat:        { icon: 'currency-inr',       color: color.primary, bg: '#E8F5E9', label: 'FLAT'     },
+  bogo:        { icon: 'gift-open',          color: color.primary, bg: '#F3E5F5', label: 'B1G1'     },
+  free_gift:   { icon: 'gift',              color: color.primary, bg: '#FFF3E0', label: 'FREE GIFT' },
+  free_shipping:{ icon: 'truck-fast',       color: color.primary, bg: '#E0F2F1', label: 'SHIPPING'  },
 }
 
 const CATEGORY_ACCENT = {
@@ -65,8 +66,8 @@ function CouponPill({ item, onPress }) {
         <View style={[styles.pillAccentBar, { backgroundColor: accent }]} />
 
         {/* Icon circle */}
-        <View style={[styles.iconCircle, { backgroundColor: typeConf.bg }]}>
-          <Icon name={typeConf.icon} size={ms(20)} color={typeConf.color} />
+        <View style={[styles.iconCircle, { backgroundColor: color.primary }]}>
+          <Icon name={typeConf.icon} size={ms(20)} color={color.secondary} />
         </View>
 
         {/* Value */}
@@ -77,21 +78,6 @@ function CouponPill({ item, onPress }) {
 
         {/* Name */}
         <Text style={styles.pillName} numberOfLines={2}>{item.name}</Text>
-
-        {/* Footer badge */}
-        <View style={[styles.pillBadge, hasCode
-          ? { backgroundColor: '#EBF5FF', borderColor: '#BFDBFE' }
-          : { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }
-        ]}>
-          <Icon
-            name={hasCode ? 'ticket-confirmation-outline' : 'lightning-bolt'}
-            size={ms(9)}
-            color={hasCode ? '#1D4ED8' : '#1565C0'}
-          />
-          <Text style={[styles.pillBadgeText, { color: hasCode ? '#1D4ED8' : '#1565C0' }]}>
-            {hasCode ? item.code : 'Auto-applied'}
-          </Text>
-        </View>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -128,13 +114,12 @@ export default function CouponsHeader() {
     load()
   }, [])
 
-  // Infinite scroll: duplicate items, loop via modulo
   const items = discounts.length > 0 ? [...discounts, ...discounts] : []
   const totalWidth = items.length * (CARD_WIDTH + CARD_GAP)
 
   const startScroll = useCallback((fromValue) => {
     if (items.length === 0) return
-    const halfWidth  = totalWidth / 2           // one full "lap"
+    const halfWidth  = totalWidth / 2      
     const remaining  = halfWidth - (fromValue % halfWidth)
     const duration   = (remaining / SCROLL_SPEED) * 1000
 
@@ -146,7 +131,6 @@ export default function CouponsHeader() {
     })
     animRef.current.start(({ finished }) => {
       if (finished) {
-        // Reset back to 0 (seamless — second half is identical to first)
         scrollX.setValue(0)
         pausedAt.current = 0
         startScroll(0)
@@ -173,21 +157,6 @@ export default function CouponsHeader() {
 
   return (
     <View style={styles.container}>
-      {/* Section header */}
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleRow}>
-          <View style={styles.sectionIconWrap}>
-            <Icon name="tag-multiple" size={ms(14)} color="#2894c6" />
-          </View>
-          <Text style={styles.sectionTitle}>Coupons & Offers</Text>
-        </View>
-        <TouchableOpacity onPress={handlePress} style={styles.seeAllBtn} activeOpacity={0.7}>
-          <Text style={styles.seeAllText}>See All</Text>
-          <Icon name="chevron-right" size={ms(14)} color="#2894c6" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Scrolling strip */}
       <View style={styles.strip}>
         <Animated.View style={[styles.scrollRow, { transform: [{ translateX }] }]}>
           {items.map((item, idx) => (
@@ -244,7 +213,7 @@ const styles = ScaledSheet.create({
   seeAllText: {
     fontSize: '12@ms',
     fontFamily: FONTS.Bold,
-    color: '#2894c6',
+    color: '#000000',
   },
 
   // ── Scroll strip ──────────────────────────────────────────────────────────
@@ -263,16 +232,13 @@ const styles = ScaledSheet.create({
     width: '150@s',
     height: '140@vs',
     marginRight: '10@s',
-    borderRadius: '14@ms',
+    borderRadius: '10@ms',
     backgroundColor: '#fff',
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07,
     shadowRadius: 6,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderWidth: 1.3,
+    borderColor: color.primary,
   },
   pillInner: {
     flex: 1,
@@ -281,17 +247,10 @@ const styles = ScaledSheet.create({
     paddingTop: '6@vs',
     justifyContent: 'space-between',
   },
-  pillAccentBar: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: '3@vs',
-    borderTopLeftRadius: '14@ms',
-    borderTopRightRadius: '14@ms',
-  },
   iconCircle: {
     width: '36@s',
     height: '36@s',
-    borderRadius: '10@ms',
+    borderRadius: '5@ms',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: '8@vs',
@@ -307,14 +266,15 @@ const styles = ScaledSheet.create({
     fontFamily: FONTS.Bold,
     color: '#aaa',
     letterSpacing: 0.8,
-    marginTop: '-2@vs',
+    marginTop: '4@vs',
   },
   pillName: {
-    fontSize: '11@ms',
+    fontSize: '13@ms',
     fontFamily: FONTS.Medium,
     color: '#333',
     lineHeight: '15@vs',
     flex: 1,
+    marginTop: '6@vs',
   },
   pillBadge: {
     flexDirection: 'row',

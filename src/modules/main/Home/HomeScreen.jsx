@@ -6,6 +6,7 @@ import CouponsHeader from '../../../core/components/local/Categories/CouponsHead
 import React, { useEffect, useState, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useNavigation } from '@react-navigation/native'
+import color from '../../../core/utils/color'
 
 const { height } = Dimensions.get('window')
 
@@ -65,9 +66,9 @@ const HomeScreen = () => {
   const handleClose = () => {
     setShowModal(false)
   }
-
+  
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent'}}>
       <ScrollView>
         <HomeHeader />
         <HomeCategories />

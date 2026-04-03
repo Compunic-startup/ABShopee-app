@@ -18,19 +18,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import FONTS from '../../../utils/fonts'
 import ProductRAMs from './ProductRAMs'
 import BASE_URL from '../../../services/api'
+import color from '../../../utils/color'
 
 const { width } = Dimensions.get('window')
 
-const BLUE      = '#0B77A7'
-const BLUE_DARK = '#085f87'
-const BLUE_LIGHT = '#E8F4FB'
-const BLUE_MID  = '#C2E0F0'
-const WHITE     = '#FFFFFF'
-const TEXT_DARK = '#0D1B2A'
-const TEXT_MID  = '#4A6070'
-const TEXT_LIGHT = '#8FA8B8'
-const BORDER    = '#DCE8F0'
-const BG        = '#F4F9FC'
+const BLUE      = color.primary
+const BLUE_DARK = color.PRIMARY_DARK
+const BLUE_LIGHT = color.PRIMARY_LIGHT
+const BLUE_MID  = color.PRIMARY_MID
+const WHITE     = color.WHITE
+const TEXT_DARK = color.TEXT_DARK
+const TEXT_MID  = color.TEXT_MID
+const TEXT_LIGHT = color.TEXT_LIGHT
+const BORDER    = color.BORDER
+const BG        = '#fffff0'
 
 /* ──────────────────────────── sub-components ──────────────────────────── */
 
@@ -101,7 +102,6 @@ function InfoBanner({ category, fadeAnim, slideAnim }) {
           <Text style={styles.infoBannerSub}>{category.subtitle}</Text>
         </View>
       </View>
-      <CountBadge count={category.count} />
     </Animated.View>
   )
 }

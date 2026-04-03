@@ -18,7 +18,7 @@ import {
 } from 'react-native'
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { TextInput } from 'react-native-paper'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { StyleSheet } from 'react-native'
 import FONTS from '../../../utils/fonts'
@@ -26,183 +26,107 @@ import BASE_URL from '../../../services/api'
 import { openRazorpay } from '../../global/razorpaymodule'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
+import color from '../../../utils/color'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
-// ─── Label icons for address labels ──────────────────────────────────────────
-const LABEL_ICONS = {
-  home: 'home-outline',
-  office: 'briefcase-outline',
-  work: 'briefcase-outline',
-  other: 'map-marker-outline',
-}
+// ─── Label icons ──────────────────────────────────────────────────────────────
+const LABEL_ICONS = { home: 'home-outline', office: 'briefcase-outline', work: 'briefcase-outline', other: 'map-marker-outline' }
 const getLabelIcon = label => LABEL_ICONS[label] ?? 'map-marker-outline'
 
-// ─── Reusable skeleton box with pulse animation ────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 function SkeletonBox({ width, height, borderRadius = 6, style }) {
   const pulse = useRef(new Animated.Value(0.3)).current
-
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 0.75, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-      ])
-    ).start()
+    Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 0.75, duration: 800, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.3,  duration: 800, useNativeDriver: true }),
+    ])).start()
   }, [])
-
   return (
-    <Animated.View
-      style={[
-        { width, height, borderRadius, backgroundColor: '#D1D5DB', opacity: pulse },
-        style,
-      ]}
-    />
+    <Animated.View style={[{ width, height, borderRadius, backgroundColor: color.primary + 20, opacity: pulse }, style]} />
   )
 }
 
-// ─── Skeleton for price breakdown rows ────────────────────────────────────
 function PriceBreakdownSkeleton() {
-  const rows = [
-    { left: 130, right: 70 },
-    { left: 160, right: 80 },
-    { left: 110, right: 60 },
-    { left: 145, right: 75 },
-    { left: 120, right: 65 },
-  ]
+  const rows = [{ l: 130, r: 70 }, { l: 160, r: 80 }, { l: 110, r: 60 }, { l: 145, r: 75 }, { l: 120, r: 65 }]
   return (
-    <View style={{ gap: 14, paddingVertical: 6 }}>
+    <View style={{ gap: vs(14), paddingVertical: vs(6) }}>
       {rows.map((r, i) => (
         <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <SkeletonBox width={r.left} height={13} />
-          <SkeletonBox width={r.right} height={13} />
+          <SkeletonBox width={r.l} height={13} />
+          <SkeletonBox width={r.r} height={13} />
         </View>
       ))}
     </View>
   )
 }
 
-// ─── Free Gift Card Component ──────────────────────────────────────────────
+// ─── Free Gift Card ───────────────────────────────────────────────────────────
 function FreeGiftCard({ item }) {
   return (
-    <View style={freeGiftStyles.card}>
-      <View style={freeGiftStyles.topAccent} />
-      <View style={freeGiftStyles.inner}>
-        <View style={freeGiftStyles.imageWrap}>
-          <Image
-            source={item.media?.url ? { uri: item.media.url } : noimage}
-            style={freeGiftStyles.image}
-          />
-          <View style={freeGiftStyles.badgeWrap}>
-            <View style={freeGiftStyles.badge}>
-              <Icon name="gift" size={9} color="#fff" />
-              <Text style={freeGiftStyles.badgeText}>FREE</Text>
+    <View style={fg.card}>
+      <View style={fg.topBar} />
+      <View style={fg.inner}>
+        <View style={fg.imgWrap}>
+          <Image source={item.media?.url ? { uri: item.media.url } : noimage} style={fg.img} />
+          <View style={fg.badgeWrap}>
+            <View style={fg.badge}>
+              <Icon name="gift" size={ms(9)} color="#fff" />
+              <Text style={fg.badgeText}>FREE</Text>
             </View>
           </View>
         </View>
-        <View style={freeGiftStyles.details}>
-          <Text style={freeGiftStyles.title} numberOfLines={2}>
-            {item.itemSnapshot?.title}
-          </Text>
-          <View style={freeGiftStyles.footer}>
-            <View style={freeGiftStyles.qtyPill}>
-              <Icon name="package-variant" size={11} color="#0b4bb8" />
-              <Text style={freeGiftStyles.qtyText}>Qty: {item.quantity}</Text>
+        <View style={fg.details}>
+          <Text style={fg.title} numberOfLines={2}>{item.itemSnapshot?.title}</Text>
+          <View style={fg.footer}>
+            <View style={fg.qtyPill}>
+              <Icon name="package-variant" size={ms(11)} color={color.primary} />
+              <Text style={fg.qtyText}>Qty: {item.quantity}</Text>
             </View>
-            <View style={freeGiftStyles.complimentaryPill}>
-              <Icon name="check-circle" size={11} color="#fff" />
-              <Text style={freeGiftStyles.complimentaryText}>Complimentary</Text>
+            <View style={fg.complPill}>
+              <Icon name="check-circle" size={ms(11)} color="#fff" />
+              <Text style={fg.complText}>Complimentary</Text>
             </View>
           </View>
         </View>
       </View>
-      <View style={freeGiftStyles.note}>
-        <Icon name="information-outline" size={12} color="#0b4bb8" />
-        <Text style={freeGiftStyles.noteText}>
-          This item is a free gift and cannot be modified
-        </Text>
+      <View style={fg.note}>
+        <Icon name="information-outline" size={ms(12)} color={color.primary} />
+        <Text style={fg.noteText}>This item is a free gift and cannot be modified</Text>
       </View>
     </View>
   )
 }
 
-// ─── Address Form Bottom Sheet ────────────────────────────────────────────────
+// ─── Address Bottom Sheet ─────────────────────────────────────────────────────
 function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const slideAnim   = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropAnim = useRef(new Animated.Value(0)).current
   const [saving, setSaving] = useState(false)
-
   const isEdit = !!editData
 
-  const [form, setForm] = useState({
-    label: '',
-    name: '',
-    phone: '',
-    line1: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'India',
-    isDefault: false,
-  })
+  const [form, setForm] = useState({ label: '', name: '', phone: '', line1: '', city: '', state: '', postalCode: '', country: 'India', isDefault: false })
 
-  // Populate form when editing
+  // Populate form — logic unchanged
   useEffect(() => {
     if (editData) {
-      setForm({
-        label: editData.label ?? '',
-        name: editData.contactInfo?.name ?? '',
-        phone: editData.contactInfo?.phone ?? '',
-        line1: editData.address?.line1 ?? '',
-        city: editData.address?.city ?? '',
-        state: editData.address?.state ?? '',
-        postalCode: editData.address?.postalCode ?? '',
-        country: editData.address?.country ?? 'India',
-        isDefault: editData.isDefault ?? false,
-      })
+      setForm({ label: editData.label ?? '', name: editData.contactInfo?.name ?? '', phone: editData.contactInfo?.phone ?? '', line1: editData.address?.line1 ?? '', city: editData.address?.city ?? '', state: editData.address?.state ?? '', postalCode: editData.address?.postalCode ?? '', country: editData.address?.country ?? 'India', isDefault: editData.isDefault ?? false })
     } else {
-      setForm({
-        label: '',
-        name: '',
-        phone: '',
-        line1: '',
-        city: '',
-        state: '',
-        postalCode: '',
-        country: 'India',
-        isDefault: false,
-      })
+      setForm({ label: '', name: '', phone: '', line1: '', city: '', state: '', postalCode: '', country: 'India', isDefault: false })
     }
   }, [editData, visible])
 
-  // Animate in/out
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 65,
-          friction: 11,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 280,
-          useNativeDriver: true,
-        }),
+        Animated.spring(slideAnim,   { toValue: 0,    tension: 65, friction: 11, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 1,   duration: 280, useNativeDriver: true }),
       ]).start()
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 240,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim,   { toValue: SCREEN_HEIGHT, duration: 240, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 0,  duration: 200, useNativeDriver: true }),
       ]).start()
     }
   }, [visible])
@@ -211,19 +135,13 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
 
   const validate = () => {
     const { label, name, phone, line1, city, state, postalCode } = form
-    if (!label.trim()) { ToastAndroid.show('Label is required', ToastAndroid.SHORT); return false }
-    if (!name.trim()) { ToastAndroid.show('Contact name is required', ToastAndroid.SHORT); return false }
-    if (!phone.trim() || phone.trim().length < 10) {
-      ToastAndroid.show('Enter a valid 10-digit phone number', ToastAndroid.SHORT)
-      return false
-    }
-    if (!line1.trim()) { ToastAndroid.show('Address line 1 is required', ToastAndroid.SHORT); return false }
-    if (!city.trim()) { ToastAndroid.show('City is required', ToastAndroid.SHORT); return false }
-    if (!state.trim()) { ToastAndroid.show('State is required', ToastAndroid.SHORT); return false }
-    if (!postalCode.trim() || postalCode.trim().length < 4) {
-      ToastAndroid.show('Enter a valid postal code', ToastAndroid.SHORT)
-      return false
-    }
+    if (!label.trim())                              { ToastAndroid.show('Label is required', ToastAndroid.SHORT); return false }
+    if (!name.trim())                               { ToastAndroid.show('Contact name is required', ToastAndroid.SHORT); return false }
+    if (!phone.trim() || phone.trim().length < 10)  { ToastAndroid.show('Enter a valid 10-digit phone number', ToastAndroid.SHORT); return false }
+    if (!line1.trim())                              { ToastAndroid.show('Address line 1 is required', ToastAndroid.SHORT); return false }
+    if (!city.trim())                               { ToastAndroid.show('City is required', ToastAndroid.SHORT); return false }
+    if (!state.trim())                              { ToastAndroid.show('State is required', ToastAndroid.SHORT); return false }
+    if (!postalCode.trim() || postalCode.trim().length < 4) { ToastAndroid.show('Enter a valid postal code', ToastAndroid.SHORT); return false }
     return true
   }
 
@@ -232,44 +150,21 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
     try {
       setSaving(true)
       const token = await AsyncStorage.getItem('userToken')
-
       const payload = {
         label: form.label.trim(),
-        address: {
-          addressLine1: form.line1.trim(),
-          city: form.city.trim(),
-          state: form.state.trim(),
-          postalCode: form.postalCode.trim(),
-          country: form.country.trim() || 'India',
-        },
-        contactInfo: {
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-        },
+        address: { addressLine1: form.line1.trim(), city: form.city.trim(), state: form.state.trim(), postalCode: form.postalCode.trim(), country: form.country.trim() || 'India' },
+        contactInfo: { name: form.name.trim(), phone: form.phone.trim() },
         isDefault: form.isDefault,
       }
-
-      const url = isEdit
-        ? `${BASE_URL}/user/profile/addresses/${editData.id}`
-        : `${BASE_URL}/user/profile/addresses`
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      })
+      const url = isEdit ? `${BASE_URL}/user/profile/addresses/${editData.id}` : `${BASE_URL}/user/profile/addresses`
+      const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) })
       const json = await res.json()
       if (!res.ok || !json.success) throw json
-
-      ToastAndroid.show(
-        isEdit ? 'Address updated!' : 'Address saved!',
-        ToastAndroid.SHORT
-      )
+      ToastAndroid.show(isEdit ? 'Address updated!' : 'Address saved!', ToastAndroid.SHORT)
       onSaved(json.data)
       onClose()
     } catch (err) {
-      const msg = err?.error?.message || err?.message || 'Failed to save address'
-      ToastAndroid.show(msg, ToastAndroid.LONG)
+      ToastAndroid.show(err?.error?.message || err?.message || 'Failed to save address', ToastAndroid.LONG)
     } finally {
       setSaving(false)
     }
@@ -278,250 +173,99 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
   const LABEL_OPTIONS = ['home', 'office', 'other']
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View
-          style={[
-            sheetStyles.backdrop,
-            { opacity: backdropAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) },
-          ]}
-        />
+        <Animated.View style={[sh.backdrop, { opacity: backdropAnim }]} />
       </TouchableWithoutFeedback>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={sheetStyles.kavWrap}
-        pointerEvents="box-none"
-      >
-        <Animated.View style={[sheetStyles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-          {/* Handle */}
-          <View style={sheetStyles.handle} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={sh.kavWrap} pointerEvents="box-none">
+        <Animated.View style={[sh.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          <View style={sh.handle} />
 
-          {/* Header */}
-          <View style={sheetStyles.sheetHeader}>
-            <View style={sheetStyles.sheetHeaderLeft}>
-              <View style={sheetStyles.sheetIconWrap}>
-                <Icon name={isEdit ? 'pencil-outline' : 'map-marker-plus-outline'} size={ms(18)} color="#2894c6" />
+          {/* Sheet header */}
+          <View style={sh.sheetHead}>
+            <View style={sh.sheetHeadLeft}>
+              <View style={sh.sheetIconWrap}>
+                <Icon name={isEdit ? 'pencil-outline' : 'map-marker-plus-outline'} size={ms(18)} color={color.primary} />
               </View>
               <View>
-                <Text style={sheetStyles.sheetTitle}>{isEdit ? 'Edit Address' : 'Add New Address'}</Text>
-                <Text style={sheetStyles.sheetSubtitle}>
-                  {isEdit ? 'Update your saved address' : 'Fields marked * are required'}
-                </Text>
+                <Text style={sh.sheetTitle}>{isEdit ? 'Edit Address' : 'Add New Address'}</Text>
+                <Text style={sh.sheetSub}>{isEdit ? 'Update your saved address' : 'Fields marked * are required'}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={sheetStyles.closeBtn} activeOpacity={0.7}>
+            <TouchableOpacity onPress={onClose} style={sh.closeBtn} activeOpacity={0.7}>
               <Icon name="close" size={ms(20)} color="#666" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={sheetStyles.formScroll}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Label quick-pick */}
-            <Text style={sheetStyles.fieldLabel}>
-              Label <Text style={sheetStyles.required}>*</Text>
-            </Text>
-            <View style={sheetStyles.labelRow}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={sh.formScroll} keyboardShouldPersistTaps="handled">
+            {/* Label */}
+            <Text style={sh.fieldLabel}>Label <Text style={sh.required}>*</Text></Text>
+            <View style={sh.labelRow}>
               {LABEL_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[sheetStyles.labelChip, form.label === opt && sheetStyles.labelChipActive]}
-                  onPress={() => setField('label', opt)}
-                  activeOpacity={0.7}
-                >
-                  <Icon
-                    name={getLabelIcon(opt)}
-                    size={ms(14)}
-                    color={form.label === opt ? '#fff' : '#555'}
-                  />
-                  <Text style={[sheetStyles.labelChipText, form.label === opt && sheetStyles.labelChipTextActive]}>
-                    {opt}
-                  </Text>
+                <TouchableOpacity key={opt} style={[sh.labelChip, form.label === opt && sh.labelChipActive]} onPress={() => setField('label', opt)} activeOpacity={0.7}>
+                  <Icon name={getLabelIcon(opt)} size={ms(14)} color={form.label === opt ? '#fff' : '#555'} />
+                  <Text style={[sh.labelChipText, form.label === opt && sh.labelChipTextActive]}>{opt}</Text>
                 </TouchableOpacity>
               ))}
               {!LABEL_OPTIONS.includes(form.label) && form.label !== '' && (
-                <View style={[sheetStyles.labelChip, sheetStyles.labelChipActive]}>
+                <View style={[sh.labelChip, sh.labelChipActive]}>
                   <Icon name="map-marker-outline" size={ms(14)} color="#fff" />
-                  <Text style={sheetStyles.labelChipTextActive}>{form.label}</Text>
+                  <Text style={sh.labelChipTextActive}>{form.label}</Text>
                 </View>
               )}
             </View>
 
-            {/* Contact Name */}
-            <Text style={sheetStyles.fieldLabel}>
-              Contact Name <Text style={sheetStyles.required}>*</Text>
-            </Text>
-            <TextInput
-              mode="outlined"
-              label="Full Name *"
-              placeholder="John Doe"
-              placeholderTextColor="#bbb"
-              value={form.name}
-              onChangeText={v => setField('name', v)}
-              outlineColor="#E0E0E0"
-              activeOutlineColor="#2894c6"
-              left={<TextInput.Icon icon="account-outline" color="#aaa" />}
-              style={sheetStyles.input}
-              dense
-            />
+            <Text style={sh.fieldLabel}>Contact Name <Text style={sh.required}>*</Text></Text>
+            <TextInput mode="outlined" label="Full Name *" placeholder="John Doe" placeholderTextColor="#bbb" value={form.name} onChangeText={v => setField('name', v)} outlineColor="#E0E0E0" activeOutlineColor={color.primary} left={<TextInput.Icon icon="account-outline" color="#aaa" />} style={sh.input} dense />
 
-            {/* Phone */}
-            <Text style={sheetStyles.fieldLabel}>
-              Phone <Text style={sheetStyles.required}>*</Text>
-            </Text>
-            <TextInput
-              mode="outlined"
-              label="Phone Number *"
-              placeholder="9876543210"
-              placeholderTextColor="#bbb"
-              value={form.phone}
-              onChangeText={v => setField('phone', v)}
-              keyboardType="phone-pad"
-              maxLength={13}
-              outlineColor="#E0E0E0"
-              activeOutlineColor="#2894c6"
-              left={<TextInput.Icon icon="phone-outline" color="#aaa" />}
-              style={sheetStyles.input}
-              dense
-            />
+            <Text style={sh.fieldLabel}>Phone <Text style={sh.required}>*</Text></Text>
+            <TextInput mode="outlined" label="Phone Number *" placeholder="9876543210" placeholderTextColor="#bbb" value={form.phone} onChangeText={v => setField('phone', v)} keyboardType="phone-pad" maxLength={13} outlineColor="#E0E0E0" activeOutlineColor={color.primary} left={<TextInput.Icon icon="phone-outline" color="#aaa" />} style={sh.input} dense />
 
-            {/* Address Line 1 */}
-            <Text style={sheetStyles.fieldLabel}>
-              Address <Text style={sheetStyles.required}>*</Text>
-            </Text>
-            <TextInput
-              mode="outlined"
-              label="Address Line 1 *"
-              placeholder="House/Flat No., Street"
-              placeholderTextColor="#bbb"
-              value={form.line1}
-              onChangeText={v => setField('line1', v)}
-              outlineColor="#E0E0E0"
-              activeOutlineColor="#2894c6"
-              left={<TextInput.Icon icon="home-outline" color="#aaa" />}
-              style={sheetStyles.input}
-              dense
-            />
+            <Text style={sh.fieldLabel}>Address <Text style={sh.required}>*</Text></Text>
+            <TextInput mode="outlined" label="Address Line 1 *" placeholder="House/Flat No., Street" placeholderTextColor="#bbb" value={form.line1} onChangeText={v => setField('line1', v)} outlineColor="#E0E0E0" activeOutlineColor={color.primary} left={<TextInput.Icon icon="home-outline" color="#aaa" />} style={sh.input} dense />
 
-            {/* City + State row */}
-            <View style={sheetStyles.rowDouble}>
+            <View style={sh.rowDouble}>
               <View style={{ flex: 1 }}>
-                <Text style={sheetStyles.fieldLabel}>
-                  City <Text style={sheetStyles.required}>*</Text>
-                </Text>
-                <TextInput
-                  mode="outlined"
-                  label="City *"
-                  placeholder="Mumbai"
-                  placeholderTextColor="#bbb"
-                  value={form.city}
-                  onChangeText={v => setField('city', v)}
-                  outlineColor="#E0E0E0"
-                  activeOutlineColor="#2894c6"
-                  style={sheetStyles.input}
-                  dense
-                />
+                <Text style={sh.fieldLabel}>City <Text style={sh.required}>*</Text></Text>
+                <TextInput mode="outlined" label="City *" placeholder="Mumbai" placeholderTextColor="#bbb" value={form.city} onChangeText={v => setField('city', v)} outlineColor="#E0E0E0" activeOutlineColor={color.primary} style={sh.input} dense />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={sheetStyles.fieldLabel}>
-                  State <Text style={sheetStyles.required}>*</Text>
-                </Text>
-                <TextInput
-                  mode="outlined"
-                  label="State *"
-                  placeholder="Maharashtra"
-                  placeholderTextColor="#bbb"
-                  value={form.state}
-                  onChangeText={v => setField('state', v)}
-                  outlineColor="#E0E0E0"
-                  activeOutlineColor="#2894c6"
-                  style={sheetStyles.input}
-                  dense
-                />
+                <Text style={sh.fieldLabel}>State <Text style={sh.required}>*</Text></Text>
+                <TextInput mode="outlined" label="State *" placeholder="Maharashtra" placeholderTextColor="#bbb" value={form.state} onChangeText={v => setField('state', v)} outlineColor="#E0E0E0" activeOutlineColor={color.primary} style={sh.input} dense />
               </View>
             </View>
 
-            {/* Postal Code + Country row */}
-            <View style={sheetStyles.rowDouble}>
+            <View style={sh.rowDouble}>
               <View style={{ flex: 1 }}>
-                <Text style={sheetStyles.fieldLabel}>
-                  Postal Code <Text style={sheetStyles.required}>*</Text>
-                </Text>
-                <TextInput
-                  mode="outlined"
-                  label="Postal Code *"
-                  placeholder="400001"
-                  placeholderTextColor="#bbb"
-                  value={form.postalCode}
-                  onChangeText={v => setField('postalCode', v)}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  outlineColor="#E0E0E0"
-                  activeOutlineColor="#2894c6"
-                  style={sheetStyles.input}
-                  dense
-                />
+                <Text style={sh.fieldLabel}>Postal Code <Text style={sh.required}>*</Text></Text>
+                <TextInput mode="outlined" label="Postal Code *" placeholder="400001" placeholderTextColor="#bbb" value={form.postalCode} onChangeText={v => setField('postalCode', v)} keyboardType="number-pad" maxLength={10} outlineColor="#E0E0E0" activeOutlineColor={color.primary} style={sh.input} dense />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={sheetStyles.fieldLabel}>Country</Text>
-                <TextInput
-                  mode="outlined"
-                  label="Country"
-                  placeholder="India"
-                  placeholderTextColor="#bbb"
-                  value={form.country}
-                  onChangeText={v => setField('country', v)}
-                  outlineColor="#E0E0E0"
-                  activeOutlineColor="#2894c6"
-                  style={sheetStyles.input}
-                  dense
-                />
+                <Text style={sh.fieldLabel}>Country</Text>
+                <TextInput mode="outlined" label="Country" placeholder="India" placeholderTextColor="#bbb" value={form.country} onChangeText={v => setField('country', v)} outlineColor="#E0E0E0" activeOutlineColor={color.primary} style={sh.input} dense />
               </View>
             </View>
 
-            {/* Default toggle */}
-            <TouchableOpacity
-              style={sheetStyles.defaultRow}
-              onPress={() => setField('isDefault', !form.isDefault)}
-              activeOpacity={0.7}
-            >
-              <View style={[sheetStyles.checkbox, form.isDefault && sheetStyles.checkboxActive]}>
+            <TouchableOpacity style={sh.defaultRow} onPress={() => setField('isDefault', !form.isDefault)} activeOpacity={0.7}>
+              <View style={[sh.checkbox, form.isDefault && sh.checkboxActive]}>
                 {form.isDefault && <Icon name="check" size={ms(13)} color="#fff" />}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={sheetStyles.defaultLabel}>Set as default address</Text>
-                <Text style={sheetStyles.defaultSub}>This address will be pre-selected at checkout</Text>
+                <Text style={sh.defaultLabel}>Set as default address</Text>
+                <Text style={sh.defaultSub}>This address will be pre-selected at checkout</Text>
               </View>
             </TouchableOpacity>
 
-            {/* Save Button */}
-            <TouchableOpacity
-              style={[sheetStyles.saveBtn, saving && sheetStyles.saveBtnDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-              activeOpacity={0.85}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Icon name={isEdit ? 'content-save-outline' : 'map-marker-plus-outline'} size={ms(18)} color="#fff" />
-                  <Text style={sheetStyles.saveBtnText}>
-                    {isEdit ? 'Update Address' : 'Save Address'}
-                  </Text>
-                </>
-              )}
+            <TouchableOpacity style={[sh.saveBtn, saving && sh.saveBtnDisabled]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+              {saving
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <>
+                    <Icon name={isEdit ? 'content-save-outline' : 'map-marker-plus-outline'} size={ms(18)} color="#fff" />
+                    <Text style={sh.saveBtnText}>{isEdit ? 'Update Address' : 'Save Address'}</Text>
+                  </>
+              }
             </TouchableOpacity>
-
             <View style={{ height: vs(20) }} />
           </ScrollView>
         </Animated.View>
@@ -532,19 +276,17 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
 
 // ─── Address Section ──────────────────────────────────────────────────────────
 function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
-  const [addresses, setAddresses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [addresses,    setAddresses]    = useState([])
+  const [loading,      setLoading]      = useState(true)
   const [sheetVisible, setSheetVisible] = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
+  const [editTarget,   setEditTarget]   = useState(null)
 
   const fetchAddresses = useCallback(async () => {
     try {
       setLoading(true)
       const token = await AsyncStorage.getItem('userToken')
-      const res = await fetch(`${BASE_URL}/user/profile/addresses`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const json = await res.json()
+      const res   = await fetch(`${BASE_URL}/user/profile/addresses`, { headers: { Authorization: `Bearer ${token}` } })
+      const json  = await res.json()
       if (json.success) {
         const list = json.data ?? []
         setAddresses(list)
@@ -552,102 +294,66 @@ function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
         const def = list.find(a => a.isDefault) ?? list[0]
         if (def && !selectedId) onSelect(def.id)
       }
-    } catch (err) {
-      console.log('Fetch addresses error', err)
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { console.log('Fetch addresses error', err) }
+    finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchAddresses() }, [])
-
-  const handleSaved = useCallback(savedAddress => {
-    fetchAddresses()
-    onSelect(savedAddress.id)
-  }, [fetchAddresses])
-
-  const openEdit = addr => {
-    setEditTarget(addr)
-    setSheetVisible(true)
-  }
-
-  const openAdd = () => {
-    setEditTarget(null)
-    setSheetVisible(true)
-  }
+  const handleSaved = useCallback(savedAddr => { fetchAddresses(); onSelect(savedAddr.id) }, [fetchAddresses])
+  const openEdit = addr => { setEditTarget(addr); setSheetVisible(true) }
+  const openAdd  = ()   => { setEditTarget(null);  setSheetVisible(true) }
 
   return (
-    <View style={styles.card}>
-      {/* Section Header */}
-      <View style={styles.cardHeader}>
-        <Icon name="truck-delivery-outline" size={ms(22)} color="#0B77A7" />
-        <Text style={styles.sectionTitle}>Delivery Address</Text>
+    <View style={S.card}>
+      <View style={S.cardHeader}>
+        <Icon name="truck-delivery-outline" size={ms(20)} color={color.primary} />
+        <Text style={S.sectionTitle}>Delivery Address</Text>
       </View>
 
       {loading ? (
-        <View style={addrStyles.loadingRow}>
-          <ActivityIndicator size="small" color="#2894c6" />
-          <Text style={addrStyles.loadingText}>Loading saved addresses...</Text>
+        <View style={addr.loadingRow}>
+          <ActivityIndicator size="small" color={color.primary} />
+          <Text style={addr.loadingText}>Loading saved addresses…</Text>
         </View>
       ) : (
         <>
           {addresses.length > 0 ? (
-            <View style={addrStyles.addressList}>
-              {addresses.map(addr => {
-                const isSelected = selectedId === addr.id
+            <View style={addr.addrList}>
+              {addresses.map(a => {
+                const sel = selectedId === a.id
                 return (
-                  <TouchableOpacity
-                    key={addr.id}
-                    style={[addrStyles.addrCard, isSelected && addrStyles.addrCardSelected]}
-                    onPress={() => onSelect(addr.id)}
-                    activeOpacity={0.8}
-                  >
+                  <TouchableOpacity key={a.id} style={[addr.addrCard, sel && addr.addrCardSel]} onPress={() => onSelect(a.id)} activeOpacity={0.8}>
                     {/* Radio */}
-                    <View style={addrStyles.radioCol}>
-                      <View style={[addrStyles.radioOuter, isSelected && addrStyles.radioOuterActive]}>
-                        {isSelected && <View style={addrStyles.radioInner} />}
+                    <View style={addr.radioCol}>
+                      <View style={[addr.radioOuter, sel && addr.radioOuterActive]}>
+                        {sel && <View style={addr.radioInner} />}
                       </View>
                     </View>
-
                     {/* Content */}
-                    <View style={addrStyles.addrContent}>
-                      <View style={addrStyles.addrTopRow}>
-                        <View style={[addrStyles.labelBadge, isSelected && addrStyles.labelBadgeActive]}>
-                          <Icon name={getLabelIcon(addr.label)} size={ms(11)} color={isSelected ? '#fff' : '#555'} />
-                          <Text style={[addrStyles.labelBadgeText, isSelected && addrStyles.labelBadgeTextActive]}>
-                            {addr.label}
-                          </Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={addr.addrTopRow}>
+                        <View style={[addr.labelBadge, sel && addr.labelBadgeActive]}>
+                          <Icon name={getLabelIcon(a.label)} size={ms(11)} color={sel ? '#fff' : '#555'} />
+                          <Text style={[addr.labelBadgeText, sel && addr.labelBadgeTextActive]}>{a.label}</Text>
                         </View>
-                        {addr.isDefault && (
-                          <View style={addrStyles.defaultBadge}>
+                        {a.isDefault && (
+                          <View style={addr.defaultBadge}>
                             <Icon name="star" size={ms(9)} color="#F59E0B" />
-                            <Text style={addrStyles.defaultBadgeText}>Default</Text>
+                            <Text style={addr.defaultBadgeText}>Default</Text>
                           </View>
                         )}
-                        <TouchableOpacity
-                          onPress={() => openEdit(addr)}
-                          style={addrStyles.editBtn}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Icon name="pencil-outline" size={ms(15)} color="#2894c6" />
+                        <TouchableOpacity onPress={() => openEdit(a)} style={addr.editBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Icon name="pencil-outline" size={ms(15)} color={color.primary} />
                         </TouchableOpacity>
                       </View>
-
-                      <Text style={addrStyles.addrLine1} numberOfLines={2}>
-                        {addr.address?.addressLine1}
-                      </Text>
-                      <Text style={addrStyles.addrLine2}>
-                        {[addr.address?.city, addr.address?.state, addr.address?.postalCode]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </Text>
-
-                      <View style={addrStyles.contactRow}>
+                      <Text style={addr.line1} numberOfLines={2}>{a.address?.addressLine1}</Text>
+                      <Text style={addr.line2}>{[a.address?.city, a.address?.state, a.address?.postalCode].filter(Boolean).join(', ')}</Text>
+                      <View style={addr.contactRow}>
                         <Icon name="account-outline" size={ms(12)} color="#888" />
-                        <Text style={addrStyles.contactText}>{addr.contactInfo?.name}</Text>
-                        <View style={addrStyles.dotSep} />
+                        <Text style={addr.contactText}>{a.contactInfo?.name}</Text>
+                        <View style={addr.dotSep} />
                         <Icon name="phone-outline" size={ms(12)} color="#888" />
-                        <Text style={addrStyles.contactText}>{addr.contactInfo?.phone}</Text>
+                        <Text style={addr.contactText}>{a.contactInfo?.phone}</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -655,34 +361,24 @@ function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
               })}
             </View>
           ) : (
-            <View style={addrStyles.emptyAddr}>
-              <Icon name="map-marker-off-outline" size={ms(36)} color="#D1D5DB" />
-              <Text style={addrStyles.emptyAddrText}>No saved addresses yet</Text>
-              <Text style={addrStyles.emptyAddrSub}>Add one below to continue</Text>
+            <View style={addr.emptyAddr}>
+              <Icon name="map-marker-off-outline" size={ms(36)} color="#BDBDBD" />
+              <Text style={addr.emptyText}>No saved addresses yet</Text>
+              <Text style={addr.emptySub}>Add one below to continue</Text>
             </View>
           )}
 
-          {/* Add new address button */}
-          <TouchableOpacity
-            style={addrStyles.addAddrBtn}
-            onPress={openAdd}
-            activeOpacity={0.8}
-          >
-            <View style={addrStyles.addAddrIconWrap}>
-              <Icon name="plus" size={ms(16)} color="#2894c6" />
+          <TouchableOpacity style={addr.addBtn} onPress={openAdd} activeOpacity={0.8}>
+            <View style={addr.addIconWrap}>
+              <Icon name="plus" size={ms(16)} color={color.primary} />
             </View>
-            <Text style={addrStyles.addAddrText}>Add New Address</Text>
-            <Icon name="chevron-right" size={ms(16)} color="#2894c6" />
+            <Text style={addr.addText}>Add New Address</Text>
+            <Icon name="chevron-right" size={ms(16)} color={color.primary} />
           </TouchableOpacity>
         </>
       )}
 
-      <AddressBottomSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onSaved={handleSaved}
-        editData={editTarget}
-      />
+      <AddressBottomSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} onSaved={handleSaved} editData={editTarget} />
     </View>
   )
 }
@@ -691,238 +387,125 @@ function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
 export default function BuyInstantScreen() {
   const navigation = useNavigation()
   const { params } = useRoute()
-  const [email, setEmail] = useState('')
-  const [placing, setPlacing] = useState(false)
-  const [preview, setPreview] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [fadeAnim] = useState(new Animated.Value(0))
+  const [email,        setEmail]        = useState('')
+  const [placing,      setPlacing]      = useState(false)
+  const [preview,      setPreview]      = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [fadeAnim]                      = useState(new Animated.Value(0))
 
-  const {
-    itemId,
-    product,
-    selectedAttributes = [],
-    quantity = 1,
-    isDigital,
-  } = params
+  const { itemId, product, selectedAttributes = [], quantity = 1, isDigital } = params
 
-  const [qty, setQty] = useState(quantity)
+  const [qty,           setQty]           = useState(quantity)
   const [paymentMethod, setPaymentMethod] = useState('ONLINE')
 
-  // ── Address state (saved addresses flow) ──────────────────────────────────
   const [selectedAddressId, setSelectedAddressId] = useState(null)
-  const [addressesCache, setAddressesCache] = useState([])
+  const [addressesCache,    setAddressesCache]     = useState([])
+  const [userProfile,       setUserProfile]        = useState(null)
+  const [profileLoading,    setProfileLoading]     = useState(true)
+  const [businessId,        setBusinessId]         = useState(null)
 
-  // ── Profile state ─────────────────────────────────────────────────────────
-  const [userProfile, setUserProfile] = useState(null)
-  const [profileLoading, setProfileLoading] = useState(true)
-  const [businessId, setBusinessId] = useState(null)
-
-  // ── Coupon / Dealer code ──────────────────────────────────────────────────
   const [showCouponInput, setShowCouponInput] = useState(false)
   const [showDealerInput, setShowDealerInput] = useState(false)
-  const [couponInput, setCouponInput] = useState('')
-  const [dealerInput, setDealerInput] = useState('')
-  const [appliedCode, setAppliedCode] = useState(null)
+  const [couponInput,     setCouponInput]     = useState('')
+  const [dealerInput,     setDealerInput]     = useState('')
+  const [appliedCode,     setAppliedCode]     = useState(null)
   const [appliedCodeType, setAppliedCodeType] = useState(null)
-  const [applyingCode, setApplyingCode] = useState(false)
+  const [applyingCode,    setApplyingCode]    = useState(false)
 
-  const toast = (msg) => ToastAndroid.show(msg, ToastAndroid.SHORT)
+  const toast = msg => ToastAndroid.show(msg, ToastAndroid.SHORT)
 
   const price = product.prices?.[0]?.amount || 0
-  const image =
-    product.media?.find(m => m.role === 'primary')?.url ||
-    product.media?.[0]?.url
+  const image = product.media?.find(m => m.role === 'primary')?.url || product.media?.[0]?.url
 
-  // ── injectedItems = free gift items from preview ──────────────────────────
-  const injectedItems = preview?.injectedItems ?? []
-  const freeGiftItems = injectedItems.filter(i => i.isFreeGift)
+  const injectedItems  = preview?.injectedItems ?? []
+  const freeGiftItems  = injectedItems.filter(i => i.isFreeGift)
 
-  // ── Bootstrap: get businessId ─────────────────────────────────────────────
+  // ── All logic unchanged ────────────────────────────────────────────────────
   useEffect(() => {
-    const init = async () => {
-      const id = await AsyncStorage.getItem('businessId')
-      setBusinessId(id)
-    }
+    const init = async () => { const id = await AsyncStorage.getItem('businessId'); setBusinessId(id) }
     init()
   }, [])
 
-  useEffect(() => {
-    if (businessId) {
-      fetchUserProfile()
-    }
-  }, [businessId])
+  useEffect(() => { if (businessId) fetchUserProfile() }, [businessId])
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start()
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
   }, [])
 
   const incrementQty = () => setQty(prev => prev + 1)
   const decrementQty = () => { if (qty > 1) setQty(prev => prev - 1) }
 
-  // ── Profile helpers ───────────────────────────────────────────────────────
-  const isProfileEmpty = (profile) => {
+  const isProfileEmpty = profile => {
     if (!profile) return true
-
-    const addressEmpty = !profile.address ||
-      (!profile.address.addressLine1 &&
-        !profile.address.city &&
-        !profile.address.state &&
-        !profile.address.postalCode)
-
-    const userProfileEmpty = !profile.userProfile ||
-      (!profile.userProfile.firstName &&
-        !profile.userProfile.lastName &&
-        !profile.userProfile.displayName &&
-        !profile.userProfile.phone)
-
-    return addressEmpty && userProfileEmpty
+    const addrEmpty    = !profile.address || !profile.address.addressLine1 || !profile.address.city || !profile.address.state || !profile.address.postalCode
+    const upEmpty      = !profile.userProfile || !profile.userProfile.firstName || !profile.userProfile.phone
+    return addrEmpty || upEmpty
   }
 
   const fetchUserProfile = async () => {
     try {
       setProfileLoading(true)
       const token = await AsyncStorage.getItem('userToken')
-      const bId = await AsyncStorage.getItem('businessId')
-
-      const profileRes = await fetch(
-        `${BASE_URL}/customer/business/${bId}/customer-business-profile`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      const profileJson = await profileRes.json()
-      console.log('Fetched profile in buy instant:', profileJson)
-
-      if (profileJson?.success && profileJson?.data) {
-        setUserProfile(profileJson.data)
-      } else {
-        setUserProfile(null)
-      }
-    } catch (err) {
-      console.log('Error fetching user profile in buy instant:', err)
-      setUserProfile(null)
-    } finally {
-      setProfileLoading(false)
-    }
+      const bId   = await AsyncStorage.getItem('businessId')
+      const res   = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
+      const json  = await res.json()
+      setUserProfile(json?.success && json?.data ? json.data : null)
+    } catch (err) { console.log('Error fetching profile:', err); setUserProfile(null) }
+    finally { setProfileLoading(false) }
   }
 
-  // ── Fetch preview (with optional code) ───────────────────────────────────
   const fetchPreview = async (code = appliedCode) => {
     setLoading(true)
-    const payload = {
-      quantity: qty,
-      ...(code ? { code } : {}),
-    }
     try {
       const token = await AsyncStorage.getItem('userToken')
-      const bId = await AsyncStorage.getItem('businessId')
-      const res = await fetch(
-        `${BASE_URL}/customer/business/${bId}/items/${itemId}/buy-now/preview`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      )
-
+      const bId   = await AsyncStorage.getItem('businessId')
+      const res   = await fetch(`${BASE_URL}/customer/business/${bId}/items/${itemId}/buy-now/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quantity: qty, ...(code ? { code } : {}) }),
+      })
       const json = await res.json()
-      console.log('BUY NOW PREVIEW', json)
-
       if (!res.ok) throw json
-
       setPreview(json.data)
       return json
-    } catch (err) {
-      toast(err?.message || 'Unable to load item')
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { toast(err?.message || 'Unable to load item') }
+    finally { setLoading(false) }
   }
 
-  useEffect(() => {
-    fetchPreview()
-  }, [qty])
+  useEffect(() => { fetchPreview() }, [qty])
 
-  // ── Apply code ────────────────────────────────────────────────────────────
   const applyCode = async type => {
     const code = (type === 'coupon' ? couponInput : dealerInput).trim()
     if (!code) { toast('Please enter a code'); return }
-
     try {
       setApplyingCode(true)
       const json = await fetchPreview(code)
-
       if (json?.data) {
-        setAppliedCode(code)
-        setAppliedCodeType(type)
-        setShowCouponInput(false)
-        setShowDealerInput(false)
+        setAppliedCode(code); setAppliedCodeType(type)
+        setShowCouponInput(false); setShowDealerInput(false)
         toast(type === 'coupon' ? 'Coupon applied! 🎉' : 'Dealer code applied! 🎉')
-      } else {
-        toast('Invalid code, please try again')
-      }
-    } catch (err) {
-      toast(err?.message || 'Failed to apply code')
-    } finally {
-      setApplyingCode(false)
-    }
+      } else { toast('Invalid code, please try again') }
+    } catch (err) { toast(err?.message || 'Failed to apply code') }
+    finally { setApplyingCode(false) }
   }
 
-  // ── Remove code ───────────────────────────────────────────────────────────
   const removeCode = async () => {
-    setAppliedCode(null)
-    setAppliedCodeType(null)
-    setCouponInput('')
-    setDealerInput('')
-    await fetchPreview(null)
-    toast('Code removed')
+    setAppliedCode(null); setAppliedCodeType(null); setCouponInput(''); setDealerInput('')
+    await fetchPreview(null); toast('Code removed')
   }
 
-  // ── Place order ───────────────────────────────────────────────────────────
   const placeBuyNowOrder = async () => {
     if (placing) return
-
-    // Profile check (same as CartScreen)
-    if (isProfileEmpty(userProfile)) {
-      toast('Please complete your profile first')
-      navigation.navigate('ProfileInfoScreen')
-      return
-    }
-
-    if (isDigital && !email) {
-      toast('Please enter email for digital delivery')
-      return
-    }
-    if (isDigital && !email.includes('@')) {
-      toast('Please enter a valid email address')
-      return
-    }
-    if (!isDigital && !selectedAddressId) {
-      toast('Please select a delivery address')
-      return
-    }
-    if (paymentMethod === 'COD' && isDigital) {
-      toast('COD not available for digital items')
-      return
-    }
+    if (isProfileEmpty(userProfile)) { toast('Please complete your profile first'); navigation.navigate('ProfileInfoScreen'); return }
+    if (isDigital && !email)          { toast('Please enter email for digital delivery'); return }
+    if (isDigital && !email.includes('@')) { toast('Please enter a valid email address'); return }
+    if (!isDigital && !selectedAddressId)  { toast('Please select a delivery address'); return }
+    if (paymentMethod === 'COD' && isDigital) { toast('COD not available for digital items'); return }
 
     try {
       setPlacing(true)
       const token = await AsyncStorage.getItem('userToken')
-      const bId = businessId ?? await AsyncStorage.getItem('businessId')
-
+      const bId   = businessId ?? await AsyncStorage.getItem('businessId')
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
 
       const payload = {
@@ -933,411 +516,295 @@ export default function BuyInstantScreen() {
         ...(isDigital
           ? { itemType: 'digital', email }
           : {
-            addresses: [
-              {
-                type: 'shipping',
-                addressSnapshot: {
-                  line1: selectedAddr?.address?.addressLine1,
-                  city: selectedAddr?.address?.city,
-                  state: selectedAddr?.address?.state,
-                  country: selectedAddr?.address?.country ?? 'India',
-                  pincode: selectedAddr?.address?.postalCode,
-                },
-                contactSnapshot: {
-                  name: selectedAddr?.contactInfo?.name,
-                  phone: selectedAddr?.contactInfo?.phone,
-                  email: email || '',
-                },
-              },
-            ],
-            itemType: 'physical',
-          }),
+              addresses: [{ type: 'shipping',
+                addressSnapshot: { line1: selectedAddr?.address?.addressLine1, city: selectedAddr?.address?.city, state: selectedAddr?.address?.state, country: selectedAddr?.address?.country ?? 'India', pincode: selectedAddr?.address?.postalCode },
+                contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.userProfile?.email || '' },
+              }],
+              itemType: 'physical',
+            }),
         payment: { method: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD' },
       }
 
-      console.log('BUY NOW ORDER PAYLOAD →', JSON.stringify(payload, null, 2))
-
-      const res = await fetch(
-        `${BASE_URL}/customer/business/${bId}/orders/${itemId}/place`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      )
-
+      const res  = await fetch(`${BASE_URL}/customer/business/${bId}/orders/${itemId}/place`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      })
       const json = await res.json()
-      console.log('Place order response', json)
       if (!res.ok) throw json
 
       if (json.paymentMethod === 'RAZORPAY') {
-        openRazorpay({
-          razorpayOrder: json.razorpay,
-          orderId: json.orderId,
-          navigation,
-          email: isDigital
-            ? email
-            : selectedAddr?.contactInfo?.email || '',
-        })
+        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: isDigital ? email : selectedAddr?.contactInfo?.email || '' })
         return
       }
-
       toast('Order placed successfully 🎉')
       navigation.navigate('ExploreInventoryScreen')
-    } catch (e) {
-      toast(e?.message || 'Order failed')
-    } finally {
-      setPlacing(false)
-    }
+    } catch (e) { toast(e?.message || 'Order failed') }
+    finally { setPlacing(false) }
   }
 
-  // ── Derived preview values ────────────────────────────────────────────────
-  const unitPrice = preview?.pricing?.unitPrice ?? price
+  useFocusEffect(useCallback(() => { fetchUserProfile() }, []))
+
+  // Derived preview values
+  const unitPrice           = preview?.pricing?.unitPrice ?? price
   const discountedUnitPrice = preview?.discountPricing?.finalUnitPrice ?? unitPrice
-  const baseSubtotal = preview?.pricing?.baseSubtotal ?? price * qty
-  const totalDiscount = preview?.totalDiscount ?? 0
-  const finalSubtotal = preview?.discountPricing?.finalSubtotal ?? baseSubtotal
-  const taxTotal = preview?.taxBreakdown?.taxTotal ?? 0
-  const totalPayable = preview?.totalPayable ?? finalSubtotal + taxTotal
-  const discountSummary = preview?.discountSummary ?? []
-  const taxComponents = preview?.taxBreakdown?.components ?? {}
-  const taxMode = preview?.taxBreakdown?.taxMode ?? 'exclusive'
-  const hasDiscount = totalDiscount > 0
+  const baseSubtotal        = preview?.pricing?.baseSubtotal ?? price * qty
+  const totalDiscount       = preview?.totalDiscount ?? 0
+  const finalSubtotal       = preview?.discountPricing?.finalSubtotal ?? baseSubtotal
+  const taxTotal            = preview?.taxBreakdown?.taxTotal ?? 0
+  const totalPayable        = preview?.totalPayable ?? finalSubtotal + taxTotal
+  const discountSummary     = preview?.discountSummary ?? []
+  const taxComponents       = preview?.taxBreakdown?.components ?? {}
+  const taxMode             = preview?.taxBreakdown?.taxMode ?? 'exclusive'
+  const hasDiscount         = totalDiscount > 0
   const activeTaxComponents = Object.entries(taxComponents).filter(([, v]) => v.amount > 0)
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="#0B77A7" />
+    <KeyboardAvoidingView style={S.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={24} color="#fff" />
+      {/* ── Header ── */}
+      <View style={S.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={S.headerBtn}>
+          <Icon name="arrow-left" size={ms(22)} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Checkout</Text>
-        <View style={styles.headerRight}>
-          <Icon name="lock-outline" size={20} color="#fff" />
-          <Text style={styles.secureText}>Secure</Text>
+        <Text style={S.headerTitle}>Checkout</Text>
+        <View style={S.headerRight}>
+          <Icon name="lock-outline" size={ms(18)} color="#fff" />
+          <Text style={S.secureText}>Secure</Text>
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: vs(120) }}>
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ── Product Card ──────────────────────────────────────────────── */}
-          <View style={styles.productCard}>
-            <View style={styles.productHeader}>
-              <Icon name="package-variant" size={22} color="#0B77A7" />
-              <Text style={styles.sectionTitle}>Order Summary</Text>
+          {/* ── Order Summary card ── */}
+          <View style={S.card}>
+            <View style={S.cardHeader}>
+              <Icon name="package-variant" size={ms(20)} color={color.primary} />
+              <Text style={S.sectionTitle}>Order Summary</Text>
             </View>
 
-            <View style={styles.productContent}>
-              <View style={styles.imageContainer}>
-                <Image
-                  source={image ? { uri: image } : noimage}
-                  style={styles.productImage}
-                />
+            {/* Product row */}
+            <View style={S.productRow}>
+              <View style={S.imgBox}>
+                <Image source={image ? { uri: image } : noimage} style={S.productImg} />
                 {isDigital && (
-                  <View style={styles.digitalBadge}>
-                    <Icon name="download" size={12} color="#fff" />
-                    <Text style={styles.badgeText}>Digital</Text>
+                  <View style={S.digitalBadge}>
+                    <Icon name="download" size={ms(10)} color="#fff" />
+                    <Text style={S.digitalBadgeText}>Digital</Text>
                   </View>
                 )}
               </View>
-
-              <View style={styles.productInfo}>
-                <Text style={styles.productTitle} numberOfLines={2}>{product.title}</Text>
-
+              <View style={S.productInfo}>
+                <Text style={S.productTitle} numberOfLines={2}>{product.title}</Text>
                 {product.category && (
-                  <View style={styles.categoryBadge}>
-                    <Icon name="tag-outline" size={12} color="#666" />
-                    <Text style={styles.categoryText}>{product.category}</Text>
+                  <View style={S.catBadge}>
+                    <Icon name="tag-outline" size={ms(11)} color="#888" />
+                    <Text style={S.catText}>{product.category}</Text>
                   </View>
                 )}
-
                 {hasDiscount ? (
-                  <View style={styles.unitPriceRow}>
-                    <Text style={styles.unitPriceStrike}>₹{unitPrice}</Text>
-                    <Text style={styles.unitPriceDiscounted}>₹{discountedUnitPrice} per unit</Text>
+                  <View style={S.unitPriceRow}>
+                    <Text style={S.unitPriceStrike}>₹{unitPrice}</Text>
+                    <Text style={S.unitPriceDisc}>₹{discountedUnitPrice} / unit</Text>
                   </View>
                 ) : (
-                  <Text style={styles.unitPrice}>₹{unitPrice} per unit</Text>
+                  <Text style={S.unitPrice}>₹{unitPrice} / unit</Text>
                 )}
               </View>
             </View>
 
-            {/* Quantity */}
-            <View style={styles.quantitySection}>
-              <Text style={styles.quantityLabel}>Quantity</Text>
-              <View style={styles.qtyBox}>
-                <TouchableOpacity onPress={decrementQty} style={styles.qtyButton} activeOpacity={0.7}>
-                  <Icon name="minus" size={18} color="#0B77A7" />
+            {/* Qty stepper */}
+            <View style={S.qtySection}>
+              <Text style={S.qtyLabel}>Quantity</Text>
+              <View style={S.qtyBox}>
+                <TouchableOpacity onPress={decrementQty} style={S.qtyBtn} activeOpacity={0.7}>
+                  <Icon name="minus" size={ms(17)} color={color.primary} />
                 </TouchableOpacity>
-                <View style={styles.qtyDisplay}>
-                  <Text style={styles.qtyText}>{qty}</Text>
+                <View style={S.qtyDisplay}>
+                  <Text style={S.qtyText}>{qty}</Text>
                 </View>
-                <TouchableOpacity onPress={incrementQty} style={styles.qtyButton} activeOpacity={0.7}>
-                  <Icon name="plus" size={18} color="#0B77A7" />
+                <TouchableOpacity onPress={incrementQty} style={S.qtyBtn} activeOpacity={0.7}>
+                  <Icon name="plus" size={ms(17)} color={color.primary} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View style={S.divider} />
 
-            {/* ── Price Breakdown ───────────────────────────────────────── */}
-            {loading
-              ? <PriceBreakdownSkeleton />
-              : (
-                <View style={styles.priceBreakdown}>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Item Total (MRP)</Text>
-                    <Text style={styles.priceValue}>₹{baseSubtotal.toFixed(2)}</Text>
-                  </View>
+            {/* Price breakdown */}
+            {loading ? <PriceBreakdownSkeleton /> : (
+              <View style={S.priceBreakdown}>
+                <View style={S.priceRow}>
+                  <Text style={S.priceLabel}>Item Total (MRP)</Text>
+                  <Text style={S.priceVal}>₹{baseSubtotal.toFixed(2)}</Text>
+                </View>
 
-                  {hasDiscount && (
-                    <>
-                      {discountSummary.map((d, i) => (
-                        <View key={i} style={styles.priceRow}>
-                          <View style={styles.discountLabelRow}>
-                            <Icon name="tag" size={13} color="#4CAF50" />
-                            <Text style={styles.discountLabel} numberOfLines={1}>{d.name}</Text>
-                          </View>
-                          <Text style={styles.discountValue}>-₹{d.totalApplied.toFixed(2)}</Text>
+                {hasDiscount && (
+                  <>
+                    {discountSummary.map((d, i) => (
+                      <View key={i} style={S.priceRow}>
+                        <View style={S.discLabelRow}>
+                          <Icon name="tag" size={ms(12)} color="#2E7D32" />
+                          <Text style={S.discLabel} numberOfLines={1}>{d.name}</Text>
                         </View>
-                      ))}
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Price after discount</Text>
-                        <Text style={styles.priceValue}>₹{finalSubtotal.toFixed(2)}</Text>
+                        <Text style={S.discVal}>-₹{d.totalApplied.toFixed(2)}</Text>
                       </View>
-                    </>
-                  )}
+                    ))}
+                    <View style={S.priceRow}>
+                      <Text style={S.priceLabel}>Price after discount</Text>
+                      <Text style={S.priceVal}>₹{finalSubtotal.toFixed(2)}</Text>
+                    </View>
+                  </>
+                )}
 
-                  {appliedCode && (
-                    <View style={styles.priceRow}>
-                      <Text style={[styles.priceLabel, { color: '#4CAF50' }]}>
-                        {appliedCodeType === 'coupon' ? 'Coupon' : 'Dealer Code'} ({appliedCode})
+                {appliedCode && (
+                  <View style={S.priceRow}>
+                    <Text style={[S.priceLabel, { color: '#2E7D32' }]}>
+                      {appliedCodeType === 'coupon' ? 'Coupon' : 'Dealer Code'} ({appliedCode})
+                    </Text>
+                    <Text style={[S.priceVal, { color: '#2E7D32' }]}>Applied ✓</Text>
+                  </View>
+                )}
+
+                {freeGiftItems.length > 0 && (
+                  <View style={S.priceRow}>
+                    <View style={S.discLabelRow}>
+                      <Icon name="gift" size={ms(12)} color={color.primary} />
+                      <Text style={[S.priceLabel, { color: color.primary, marginLeft: s(4) }]}>
+                        Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
                       </Text>
-                      <Text style={[styles.priceValue, { color: '#4CAF50' }]}>Applied ✓</Text>
                     </View>
-                  )}
-
-                  {/* Free gift row in bill */}
-                  {freeGiftItems.length > 0 && (
-                    <View style={styles.priceRow}>
-                      <View style={styles.discountLabelRow}>
-                        <Icon name="gift" size={13} color="#0b4bb8" />
-                        <Text style={[styles.priceLabel, { color: '#0b4bb8', flex: 1, marginLeft: 4 }]}>
-                          Free Gift{freeGiftItems.length > 1 ? 's' : ''} ({freeGiftItems.length})
-                        </Text>
-                      </View>
-                      <Text style={[styles.priceValue, { color: '#0b4bb8', fontFamily: FONTS.Bold }]}>FREE</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Delivery Charges</Text>
-                    <Text style={styles.priceFree}>FREE</Text>
+                    <Text style={[S.priceVal, { color: color.primary, fontFamily: FONTS.Bold }]}>FREE</Text>
                   </View>
-
-                  {activeTaxComponents.length > 0 && (
-                    <>
-                      <View style={styles.taxHeader}>
-                        <Icon name="receipt" size={13} color="#888" />
-                        <Text style={styles.taxHeaderText}>
-                          Taxes ({taxMode === 'exclusive' ? 'excluded from price' : 'included in price'})
-                        </Text>
-                      </View>
-                      {activeTaxComponents.map(([key, val]) => (
-                        <View key={key} style={styles.priceRow}>
-                          <Text style={styles.taxLabel}>{key.toUpperCase()} @ {val.rate}%</Text>
-                          <Text style={styles.taxValue}>₹{val.amount.toFixed(2)}</Text>
-                        </View>
-                      ))}
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Total Tax</Text>
-                        <Text style={styles.priceValue}>₹{taxTotal.toFixed(2)}</Text>
-                      </View>
-                    </>
-                  )}
-                </View>
-              )
-            }
-
-            <View style={styles.divider} />
-
-            {/* ── Total ─────────────────────────────────────────────────── */}
-            <View style={styles.totalRow}>
-              <View>
-                <Text style={styles.totalLabel}>Total Amount</Text>
-                {!loading && hasDiscount && (
-                  <Text style={styles.savingsNote}>You save ₹{totalDiscount.toFixed(2)}!</Text>
                 )}
+
+                <View style={S.priceRow}>
+                  <Text style={S.priceLabel}>Delivery Charges</Text>
+                  <Text style={S.priceFree}>FREE</Text>
+                </View>
+
+                {activeTaxComponents.length > 0 && (
+                  <>
+                    <View style={S.taxHeader}>
+                      <Icon name="receipt" size={ms(12)} color="#888" />
+                      <Text style={S.taxHeaderText}>Taxes ({taxMode === 'exclusive' ? 'excluded from price' : 'included in price'})</Text>
+                    </View>
+                    {activeTaxComponents.map(([key, val]) => (
+                      <View key={key} style={S.priceRow}>
+                        <Text style={S.taxLabel}>{key.toUpperCase()} @ {val.rate}%</Text>
+                        <Text style={S.taxVal}>₹{val.amount.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                    <View style={S.priceRow}>
+                      <Text style={S.priceLabel}>Total Tax</Text>
+                      <Text style={S.priceVal}>₹{taxTotal.toFixed(2)}</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            <View style={S.divider} />
+
+            {/* Total */}
+            <View style={S.totalRow}>
+              <View>
+                <Text style={S.totalLabel}>Total Amount</Text>
+                {!loading && hasDiscount && <Text style={S.savingsNote}>You save ₹{totalDiscount.toFixed(2)}!</Text>}
               </View>
               {loading
                 ? <SkeletonBox width={110} height={28} borderRadius={8} />
-                : <Text style={styles.totalAmount}>₹{totalPayable.toFixed(2)}</Text>
+                : <Text style={S.totalAmt}>₹{totalPayable.toFixed(2)}</Text>
               }
             </View>
           </View>
 
-          {/* ── Free Gift Section ─────────────────────────────────────────── */}
+          {/* ── Free gifts ── */}
           {!loading && freeGiftItems.length > 0 && (
-            <View style={styles.freeGiftSection}>
-              <View style={styles.freeGiftSectionHeader}>
-                <View style={styles.freeGiftHeaderLeft}>
-                  <Icon name="gift-open" size={20} color="#0b4bb8" />
-                  <Text style={styles.freeGiftSectionTitle}>
-                    Your Free Gift{freeGiftItems.length > 1 ? 's' : ''}
-                  </Text>
+            <View style={S.freeGiftSection}>
+              <View style={S.freeGiftHead}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(8) }}>
+                  <Icon name="gift-open" size={ms(18)} color={color.primary} />
+                  <Text style={S.freeGiftTitle}>Your Free Gift{freeGiftItems.length > 1 ? 's' : ''}</Text>
                 </View>
-                <View style={styles.freeGiftCountPill}>
-                  <Text style={styles.freeGiftCountText}>{freeGiftItems.length}</Text>
+                <View style={S.freeGiftCountPill}>
+                  <Text style={S.freeGiftCountText}>{freeGiftItems.length}</Text>
                 </View>
               </View>
-              {freeGiftItems.map(item => (
-                <FreeGiftCard key={item.cartItemId} item={item} />
-              ))}
+              {freeGiftItems.map(item => <FreeGiftCard key={item.cartItemId} item={item} />)}
             </View>
           )}
 
-          {/* ── Skeleton for free gift while loading ─────────────────────── */}
           {loading && (
-            <View style={[styles.freeGiftSection, { opacity: 0.5 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <View style={[S.freeGiftSection, { opacity: 0.5 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(8), marginBottom: vs(10) }}>
                 <SkeletonBox width={20} height={20} borderRadius={10} />
                 <SkeletonBox width={140} height={14} />
               </View>
-              <SkeletonBox width="100%" height={100} borderRadius={12} />
+              <SkeletonBox width="100%" height={100} borderRadius={10} />
             </View>
           )}
 
-          {/* ── Offers & Discounts ────────────────────────────────────────── */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Icon name="ticket-percent-outline" size={22} color="#0B77A7" />
-              <Text style={styles.sectionTitle}>Offers & Discounts</Text>
+          {/* ── Offers card ── */}
+          <View style={S.card}>
+            <View style={S.cardHeader}>
+              <Icon name="ticket-percent-outline" size={ms(20)} color={color.primary} />
+              <Text style={S.sectionTitle}>Offers & Discounts</Text>
             </View>
 
             {appliedCode && (
-              <View style={styles.appliedCodeBanner}>
-                <View style={styles.appliedCodeLeft}>
-                  <Icon
-                    name={appliedCodeType === 'coupon' ? 'ticket-confirmation' : 'star-circle'}
-                    size={18}
-                    color="#4CAF50"
-                  />
+              <View style={S.appliedBanner}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(10) }}>
+                  <Icon name={appliedCodeType === 'coupon' ? 'ticket-confirmation' : 'star-circle'} size={ms(18)} color="#2E7D32" />
                   <View>
-                    <Text style={styles.appliedCodeLabel}>
-                      {appliedCodeType === 'coupon' ? 'Coupon' : 'Dealer Code'} Applied
-                    </Text>
-                    <Text style={styles.appliedCodeValue}>{appliedCode}</Text>
+                    <Text style={S.appliedLabel}>{appliedCodeType === 'coupon' ? 'Coupon' : 'Dealer Code'} Applied</Text>
+                    <Text style={S.appliedCode}>{appliedCode}</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={removeCode} style={styles.removeCodeBtn}>
-                  <Icon name="close-circle" size={20} color="#FF5252" />
+                <TouchableOpacity onPress={removeCode} style={{ padding: s(4) }}>
+                  <Icon name="close-circle" size={ms(20)} color="#C62828" />
                 </TouchableOpacity>
               </View>
             )}
 
             {appliedCodeType !== 'dealer' && (
               <>
-                <TouchableOpacity
-                  style={styles.offerItem}
-                  onPress={() => {
-                    if (appliedCodeType === 'coupon') return
-                    setShowCouponInput(prev => !prev)
-                    setShowDealerInput(false)
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.offerLeft}>
-                    <Icon name="ticket-confirmation-outline" size={20} color="#FF9800" />
-                    <Text style={styles.offerText}>
-                      {appliedCodeType === 'coupon' ? 'Coupon Applied ✓' : 'Apply Coupon Code'}
-                    </Text>
+                <TouchableOpacity style={S.offerRow} onPress={() => { if (appliedCodeType === 'coupon') return; setShowCouponInput(p => !p); setShowDealerInput(false) }} activeOpacity={0.7}>
+                  <View style={S.offerLeft}>
+                    <Icon name="ticket-confirmation-outline" size={ms(20)} color="#E65100" />
+                    <Text style={S.offerText}>{appliedCodeType === 'coupon' ? 'Coupon Applied ✓' : 'Apply Coupon Code'}</Text>
                   </View>
-                  {appliedCodeType !== 'coupon' && (
-                    <Icon name={showCouponInput ? 'chevron-up' : 'chevron-right'} size={22} color="#999" />
-                  )}
+                  {appliedCodeType !== 'coupon' && <Icon name={showCouponInput ? 'chevron-up' : 'chevron-right'} size={ms(20)} color="#BDBDBD" />}
                 </TouchableOpacity>
                 {showCouponInput && !appliedCode && (
-                  <View style={styles.codeInputRow}>
-                    <RNTextInput
-                      style={styles.codeInput}
-                      placeholder="Enter coupon code"
-                      placeholderTextColor="#bbb"
-                      value={couponInput}
-                      onChangeText={setCouponInput}
-                      autoCapitalize="characters"
-                    />
-                    <TouchableOpacity
-                      style={[styles.applyBtn, (!couponInput.trim() || applyingCode) && styles.applyBtnDisabled]}
-                      disabled={!couponInput.trim() || applyingCode}
-                      onPress={() => applyCode('coupon')}
-                      activeOpacity={0.8}
-                    >
-                      {applyingCode
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={styles.applyBtnText}>Apply</Text>
-                      }
+                  <View style={S.codeRow}>
+                    <RNTextInput style={S.codeInput} placeholder="Enter coupon code" placeholderTextColor="#BDBDBD" value={couponInput} onChangeText={setCouponInput} autoCapitalize="characters" />
+                    <TouchableOpacity style={[S.applyBtn, (!couponInput.trim() || applyingCode) && S.applyBtnDis]} disabled={!couponInput.trim() || applyingCode} onPress={() => applyCode('coupon')} activeOpacity={0.8}>
+                      {applyingCode ? <ActivityIndicator size="small" color="#fff" /> : <Text style={S.applyBtnText}>Apply</Text>}
                     </TouchableOpacity>
                   </View>
                 )}
               </>
             )}
 
-            <View style={styles.offerDivider} />
+            <View style={S.offerDivider} />
 
             {appliedCodeType !== 'coupon' && (
               <>
-                <TouchableOpacity
-                  style={styles.offerItem}
-                  onPress={() => {
-                    if (appliedCodeType === 'dealer') return
-                    setShowDealerInput(prev => !prev)
-                    setShowCouponInput(false)
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.offerLeft}>
-                    <Icon name="star-circle-outline" size={20} color="#4CAF50" />
-                    <Text style={styles.offerText}>
-                      {appliedCodeType === 'dealer' ? 'Dealer Code Applied ✓' : 'Use Dealer Code'}
-                    </Text>
+                <TouchableOpacity style={S.offerRow} onPress={() => { if (appliedCodeType === 'dealer') return; setShowDealerInput(p => !p); setShowCouponInput(false) }} activeOpacity={0.7}>
+                  <View style={S.offerLeft}>
+                    <Icon name="star-circle-outline" size={ms(20)} color="#2E7D32" />
+                    <Text style={S.offerText}>{appliedCodeType === 'dealer' ? 'Dealer Code Applied ✓' : 'Use Dealer Code'}</Text>
                   </View>
-                  {appliedCodeType !== 'dealer' && (
-                    <Icon name={showDealerInput ? 'chevron-up' : 'chevron-right'} size={22} color="#999" />
-                  )}
+                  {appliedCodeType !== 'dealer' && <Icon name={showDealerInput ? 'chevron-up' : 'chevron-right'} size={ms(20)} color="#BDBDBD" />}
                 </TouchableOpacity>
                 {showDealerInput && !appliedCode && (
-                  <View style={styles.codeInputRow}>
-                    <RNTextInput
-                      style={styles.codeInput}
-                      placeholder="Enter dealer code"
-                      placeholderTextColor="#bbb"
-                      value={dealerInput}
-                      onChangeText={setDealerInput}
-                      autoCapitalize="characters"
-                    />
-                    <TouchableOpacity
-                      style={[styles.applyBtn, (!dealerInput.trim() || applyingCode) && styles.applyBtnDisabled]}
-                      disabled={!dealerInput.trim() || applyingCode}
-                      onPress={() => applyCode('dealer')}
-                      activeOpacity={0.8}
-                    >
-                      {applyingCode
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Text style={styles.applyBtnText}>Apply</Text>
-                      }
+                  <View style={S.codeRow}>
+                    <RNTextInput style={S.codeInput} placeholder="Enter dealer code" placeholderTextColor="#BDBDBD" value={dealerInput} onChangeText={setDealerInput} autoCapitalize="characters" />
+                    <TouchableOpacity style={[S.applyBtn, (!dealerInput.trim() || applyingCode) && S.applyBtnDis]} disabled={!dealerInput.trim() || applyingCode} onPress={() => applyCode('dealer')} activeOpacity={0.8}>
+                      {applyingCode ? <ActivityIndicator size="small" color="#fff" /> : <Text style={S.applyBtnText}>Apply</Text>}
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1345,184 +812,135 @@ export default function BuyInstantScreen() {
             )}
           </View>
 
-          {/* ── Delivery Address / Digital ────────────────────────────────── */}
+          {/* ── Address / Digital ── */}
           {!isDigital ? (
             profileLoading ? (
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Icon name="truck-delivery-outline" size={ms(22)} color="#0B77A7" />
-                  <Text style={styles.sectionTitle}>Delivery Address</Text>
+              <View style={S.card}>
+                <View style={S.cardHeader}>
+                  <Icon name="truck-delivery-outline" size={ms(20)} color={color.primary} />
+                  <Text style={S.sectionTitle}>Delivery Address</Text>
                 </View>
-                <View style={addrStyles.loadingRow}>
-                  <ActivityIndicator size="small" color="#2894c6" />
-                  <Text style={addrStyles.loadingText}>Checking profile...</Text>
+                <View style={addr.loadingRow}>
+                  <ActivityIndicator size="small" color={color.primary} />
+                  <Text style={addr.loadingText}>Checking profile…</Text>
                 </View>
               </View>
             ) : isProfileEmpty(userProfile) ? (
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Icon name="truck-delivery-outline" size={ms(22)} color="#0B77A7" />
-                  <Text style={styles.sectionTitle}>Delivery Address</Text>
+              <View style={S.card}>
+                <View style={S.cardHeader}>
+                  <Icon name="truck-delivery-outline" size={ms(20)} color={color.primary} />
+                  <Text style={S.sectionTitle}>Delivery Address</Text>
                 </View>
-                <View style={styles.incompleteProfileCard}>
-                  <Icon name="account-alert-outline" size={ms(48)} color="#0B77A7" />
-                  <Text style={styles.incompleteProfileTitle}>Profile Incomplete</Text>
-                  <Text style={styles.incompleteProfileText}>
-                    Please complete your profile to add delivery addresses and place orders
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.completeProfileBtn}
-                    onPress={() => navigation.navigate('ProfileInfoScreen')}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name="account-edit-outline" size={ms(18)} color="#fff" />
-                    <Text style={styles.completeProfileBtnText}>Complete Profile</Text>
-                    <Icon name="arrow-right" size={ms(18)} color="#fff" />
+                <View style={S.incompleteCard}>
+                  <Icon name="account-alert-outline" size={ms(44)} color={color.primary} />
+                  <Text style={S.incompleteTitle}>Profile Incomplete</Text>
+                  <Text style={S.incompleteText}>Please complete your profile to add delivery addresses and place orders</Text>
+                  <TouchableOpacity style={S.completeProfBtn} onPress={() => navigation.navigate('ProfileInfoScreen')} activeOpacity={0.8}>
+                    <Icon name="account-edit-outline" size={ms(17)} color="#fff" />
+                    <Text style={S.completeProfText}>Complete Profile</Text>
+                    <Icon name="arrow-right" size={ms(17)} color="#fff" />
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
-              <AddressSection
-                selectedId={selectedAddressId}
-                onSelect={setSelectedAddressId}
-                onAddressesLoaded={setAddressesCache}
-              />
+              <AddressSection selectedId={selectedAddressId} onSelect={setSelectedAddressId} onAddressesLoaded={setAddressesCache} />
             )
           ) : (
-            /* ── Digital Delivery ──────────────────────────────────────── */
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Icon name="email-outline" size={22} color="#0B77A7" />
-                <Text style={styles.sectionTitle}>Digital Delivery</Text>
+            <View style={S.card}>
+              <View style={S.cardHeader}>
+                <Icon name="email-outline" size={ms(20)} color={color.primary} />
+                <Text style={S.sectionTitle}>Digital Delivery</Text>
               </View>
-
-              <Text style={styles.emailNote}>Enter your email to receive the digital product</Text>
-
-              <TextInput
-                mode="outlined"
-                placeholder="your.email@example.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.emailInput}
-                outlineColor="#E0E0E0"
-                activeOutlineColor="#0B77A7"
-                left={<TextInput.Icon icon="email" />}
-                theme={{ roundness: 12 }}
-              />
-
-              <View style={styles.digitalInfoBox}>
-                <Icon name="download-circle" size={20} color="#1976D2" />
-                <Text style={styles.digitalInfoText}>
-                  Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)
-                </Text>
+              <Text style={S.emailNote}>Enter your email to receive the digital product</Text>
+              <TextInput mode="outlined" placeholder="your.email@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" style={S.emailInput} outlineColor="#E0E0E0" activeOutlineColor={color.primary} left={<TextInput.Icon icon="email" />} theme={{ roundness: 10 }} />
+              <View style={S.digitalInfoBox}>
+                <Icon name="download-circle" size={ms(20)} color={color.primary} />
+                <Text style={S.digitalInfoText}>Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)</Text>
               </View>
             </View>
           )}
 
-          {/* ── Payment Method ────────────────────────────────────────────── */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Icon name="credit-card-outline" size={22} color="#0B77A7" />
-              <Text style={styles.sectionTitle}>Payment Method</Text>
+          {/* ── Payment method ── */}
+          <View style={S.card}>
+            <View style={S.cardHeader}>
+              <Icon name="credit-card-outline" size={ms(20)} color={color.primary} />
+              <Text style={S.sectionTitle}>Payment Method</Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.paymentOption, paymentMethod === 'ONLINE' && styles.paymentOptionActive]}
-              onPress={() => setPaymentMethod('ONLINE')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.paymentLeft}>
-                <View style={[styles.radioOuter, paymentMethod === 'ONLINE' && styles.radioOuterActive]}>
-                  {paymentMethod === 'ONLINE' && <View style={styles.radioInner} />}
+            <TouchableOpacity style={[S.payOption, paymentMethod === 'ONLINE' && S.payOptionActive]} onPress={() => setPaymentMethod('ONLINE')} activeOpacity={0.7}>
+              <View style={S.payLeft}>
+                <View style={[S.radio, paymentMethod === 'ONLINE' && S.radioActive]}>
+                  {paymentMethod === 'ONLINE' && <View style={S.radioInner} />}
                 </View>
-                <Icon name="cellphone" size={22} color="#0B77A7" />
+                <Icon name="cellphone" size={ms(22)} color={color.primary} />
                 <View>
-                  <Text style={styles.paymentTitle}>Pay Online</Text>
-                  <Text style={styles.paymentSubtitle}>UPI, Cards, Net Banking, Wallets</Text>
+                  <Text style={S.payTitle}>Pay Online</Text>
+                  <Text style={S.paySub}>UPI, Cards, Net Banking, Wallets</Text>
                 </View>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.paymentOption,
-                paymentMethod === 'COD' && styles.paymentOptionActive,
-                isDigital && styles.paymentOptionDisabled,
-              ]}
+              style={[S.payOption, paymentMethod === 'COD' && S.payOptionActive, isDigital && S.payOptionDis]}
               onPress={() => !isDigital && setPaymentMethod('COD')}
               disabled={isDigital}
               activeOpacity={0.7}
             >
-              <View style={styles.paymentLeft}>
-                <View style={[
-                  styles.radioOuter,
-                  paymentMethod === 'COD' && styles.radioOuterActive,
-                  isDigital && styles.radioOuterDisabled,
-                ]}>
-                  {paymentMethod === 'COD' && !isDigital && <View style={styles.radioInner} />}
+              <View style={S.payLeft}>
+                <View style={[S.radio, paymentMethod === 'COD' && S.radioActive, isDigital && S.radioDis]}>
+                  {paymentMethod === 'COD' && !isDigital && <View style={S.radioInner} />}
                 </View>
-                <Icon name="cash" size={22} color={isDigital ? '#ccc' : '#4CAF50'} />
+                <Icon name="cash" size={ms(22)} color={isDigital ? '#BDBDBD' : '#2E7D32'} />
                 <View>
-                  <Text style={[styles.paymentTitle, isDigital && styles.paymentDisabled]}>Cash on Delivery</Text>
-                  <Text style={styles.paymentSubtitle}>
-                    {isDigital ? 'Not available for digital items' : 'Pay when you receive'}
-                  </Text>
+                  <Text style={[S.payTitle, isDigital && { color: '#BDBDBD' }]}>Cash on Delivery</Text>
+                  <Text style={S.paySub}>{isDigital ? 'Not available for digital items' : 'Pay when you receive'}</Text>
                 </View>
               </View>
             </TouchableOpacity>
           </View>
 
-          {/* Security Banner */}
-          <View style={styles.securityBanner}>
-            <Icon name="shield-check" size={24} color="#4CAF50" />
-            <View style={styles.securityTextContainer}>
-              <Text style={styles.securityTitle}>Safe & Secure Payments</Text>
-              <Text style={styles.securitySubtitle}>100% Payment Protection. Easy Returns</Text>
+          {/* Security banner */}
+          <View style={S.securityBanner}>
+            <Icon name="shield-check" size={ms(24)} color="#2E7D32" />
+            <View style={{ flex: 1 }}>
+              <Text style={S.securityTitle}>Safe & Secure Payments</Text>
+              <Text style={S.securitySub}>100% Payment Protection. Easy Returns</Text>
             </View>
           </View>
 
         </Animated.View>
       </ScrollView>
 
-      {/* ── Bottom Bar ────────────────────────────────────────────────────── */}
-      <View style={styles.bottomBar}>
-        <View style={styles.bottomLeft}>
-          <Text style={styles.bottomLabel}>Total Amount</Text>
+      {/* ── Bottom bar — yellow Place Order like Flipkart ── */}
+      <View style={S.bottomBar}>
+        <View style={S.bottomLeft}>
+          <Text style={S.bottomLabel}>Total Amount</Text>
           {loading
-            ? <SkeletonBox width={110} height={26} borderRadius={8} style={{ marginTop: 2 }} />
-            : <Text style={styles.bottomTotal}>₹{totalPayable.toFixed(2)}</Text>
+            ? <SkeletonBox width={110} height={26} borderRadius={8} style={{ marginTop: vs(2) }} />
+            : <Text style={S.bottomTotal}>₹{totalPayable.toFixed(2)}</Text>
           }
         </View>
-
         <TouchableOpacity
-          style={[styles.placeOrderBtn, (placing || loading) && styles.placeOrderBtnDisabled]}
+          style={[S.placeBtn, (placing || loading) && S.placeBtnDis]}
           disabled={placing || loading}
           onPress={placeBuyNowOrder}
           activeOpacity={0.9}
         >
           {placing ? (
-            <>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.placeOrderText}>Processing...</Text>
-            </>
+            <><ActivityIndicator size="small" color={color.text} /><Text style={S.placeBtnText}>Processing…</Text></>
           ) : (
-            <>
-              <Icon name="check-circle" size={20} color="#fff" />
-              <Text style={styles.placeOrderText}>Place Order</Text>
-            </>
+            <><Icon name="check-circle" size={ms(20)} color={color.text} /><Text style={S.placeBtnText}>Place Order</Text></>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Loading Overlay */}
+      {/* Loading overlay */}
       {placing && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#0B77A7" />
-            <Text style={styles.loadingText}>Processing your order...</Text>
-            <Text style={styles.loadingSubtext}>Please wait</Text>
+        <View style={S.loadingOverlay}>
+          <View style={S.loadingCard}>
+            <ActivityIndicator size="large" color={color.primary} />
+            <Text style={S.loadingText}>Processing your order…</Text>
+            <Text style={S.loadingSub}>Please wait</Text>
           </View>
         </View>
       )}
@@ -1530,714 +948,215 @@ export default function BuyInstantScreen() {
   )
 }
 
-// ─── Address Section Styles ───────────────────────────────────────────────────
-const addrStyles = ScaledSheet.create({
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '10@s',
-    paddingVertical: '12@vs',
-  },
-  loadingText: {
-    fontSize: '13@ms',
-    color: '#888',
-    fontFamily: FONTS.Medium,
-  },
-  addressList: {
-    gap: '10@vs',
-    marginBottom: '12@vs',
-  },
-  addrCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: '12@s',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: '12@ms',
-    padding: '12@s',
-    backgroundColor: '#FAFAFA',
-  },
-  addrCardSelected: {
-    borderColor: '#2894c6',
-    backgroundColor: '#F0F8FF',
-  },
-  radioCol: {
-    paddingTop: '2@vs',
-  },
-  radioOuter: {
-    width: '20@s',
-    height: '20@s',
-    borderRadius: '10@s',
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioOuterActive: {
-    borderColor: '#2894c6',
-  },
-  radioInner: {
-    width: '10@s',
-    height: '10@s',
-    borderRadius: '5@s',
-    backgroundColor: '#2894c6',
-  },
-  addrContent: {
-    flex: 1,
-  },
-  addrTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '6@s',
-    marginBottom: '6@vs',
-    flexWrap: 'wrap',
-  },
-  labelBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    backgroundColor: '#F3F4F6',
-    borderRadius: '6@ms',
-    paddingHorizontal: '8@s',
-    paddingVertical: '3@vs',
-  },
-  labelBadgeActive: {
-    backgroundColor: '#2894c6',
-  },
-  labelBadgeText: {
-    fontSize: '11@ms',
-    fontFamily: FONTS.Bold,
-    color: '#555',
-  },
-  labelBadgeTextActive: {
-    color: '#fff',
-  },
-  defaultBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '3@s',
-    backgroundColor: '#FFFBEB',
-    borderRadius: '6@ms',
-    paddingHorizontal: '6@s',
-    paddingVertical: '3@vs',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  defaultBadgeText: {
-    fontSize: '10@ms',
-    fontFamily: FONTS.Bold,
-    color: '#D97706',
-  },
-  editBtn: {
-    marginLeft: 'auto',
-    padding: '2@s',
-  },
-  addrLine1: {
-    fontSize: '13@ms',
-    fontFamily: FONTS.Bold,
-    color: '#1a1a1a',
-    lineHeight: '18@vs',
-    marginBottom: '3@vs',
-  },
-  addrLine2: {
-    fontSize: '12@ms',
-    color: '#6B7280',
-    fontFamily: FONTS.Medium,
-    marginBottom: '6@vs',
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    flexWrap: 'wrap',
-  },
-  contactText: {
-    fontSize: '11@ms',
-    color: '#9CA3AF',
-    fontFamily: FONTS.Medium,
-  },
-  dotSep: {
-    width: '3@s',
-    height: '3@s',
-    borderRadius: '2@s',
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: '2@s',
-  },
-  emptyAddr: {
-    alignItems: 'center',
-    paddingVertical: '16@vs',
-    gap: '4@vs',
-  },
-  emptyAddrText: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Bold,
-    color: '#9CA3AF',
-  },
-  emptyAddrSub: {
-    fontSize: '12@ms',
-    color: '#C9D1DB',
-    fontFamily: FONTS.Medium,
-  },
-  addAddrBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '10@s',
-    borderWidth: 1.5,
-    borderColor: '#BFDBFE',
-    borderStyle: 'dashed',
-    borderRadius: '12@ms',
-    paddingVertical: '12@vs',
-    paddingHorizontal: '14@s',
-    backgroundColor: '#F0F8FF',
-  },
-  addAddrIconWrap: {
-    width: '30@s',
-    height: '30@s',
-    borderRadius: '8@ms',
-    backgroundColor: '#DBEAFE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addAddrText: {
-    flex: 1,
-    fontSize: '13@ms',
-    fontFamily: FONTS.Bold,
-    color: '#2894c6',
-  },
+// ─── Address styles ───────────────────────────────────────────────────────────
+const addr = ScaledSheet.create({
+  loadingRow:  { flexDirection: 'row', alignItems: 'center', gap: '10@s', paddingVertical: '12@vs' },
+  loadingText: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
+  addrList:    { gap: '10@vs', marginBottom: '12@vs' },
+  addrCard:    { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', borderWidth: 1.5, borderColor: '#EBEBEB', borderRadius: '10@ms', padding: '12@s', backgroundColor: '#FAFAFA' },
+  addrCardSel: { borderColor: color.primary, backgroundColor: color.primary + 20 },
+  radioCol:    { paddingTop: '2@vs' },
+  radioOuter:  { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
+  radioOuterActive: { borderColor: color.primary },
+  radioInner:  { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
+  addrTopRow:  { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginBottom: '6@vs', flexWrap: 'wrap' },
+  labelBadge:  { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs' },
+  labelBadgeActive:     { backgroundColor: color.primary },
+  labelBadgeText:       { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#555' },
+  labelBadgeTextActive: { color: '#fff' },
+  defaultBadge: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: '#FFFBEB', borderRadius: '6@ms', paddingHorizontal: '6@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#FDE68A' },
+  defaultBadgeText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#D97706' },
+  editBtn:     { marginLeft: 'auto', padding: '2@s' },
+  line1:       { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '3@vs' },
+  line2:       { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium, marginBottom: '6@vs' },
+  contactRow:  { flexDirection: 'row', alignItems: 'center', gap: '4@s', flexWrap: 'wrap' },
+  contactText: { fontSize: '11@ms', color: '#BDBDBD', fontFamily: FONTS.Medium },
+  dotSep:      { width: '3@s', height: '3@s', borderRadius: '2@ms', backgroundColor: '#E0E0E0', marginHorizontal: '2@s' },
+  emptyAddr:   { alignItems: 'center', paddingVertical: '16@vs', gap: '4@vs' },
+  emptyText:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#BDBDBD' },
+  emptySub:    { fontSize: '12@ms', color: '#E0E0E0', fontFamily: FONTS.Medium },
+  addBtn:      { flexDirection: 'row', alignItems: 'center', gap: '10@s', borderWidth: 1.5, borderColor: color.primary, borderStyle: 'dashed', borderRadius: '10@ms', paddingVertical: '12@vs', paddingHorizontal: '14@s', backgroundColor: color.primary + 20 },
+  addIconWrap: { width: '30@s', height: '30@s', borderRadius: '8@ms', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
+  addText:     { flex: 1, fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary },
 })
 
-// ─── Bottom Sheet Styles ──────────────────────────────────────────────────────
-const sheetStyles = ScaledSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  kavWrap: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: '24@ms',
-    borderTopRightRadius: '24@ms',
-    maxHeight: SCREEN_HEIGHT * 0.9,
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-  },
-  handle: {
-    width: '40@s',
-    height: '4@vs',
-    borderRadius: '2@ms',
-    backgroundColor: '#D1D5DB',
-    alignSelf: 'center',
-    marginTop: '10@vs',
-    marginBottom: '4@vs',
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: '20@s',
-    paddingVertical: '14@vs',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  sheetHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '12@s',
-  },
-  sheetIconWrap: {
-    width: '38@s',
-    height: '38@s',
-    borderRadius: '12@ms',
-    backgroundColor: '#EBF5FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sheetTitle: {
-    fontSize: '16@ms',
-    fontFamily: FONTS.Bold,
-    color: '#1a1a1a',
-  },
-  sheetSubtitle: {
-    fontSize: '11@ms',
-    color: '#9CA3AF',
-    fontFamily: FONTS.Medium,
-    marginTop: '1@vs',
-  },
-  closeBtn: {
-    width: '36@s',
-    height: '36@s',
-    borderRadius: '18@s',
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  formScroll: {
-    paddingHorizontal: '20@s',
-    paddingTop: '14@vs',
-  },
-  fieldLabel: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Bold,
-    color: '#374151',
-    marginBottom: '4@vs',
-    marginTop: '6@vs',
-  },
-  required: {
-    color: '#EF4444',
-    fontSize: '13@ms',
-  },
-  labelRow: {
-    flexDirection: 'row',
-    gap: '8@s',
-    flexWrap: 'wrap',
-    marginBottom: '8@vs',
-  },
-  labelChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '5@s',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: '8@ms',
-    paddingHorizontal: '12@s',
-    paddingVertical: '6@vs',
-    backgroundColor: '#F9FAFB',
-  },
-  labelChipActive: {
-    borderColor: '#2894c6',
-    backgroundColor: '#2894c6',
-  },
-  labelChipText: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Bold,
-    color: '#555',
-  },
-  labelChipTextActive: {
-    color: '#fff',
-    fontSize: '12@ms',
-    fontFamily: FONTS.Bold,
-  },
-  input: {
-    backgroundColor: '#fff',
-    marginBottom: '6@vs',
-  },
-  rowDouble: {
-    flexDirection: 'row',
-    gap: '10@s',
-  },
-  defaultRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: '12@s',
-    backgroundColor: '#F9FAFB',
-    borderRadius: '12@ms',
-    padding: '14@s',
-    marginTop: '8@vs',
-    marginBottom: '14@vs',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  checkbox: {
-    width: '22@s',
-    height: '22@s',
-    borderRadius: '6@ms',
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: '1@vs',
-  },
-  checkboxActive: {
-    backgroundColor: '#2894c6',
-    borderColor: '#2894c6',
-  },
-  defaultLabel: {
-    fontSize: '13@ms',
-    fontFamily: FONTS.Bold,
-    color: '#1a1a1a',
-  },
-  defaultSub: {
-    fontSize: '11@ms',
-    color: '#9CA3AF',
-    marginTop: '2@vs',
-    fontFamily: FONTS.Medium,
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '10@s',
-    backgroundColor: '#2894c6',
-    borderRadius: '14@ms',
-    paddingVertical: '14@vs',
-    elevation: 3,
-    shadowColor: '#2894c6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-  },
-  saveBtnDisabled: {
-    opacity: 0.7,
-  },
-  saveBtnText: {
-    fontSize: '15@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-  },
+// ─── Bottom sheet styles ──────────────────────────────────────────────────────
+const sh = ScaledSheet.create({
+  backdrop:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  kavWrap:     { flex: 1, justifyContent: 'flex-end' },
+  sheet:       { backgroundColor: '#fff', borderTopLeftRadius: '20@ms', borderTopRightRadius: '20@ms', maxHeight: SCREEN_HEIGHT * 0.9, elevation: 20 },
+  handle:      { width: '40@s', height: '4@vs', borderRadius: '2@ms', backgroundColor: '#E0E0E0', alignSelf: 'center', marginTop: '10@vs', marginBottom: '4@vs' },
+  sheetHead:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '20@s', paddingVertical: '14@vs', borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  sheetHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: '12@s' },
+  sheetIconWrap: { width: '38@s', height: '38@s', borderRadius: '10@ms', backgroundColor: color.primary + 20, justifyContent: 'center', alignItems: 'center' },
+  sheetTitle:  { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
+  sheetSub:    { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '1@vs' },
+  closeBtn:    { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: color.background, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
+  formScroll:  { paddingHorizontal: '20@s', paddingTop: '14@vs' },
+  fieldLabel:  { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '4@vs', marginTop: '6@vs' },
+  required:    { color: '#C62828', fontSize: '13@ms' },
+  labelRow:    { flexDirection: 'row', gap: '8@s', flexWrap: 'wrap', marginBottom: '8@vs' },
+  labelChip:   { flexDirection: 'row', alignItems: 'center', gap: '5@s', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', paddingVertical: '6@vs', backgroundColor: color.background },
+  labelChipActive:     { borderColor: color.primary, backgroundColor: color.primary },
+  labelChipText:       { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#555' },
+  labelChipTextActive: { color: '#fff', fontSize: '12@ms', fontFamily: FONTS.Bold },
+  input:       { backgroundColor: '#fff', marginBottom: '6@vs' },
+  rowDouble:   { flexDirection: 'row', gap: '10@s' },
+  defaultRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', backgroundColor: color.background, borderRadius: '10@ms', padding: '14@s', marginTop: '8@vs', marginBottom: '14@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  checkbox:    { width: '22@s', height: '22@s', borderRadius: '6@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center', marginTop: '1@vs' },
+  checkboxActive: { backgroundColor: color.primary, borderColor: color.primary },
+  defaultLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
+  defaultSub:   { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
+  saveBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '10@s', backgroundColor: color.primary, borderRadius: '10@ms', paddingVertical: '14@vs', elevation: 3 },
+  saveBtnDisabled: { opacity: 0.7 },
+  saveBtnText:  { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#fff' },
 })
 
-// ─── Free Gift Styles ─────────────────────────────────────────────────────────
-const freeGiftStyles = ScaledSheet.create({
-  card: {
-    backgroundColor: '#f5f9ff',
-    borderRadius: '12@ms',
-    borderWidth: 1.5,
-    borderColor: '#1743d4',
-    overflow: 'hidden',
-    marginBottom: '10@vs',
-    elevation: 3,
-    shadowColor: '#1743d4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-  },
-  topAccent: {
-    height: '3@vs',
-    backgroundColor: '#1743d4',
-  },
-  inner: {
-    flexDirection: 'row',
-    padding: '12@s',
-    gap: '12@s',
-  },
-  imageWrap: {
-    position: 'relative',
-    width: '70@s',
-    height: '70@s',
-    borderRadius: '10@ms',
-    backgroundColor: '#e1f4ff',
-    borderWidth: 1,
-    borderColor: '#7092f0',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: '10@ms',
-    resizeMode: 'contain',
-  },
-  badgeWrap: {
-    position: 'absolute',
-    bottom: '-1@vs',
-    left: '-1@s',
-    right: '-1@s',
-    alignItems: 'center',
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '3@s',
-    backgroundColor: '#0a69c8',
-    paddingHorizontal: '6@s',
-    paddingVertical: '2@vs',
-    borderRadius: '5@ms',
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  badgeText: {
-    fontSize: '8@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-  details: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: '13@ms',
-    fontFamily: FONTS.Bold,
-    color: '#00183d',
-    lineHeight: '18@vs',
-    marginBottom: '6@vs',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-    flexWrap: 'wrap',
-  },
-  qtyPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    backgroundColor: '#cdd8ff',
-    borderRadius: '8@ms',
-    paddingHorizontal: '8@s',
-    paddingVertical: '3@vs',
-    borderWidth: 1,
-    borderColor: '#7092f0',
-  },
-  qtyText: {
-    fontSize: '11@ms',
-    fontFamily: FONTS.Bold,
-    color: '#0b4bb8',
-  },
-  complimentaryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '4@s',
-    backgroundColor: '#0a69c8',
-    borderRadius: '8@ms',
-    paddingHorizontal: '8@s',
-    paddingVertical: '3@vs',
-  },
-  complimentaryText: {
-    fontSize: '10@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
-  note: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '6@s',
-    backgroundColor: '#dceaff',
-    paddingHorizontal: '12@s',
-    paddingVertical: '7@vs',
-    borderTopWidth: 1,
-    borderTopColor: '#8abbed',
-  },
-  noteText: {
-    fontSize: '11@ms',
-    color: '#105a8b',
-    fontFamily: FONTS.Medium,
-    flex: 1,
-  },
+// ─── Free gift styles ─────────────────────────────────────────────────────────
+const fg = ScaledSheet.create({
+  card:    { backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, overflow: 'hidden', marginBottom: '10@vs' },
+  topBar:  { height: '3@vs' },
+  inner:   { flexDirection: 'row', padding: '12@s', gap: '12@s' },
+  imgWrap: { position: 'relative', width: '70@s', height: '70@s', borderRadius: '8@ms', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E0E0E0' },
+  img:     { width: '100%', height: '100%', borderRadius: '8@ms', resizeMode: 'contain' },
+  badgeWrap: { position: 'absolute', bottom: '-1@vs', left: '-1@s', right: '-1@s', alignItems: 'center' },
+  badge:   { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  badgeText: { fontSize: '8@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.5 },
+  details: { flex: 1, justifyContent: 'space-between' },
+  title:   { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '6@vs' },
+  footer:  { flexDirection: 'row', alignItems: 'center', gap: '8@s', flexWrap: 'wrap' },
+  qtyPill: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: '#fff', borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: color.primary },
+  complPill: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.primary, borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs' },
+  complText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  note:    { flexDirection: 'row', alignItems: 'center', gap: '6@s', backgroundColor: '#fff', paddingHorizontal: '12@s', paddingVertical: '7@vs', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  noteText:{ fontSize: '11@ms', color: color.primary, fontFamily: FONTS.Medium, flex: 1 },
 })
 
-// ─── Main Styles ──────────────────────────────────────────────────────────────
-const styles = ScaledSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+// ─── Main styles — ONLY color.* ───────────────────────────────────────────────
+const S = ScaledSheet.create({
+  container: { flex: 1, backgroundColor: color.background },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: '16@s', paddingVertical: '12@vs', backgroundColor: '#0B77A7',
-    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2, shadowRadius: 4,
-  },
-  backBtn: { width: '40@s', height: '40@s', borderRadius: '20@s', justifyContent: 'center', alignItems: 'center' },
+  // Header
+  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
+  headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff', flex: 1, textAlign: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: '4@s' },
-  secureText: { fontSize: '12@ms', color: '#fff', fontFamily: FONTS.Medium },
+  secureText:  { fontSize: '12@ms', color: '#fff', fontFamily: FONTS.Medium },
 
-  productCard: {
-    backgroundColor: '#fff', margin: '16@s', borderRadius: '16@ms', padding: '16@s',
-    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4,
-  },
-  productHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '16@vs', gap: '10@s' },
-  productContent: { flexDirection: 'row', marginBottom: '16@vs' },
-  imageContainer: { position: 'relative', width: '100@s', height: '100@s', borderRadius: '12@ms', backgroundColor: '#FAFAFA', marginRight: '12@s' },
-  productImage: { width: '100%', height: '100%', borderRadius: '12@ms', resizeMode: 'contain' },
-  digitalBadge: { position: 'absolute', top: '6@vs', left: '6@s', flexDirection: 'row', alignItems: 'center', backgroundColor: '#1976D2', paddingHorizontal: '6@s', paddingVertical: '3@vs', borderRadius: '8@ms', gap: '3@s' },
-  badgeText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  // Card
+  card:       { backgroundColor: '#fff', marginHorizontal: '14@s', marginBottom: '10@vs', borderRadius: '10@ms', padding: '14@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, borderWidth: 1, borderColor: '#EBEBEB' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '14@vs', gap: '10@s' },
+  sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
+  divider:    { height: 1, backgroundColor: '#F0F0F0', marginVertical: '12@vs' },
+
+  // Product row
+  productRow: { flexDirection: 'row', marginBottom: '14@vs' },
+  imgBox:     { position: 'relative', width: '90@s', height: '90@s', borderRadius: '8@ms', backgroundColor: color.primary + 20, marginRight: '12@s', borderWidth: 1, borderColor: '#EEE' },
+  productImg: { width: '100%', height: '100%', borderRadius: '8@ms', resizeMode: 'contain' },
+  digitalBadge: { position: 'absolute', top: '5@vs', left: '5@s', flexDirection: 'row', alignItems: 'center', backgroundColor: color.primary, paddingHorizontal: '5@s', paddingVertical: '2@vs', borderRadius: '6@ms', gap: '3@s' },
+  digitalBadgeText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff' },
   productInfo: { flex: 1, justifyContent: 'space-between' },
-  productTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', lineHeight: '20@vs', marginBottom: '6@vs' },
-  categoryBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#F5F5F5', paddingHorizontal: '8@s', paddingVertical: '3@vs', borderRadius: '10@ms', gap: '4@s', marginBottom: '6@vs' },
-  categoryText: { fontSize: '11@ms', color: '#666', fontFamily: FONTS.Medium },
-  unitPrice: { fontSize: '13@ms', color: '#666', fontFamily: FONTS.Medium },
-  unitPriceRow: { flexDirection: 'row', alignItems: 'center', gap: '6@s', flexWrap: 'wrap' },
-  unitPriceStrike: { fontSize: '12@ms', color: '#aaa', fontFamily: FONTS.Medium, textDecorationLine: 'line-through' },
-  unitPriceDiscounted: { fontSize: '13@ms', color: '#4CAF50', fontFamily: FONTS.Bold },
+  productTitle:{ fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '19@ms', marginBottom: '5@vs' },
+  catBadge:   { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', alignSelf: 'flex-start', marginBottom: '5@vs' },
+  catText:    { fontSize: '10@ms', color: '#888', fontFamily: FONTS.Medium },
+  unitPrice:  { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  unitPriceRow:  { flexDirection: 'row', alignItems: 'center', gap: '6@s', flexWrap: 'wrap' },
+  unitPriceStrike: { fontSize: '12@ms', color: '#BDBDBD', textDecorationLine: 'line-through', fontFamily: FONTS.Medium },
+  unitPriceDisc:   { fontSize: '13@ms', color: '#2E7D32', fontFamily: FONTS.Bold },
 
-  quantitySection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16@vs' },
-  quantityLabel: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F7FA', borderRadius: '25@ms', paddingHorizontal: '4@s', paddingVertical: '4@vs' },
-  qtyButton: { width: '36@s', height: '36@s', borderRadius: '18@s', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-  qtyDisplay: { paddingHorizontal: '20@s' },
-  qtyText: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
+  // Qty
+  qtySection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14@vs' },
+  qtyLabel:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  qtyBox:     { flexDirection: 'row', alignItems: 'center', backgroundColor: color.background, borderRadius: '25@ms', paddingHorizontal: '4@s', paddingVertical: '4@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyBtn:     { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 1, borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyDisplay: { paddingHorizontal: '18@s' },
+  qtyText:    { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
 
-  priceBreakdown: { marginBottom: '12@vs' },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10@vs' },
-  priceLabel: { fontSize: '13@ms', color: '#666' },
-  priceValue: { fontSize: '13@ms', fontFamily: FONTS.Medium, color: '#1a1a1a' },
-  priceFree: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#4CAF50' },
-  discountLabelRow: { flexDirection: 'row', alignItems: 'center', gap: '5@s', flex: 1, marginRight: '8@s' },
-  discountLabel: { fontSize: '12@ms', color: '#4CAF50', fontFamily: FONTS.Medium, flex: 1 },
-  discountValue: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#4CAF50' },
-  taxHeader: { flexDirection: 'row', alignItems: 'center', gap: '5@s', marginBottom: '6@vs', marginTop: '4@vs' },
+  // Price breakdown
+  priceBreakdown: { marginBottom: '10@vs' },
+  priceRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10@vs' },
+  priceLabel: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
+  priceVal:   { fontSize: '13@ms', fontFamily: FONTS.Medium, color: color.text },
+  priceFree:  { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  discLabelRow: { flexDirection: 'row', alignItems: 'center', gap: '5@s', flex: 1, marginRight: '8@s' },
+  discLabel:  { fontSize: '12@ms', color: '#2E7D32', fontFamily: FONTS.Medium, flex: 1 },
+  discVal:    { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  taxHeader:  { flexDirection: 'row', alignItems: 'center', gap: '5@s', marginBottom: '6@vs', marginTop: '4@vs' },
   taxHeaderText: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
-  taxLabel: { fontSize: '12@ms', color: '#888' },
-  taxValue: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  taxLabel:   { fontSize: '12@ms', color: '#888' },
+  taxVal:     { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  savingsNote: { fontSize: '12@ms', color: '#4CAF50', fontFamily: FONTS.Medium, marginTop: '2@vs' },
-  totalAmount: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: '#0B77A7' },
+  // Total
+  totalRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel:  { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
+  savingsNote: { fontSize: '12@ms', color: '#2E7D32', fontFamily: FONTS.Medium, marginTop: '2@vs' },
+  totalAmt:    { fontSize: '22@ms', fontFamily: FONTS.Bold, color: color.primary },
 
-  // Free Gift Section
-  freeGiftSection: {
-    marginHorizontal: '16@s',
-    marginBottom: '16@vs',
-  },
-  freeGiftSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '10@vs',
-    paddingHorizontal: '2@s',
-  },
-  freeGiftHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-  },
-  freeGiftSectionTitle: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Bold,
-    color: '#004f7a',
-    letterSpacing: 0.3,
-  },
-  freeGiftCountPill: {
-    backgroundColor: '#cdd8ff',
-    borderRadius: '10@ms',
-    paddingHorizontal: '8@s',
-    paddingVertical: '2@vs',
-    borderWidth: 1,
-    borderColor: '#1795d4',
-  },
-  freeGiftCountText: {
-    fontSize: '11@ms',
-    fontFamily: FONTS.Bold,
-    color: '#0b7eb8',
-  },
+  // Free gift section
+  freeGiftSection: { marginHorizontal: '14@s', marginBottom: '10@vs' },
+  freeGiftHead:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10@vs' },
+  freeGiftTitle:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  freeGiftCountPill:{ backgroundColor: color.primary, borderRadius: '10@ms', paddingHorizontal: '8@s', paddingVertical: '2@vs' },
+  freeGiftCountText:{ fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
-  card: {
-    backgroundColor: '#fff', marginHorizontal: '16@s', marginBottom: '16@vs',
-    borderRadius: '16@ms', padding: '16@s', elevation: 2, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4,
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '16@vs', gap: '10@s' },
-  sectionTitle: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-
-  offerItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
-  offerLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
-  offerText: { fontSize: '14@ms', color: '#333', fontFamily: FONTS.Medium },
-  offerDivider: { height: 1, backgroundColor: '#EFEFEF', marginVertical: '4@vs' },
-
-  appliedCodeBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F1F8F4', borderRadius: '10@ms', padding: '12@s',
-    marginBottom: '10@vs', borderWidth: 1, borderColor: '#C8E6C9',
-  },
-  appliedCodeLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
-  appliedCodeLabel: { fontSize: '11@ms', color: '#4CAF50', fontFamily: FONTS.Medium },
-  appliedCodeValue: { fontSize: '14@ms', color: '#1a1a1a', fontFamily: FONTS.Bold, marginTop: '1@vs' },
-  removeCodeBtn: { padding: '4@s' },
-
-  codeInputRow: { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '8@vs', marginBottom: '4@vs' },
-  codeInput: {
-    flex: 1, height: '46@vs', borderWidth: 1.5, borderColor: '#D0D0D0',
-    borderRadius: '10@ms', paddingHorizontal: '12@s', fontSize: '14@ms',
-    color: '#1a1a1a', backgroundColor: '#FAFAFA', fontFamily: FONTS.Medium,
-  },
-  applyBtn: { backgroundColor: '#0B77A7', paddingHorizontal: '18@s', height: '46@vs', borderRadius: '10@ms', justifyContent: 'center', alignItems: 'center', minWidth: '72@s' },
-  applyBtnDisabled: { backgroundColor: '#B0BEC5' },
+  // Offers
+  offerRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
+  offerLeft:  { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  offerText:  { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium },
+  offerDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: '4@vs' },
+  appliedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#E8F5E9', borderRadius: '8@ms', padding: '12@s', marginBottom: '10@vs', borderWidth: 1, borderColor: '#C8E6C9' },
+  appliedLabel:  { fontSize: '11@ms', color: '#2E7D32', fontFamily: FONTS.Medium },
+  appliedCode:   { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Bold, marginTop: '1@vs' },
+  codeRow:    { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '8@vs', marginBottom: '4@vs' },
+  codeInput:  { flex: 1, height: '44@vs', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', fontSize: '14@ms', color: color.text, backgroundColor: color.background, fontFamily: FONTS.Medium },
+  applyBtn:   { backgroundColor: color.primary, paddingHorizontal: '16@s', height: '44@vs', borderRadius: '8@ms', justifyContent: 'center', alignItems: 'center', minWidth: '70@s' },
+  applyBtnDis: { backgroundColor: '#BDBDBD' },
   applyBtnText: { color: '#fff', fontFamily: FONTS.Bold, fontSize: '14@ms' },
 
-  emailNote: { fontSize: '13@ms', color: '#666', marginBottom: '12@vs' },
-  emailInput: { backgroundColor: '#fff', marginBottom: '12@vs' },
-  digitalInfoBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E3F2FD', padding: '12@s', borderRadius: '10@ms', gap: '10@s' },
-  digitalInfoText: { flex: 1, fontSize: '13@ms', color: '#1976D2', fontFamily: FONTS.Medium },
+  // Email
+  emailNote:     { fontSize: '13@ms', color: '#888', marginBottom: '10@vs', fontFamily: FONTS.Medium },
+  emailInput:    { backgroundColor: '#fff', marginBottom: '12@vs' },
+  digitalInfoBox:{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', gap: '10@s', borderWidth: 1, borderColor: '#E0E0E0' },
+  digitalInfoText: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '19@ms' },
 
-  paymentOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '14@s', borderRadius: '12@ms', borderWidth: 2, borderColor: '#E8E8E8', marginBottom: '12@vs' },
-  paymentOptionActive: { borderColor: '#0B77A7', backgroundColor: '#F0F8FB' },
-  paymentOptionDisabled: { opacity: 0.5, backgroundColor: '#FAFAFA' },
-  paymentLeft: { flexDirection: 'row', alignItems: 'center', gap: '12@s', flex: 1 },
-  radioOuter: { width: '22@s', height: '22@s', borderRadius: '11@s', borderWidth: 2, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
-  radioOuterActive: { borderColor: '#0B77A7' },
-  radioOuterDisabled: { borderColor: '#E0E0E0' },
-  radioInner: { width: '12@s', height: '12@s', borderRadius: '6@s', backgroundColor: '#0B77A7' },
-  paymentTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  paymentSubtitle: { fontSize: '12@ms', color: '#666', marginTop: '2@vs' },
-  paymentDisabled: { color: '#bbb' },
+  // Payment
+  payOption:    { flexDirection: 'row', alignItems: 'center', padding: '14@s', borderRadius: '8@ms', borderWidth: 1.5, borderColor: '#EBEBEB', marginBottom: '10@vs' },
+  payOptionActive: { borderColor: color.primary, backgroundColor: color.primary + 20 },
+  payOptionDis: { opacity: 0.5, backgroundColor: color.background },
+  payLeft:      { flexDirection: 'row', alignItems: 'center', gap: '12@s', flex: 1 },
+  radio:        { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
+  radioActive:  { borderColor: color.primary },
+  radioDis:     { borderColor: '#E0E0E0' },
+  radioInner:   { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
+  payTitle:     { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  paySub:       { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
 
-  securityBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F8F4', marginHorizontal: '16@s', marginBottom: '16@vs', padding: '14@s', borderRadius: '12@ms', gap: '12@s' },
-  securityTextContainer: { flex: 1 },
-  securityTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginBottom: '2@vs' },
-  securitySubtitle: { fontSize: '12@ms', color: '#666' },
+  // Security
+  securityBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', marginHorizontal: '14@s', marginBottom: '14@vs', padding: '12@s', borderRadius: '10@ms', gap: '12@s', borderWidth: 1, borderColor: '#C8E6C9' },
+  securityTitle:  { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '1@vs' },
+  securitySub:    { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  divider: { height: 1, backgroundColor: '#E8E8E8', marginVertical: '14@vs' },
+  // Incomplete profile
+  incompleteCard:  { alignItems: 'center', paddingVertical: '24@vs', paddingHorizontal: '16@s', backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, marginTop: '8@vs' },
+  incompleteTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.primary, marginTop: '10@vs', marginBottom: '6@vs' },
+  incompleteText:  { fontSize: '13@ms', color: '#888', textAlign: 'center', lineHeight: '19@ms', marginBottom: '16@vs', fontFamily: FONTS.Medium },
+  completeProfBtn: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.primary, paddingHorizontal: '18@s', paddingVertical: '11@vs', borderRadius: '8@ms', elevation: 2 },
+  completeProfText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
-  bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: '16@s', backgroundColor: '#fff', elevation: 8, shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8,
-    borderTopLeftRadius: '20@ms', borderTopRightRadius: '20@ms',
-  },
-  bottomLeft: { flex: 1 },
-  bottomLabel: { fontSize: '12@ms', color: '#666', marginBottom: '2@vs' },
-  bottomTotal: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: '#1a1a1a' },
-  placeOrderBtn: { flexDirection: 'row', backgroundColor: '#0B77A7', paddingHorizontal: '28@s', paddingVertical: '14@vs', borderRadius: '30@ms', alignItems: 'center', gap: '8@s', elevation: 4, shadowColor: '#0B77A7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-  placeOrderBtnDisabled: { opacity: 0.7 },
-  placeOrderText: { color: '#fff', fontFamily: FONTS.Bold, fontSize: '16@ms' },
+  // Bottom bar
+  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: '14@s', paddingVertical: '12@vs', backgroundColor: '#fff', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 6, borderTopWidth: 1, borderTopColor: '#EBEBEB' },
+  bottomLeft:  { flex: 1 },
+  bottomLabel: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  bottomTotal: { fontSize: '20@ms', fontFamily: FONTS.Bold, color: color.text },
+  // Place Order — yellow like Flipkart's CTA
+  placeBtn:    { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.secondary, paddingHorizontal: '22@s', paddingVertical: '13@vs', borderRadius: '8@ms', elevation: 2 },
+  placeBtnDis: { opacity: 0.65 },
+  placeBtnText:{ fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
 
+  // Loading overlay
   loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  loadingCard: { backgroundColor: '#fff', padding: '32@s', borderRadius: '16@ms', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-  loadingText: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: '#1a1a1a', marginTop: '16@vs' },
-  loadingSubtext: { fontSize: '13@ms', color: '#666', marginTop: '4@vs' },
-
-  // Incomplete profile card
-  incompleteProfileCard: {
-    alignItems: 'center',
-    paddingVertical: '24@vs',
-    paddingHorizontal: '20@s',
-    backgroundColor: '#e1ecff',
-    borderRadius: '12@ms',
-    borderWidth: 1.5,
-    borderColor: '#82b4ff',
-    marginTop: '8@vs',
-  },
-  incompleteProfileTitle: {
-    fontSize: '16@ms',
-    fontFamily: FONTS.Bold,
-    color: '#0B77A7',
-    marginTop: '12@vs',
-    marginBottom: '6@vs',
-  },
-  incompleteProfileText: {
-    fontSize: '13@ms',
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: '20@vs',
-    marginBottom: '18@vs',
-    fontFamily: FONTS.Medium,
-  },
-  completeProfileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-    backgroundColor: '#0B77A7',
-    paddingHorizontal: '20@s',
-    paddingVertical: '12@vs',
-    borderRadius: '25@ms',
-    elevation: 3,
-    shadowColor: '#0B77A7',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-  },
-  completeProfileBtnText: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-  },
+  loadingCard:    { backgroundColor: '#fff', padding: '28@s', borderRadius: '12@ms', alignItems: 'center', elevation: 8, minWidth: '200@s' },
+  loadingText:    { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text, marginTop: '14@vs' },
+  loadingSub:     { fontSize: '12@ms', color: '#888', marginTop: '4@vs', fontFamily: FONTS.Medium },
 })

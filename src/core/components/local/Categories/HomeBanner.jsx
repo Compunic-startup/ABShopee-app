@@ -473,7 +473,7 @@ export default function HomeBanner({ onShopNow }) {
 
         {/* "Gudi Padwa" wave */}
         <WaveText
-          text="Hanuman Jayanti"
+          text="Akshay Tritiya"
           style={styles.headingMain}
           color={color.secondary}
           baseDelay={1100}
@@ -537,7 +537,7 @@ export default function HomeBanner({ onShopNow }) {
 
         <Image
           source={{
-            uri: 'https://www.wallsnapy.com/img_gallery/best-hanuman-ji-png-images-7431763.png'
+            uri: 'https://png.pngtree.com/png-clipart/20220404/original/pngtree-colorful-free-illustration-happy-akshaya-tritiya-festival-png-image_7497290.png'
           }}
           style={styles.bannerImage}
         />

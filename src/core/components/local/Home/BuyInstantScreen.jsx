@@ -40,7 +40,7 @@ function SkeletonBox({ width, height, borderRadius = 6, style }) {
   useEffect(() => {
     Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 0.75, duration: 800, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0.3,  duration: 800, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.3, duration: 800, useNativeDriver: true }),
     ])).start()
   }, [])
   return (
@@ -101,7 +101,7 @@ function FreeGiftCard({ item }) {
 
 // ─── Address Bottom Sheet ─────────────────────────────────────────────────────
 function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
-  const slideAnim   = useRef(new Animated.Value(SCREEN_HEIGHT)).current
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropAnim = useRef(new Animated.Value(0)).current
   const [saving, setSaving] = useState(false)
   const isEdit = !!editData
@@ -120,13 +120,13 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideAnim,   { toValue: 0,    tension: 65, friction: 11, useNativeDriver: true }),
-        Animated.timing(backdropAnim, { toValue: 1,   duration: 280, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 65, friction: 11, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
       ]).start()
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim,   { toValue: SCREEN_HEIGHT, duration: 240, useNativeDriver: true }),
-        Animated.timing(backdropAnim, { toValue: 0,  duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: SCREEN_HEIGHT, duration: 240, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start()
     }
   }, [visible])
@@ -135,12 +135,12 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
 
   const validate = () => {
     const { label, name, phone, line1, city, state, postalCode } = form
-    if (!label.trim())                              { ToastAndroid.show('Label is required', ToastAndroid.SHORT); return false }
-    if (!name.trim())                               { ToastAndroid.show('Contact name is required', ToastAndroid.SHORT); return false }
-    if (!phone.trim() || phone.trim().length < 10)  { ToastAndroid.show('Enter a valid 10-digit phone number', ToastAndroid.SHORT); return false }
-    if (!line1.trim())                              { ToastAndroid.show('Address line 1 is required', ToastAndroid.SHORT); return false }
-    if (!city.trim())                               { ToastAndroid.show('City is required', ToastAndroid.SHORT); return false }
-    if (!state.trim())                              { ToastAndroid.show('State is required', ToastAndroid.SHORT); return false }
+    if (!label.trim()) { ToastAndroid.show('Label is required', ToastAndroid.SHORT); return false }
+    if (!name.trim()) { ToastAndroid.show('Contact name is required', ToastAndroid.SHORT); return false }
+    if (!phone.trim() || phone.trim().length < 10) { ToastAndroid.show('Enter a valid 10-digit phone number', ToastAndroid.SHORT); return false }
+    if (!line1.trim()) { ToastAndroid.show('Address line 1 is required', ToastAndroid.SHORT); return false }
+    if (!city.trim()) { ToastAndroid.show('City is required', ToastAndroid.SHORT); return false }
+    if (!state.trim()) { ToastAndroid.show('State is required', ToastAndroid.SHORT); return false }
     if (!postalCode.trim() || postalCode.trim().length < 4) { ToastAndroid.show('Enter a valid postal code', ToastAndroid.SHORT); return false }
     return true
   }
@@ -157,7 +157,7 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
         isDefault: form.isDefault,
       }
       const url = isEdit ? `${BASE_URL}/user/profile/addresses/${editData.id}` : `${BASE_URL}/user/profile/addresses`
-      const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) })
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) })
       const json = await res.json()
       if (!res.ok || !json.success) throw json
       ToastAndroid.show(isEdit ? 'Address updated!' : 'Address saved!', ToastAndroid.SHORT)
@@ -261,9 +261,9 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
               {saving
                 ? <ActivityIndicator size="small" color="#fff" />
                 : <>
-                    <Icon name={isEdit ? 'content-save-outline' : 'map-marker-plus-outline'} size={ms(18)} color="#fff" />
-                    <Text style={sh.saveBtnText}>{isEdit ? 'Update Address' : 'Save Address'}</Text>
-                  </>
+                  <Icon name={isEdit ? 'content-save-outline' : 'map-marker-plus-outline'} size={ms(18)} color="#fff" />
+                  <Text style={sh.saveBtnText}>{isEdit ? 'Update Address' : 'Save Address'}</Text>
+                </>
               }
             </TouchableOpacity>
             <View style={{ height: vs(20) }} />
@@ -276,17 +276,17 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
 
 // ─── Address Section ──────────────────────────────────────────────────────────
 function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
-  const [addresses,    setAddresses]    = useState([])
-  const [loading,      setLoading]      = useState(true)
+  const [addresses, setAddresses] = useState([])
+  const [loading, setLoading] = useState(true)
   const [sheetVisible, setSheetVisible] = useState(false)
-  const [editTarget,   setEditTarget]   = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
 
   const fetchAddresses = useCallback(async () => {
     try {
       setLoading(true)
       const token = await AsyncStorage.getItem('userToken')
-      const res   = await fetch(`${BASE_URL}/user/profile/addresses`, { headers: { Authorization: `Bearer ${token}` } })
-      const json  = await res.json()
+      const res = await fetch(`${BASE_URL}/user/profile/addresses`, { headers: { Authorization: `Bearer ${token}` } })
+      const json = await res.json()
       if (json.success) {
         const list = json.data ?? []
         setAddresses(list)
@@ -301,7 +301,7 @@ function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
   useEffect(() => { fetchAddresses() }, [])
   const handleSaved = useCallback(savedAddr => { fetchAddresses(); onSelect(savedAddr.id) }, [fetchAddresses])
   const openEdit = addr => { setEditTarget(addr); setSheetVisible(true) }
-  const openAdd  = ()   => { setEditTarget(null);  setSheetVisible(true) }
+  const openAdd = () => { setEditTarget(null); setSheetVisible(true) }
 
   return (
     <View style={S.card}>
@@ -387,38 +387,38 @@ function AddressSection({ selectedId, onSelect, onAddressesLoaded }) {
 export default function BuyInstantScreen() {
   const navigation = useNavigation()
   const { params } = useRoute()
-  const [email,        setEmail]        = useState('')
-  const [placing,      setPlacing]      = useState(false)
-  const [preview,      setPreview]      = useState(null)
-  const [loading,      setLoading]      = useState(true)
-  const [fadeAnim]                      = useState(new Animated.Value(0))
+  const [email, setEmail] = useState('')
+  const [placing, setPlacing] = useState(false)
+  const [preview, setPreview] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [fadeAnim] = useState(new Animated.Value(0))
 
   const { itemId, product, selectedAttributes = [], quantity = 1, isDigital } = params
 
-  const [qty,           setQty]           = useState(quantity)
+  const [qty, setQty] = useState(quantity)
   const [paymentMethod, setPaymentMethod] = useState('ONLINE')
 
   const [selectedAddressId, setSelectedAddressId] = useState(null)
-  const [addressesCache,    setAddressesCache]     = useState([])
-  const [userProfile,       setUserProfile]        = useState(null)
-  const [profileLoading,    setProfileLoading]     = useState(true)
-  const [businessId,        setBusinessId]         = useState(null)
+  const [addressesCache, setAddressesCache] = useState([])
+  const [userProfile, setUserProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [businessId, setBusinessId] = useState(null)
 
   const [showCouponInput, setShowCouponInput] = useState(false)
   const [showDealerInput, setShowDealerInput] = useState(false)
-  const [couponInput,     setCouponInput]     = useState('')
-  const [dealerInput,     setDealerInput]     = useState('')
-  const [appliedCode,     setAppliedCode]     = useState(null)
+  const [couponInput, setCouponInput] = useState('')
+  const [dealerInput, setDealerInput] = useState('')
+  const [appliedCode, setAppliedCode] = useState(null)
   const [appliedCodeType, setAppliedCodeType] = useState(null)
-  const [applyingCode,    setApplyingCode]    = useState(false)
+  const [applyingCode, setApplyingCode] = useState(false)
 
   const toast = msg => ToastAndroid.show(msg, ToastAndroid.SHORT)
 
   const price = product.prices?.[0]?.amount || 0
   const image = product.media?.find(m => m.role === 'primary')?.url || product.media?.[0]?.url
 
-  const injectedItems  = preview?.injectedItems ?? []
-  const freeGiftItems  = injectedItems.filter(i => i.isFreeGift)
+  const injectedItems = preview?.injectedItems ?? []
+  const freeGiftItems = injectedItems.filter(i => i.isFreeGift)
 
   // ── All logic unchanged ────────────────────────────────────────────────────
   useEffect(() => {
@@ -437,8 +437,8 @@ export default function BuyInstantScreen() {
 
   const isProfileEmpty = profile => {
     if (!profile) return true
-    const addrEmpty    = !profile.address || !profile.address.addressLine1 || !profile.address.city || !profile.address.state || !profile.address.postalCode
-    const upEmpty      = !profile.userProfile || !profile.userProfile.firstName || !profile.userProfile.phone
+    const addrEmpty = !profile.address || !profile.address.addressLine1 || !profile.address.city || !profile.address.state || !profile.address.postalCode
+    const upEmpty = !profile.userProfile || !profile.userProfile.firstName || !profile.userProfile.phone
     return addrEmpty || upEmpty
   }
 
@@ -446,9 +446,9 @@ export default function BuyInstantScreen() {
     try {
       setProfileLoading(true)
       const token = await AsyncStorage.getItem('userToken')
-      const bId   = await AsyncStorage.getItem('businessId')
-      const res   = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
-      const json  = await res.json()
+      const bId = await AsyncStorage.getItem('businessId')
+      const res = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } })
+      const json = await res.json()
       setUserProfile(json?.success && json?.data ? json.data : null)
     } catch (err) { console.log('Error fetching profile:', err); setUserProfile(null) }
     finally { setProfileLoading(false) }
@@ -458,8 +458,8 @@ export default function BuyInstantScreen() {
     setLoading(true)
     try {
       const token = await AsyncStorage.getItem('userToken')
-      const bId   = await AsyncStorage.getItem('businessId')
-      const res   = await fetch(`${BASE_URL}/customer/business/${bId}/items/${itemId}/buy-now/preview`, {
+      const bId = await AsyncStorage.getItem('businessId')
+      const res = await fetch(`${BASE_URL}/customer/business/${bId}/items/${itemId}/buy-now/preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ quantity: qty, ...(code ? { code } : {}) }),
@@ -497,15 +497,15 @@ export default function BuyInstantScreen() {
   const placeBuyNowOrder = async () => {
     if (placing) return
     if (isProfileEmpty(userProfile)) { toast('Please complete your profile first'); navigation.navigate('ProfileInfoScreen'); return }
-    if (isDigital && !email)          { toast('Please enter email for digital delivery'); return }
+    if (isDigital && !email) { toast('Please enter email for digital delivery'); return }
     if (isDigital && !email.includes('@')) { toast('Please enter a valid email address'); return }
-    if (!isDigital && !selectedAddressId)  { toast('Please select a delivery address'); return }
+    if (!isDigital && !selectedAddressId) { toast('Please select a delivery address'); return }
     if (paymentMethod === 'COD' && isDigital) { toast('COD not available for digital items'); return }
 
     try {
       setPlacing(true)
       const token = await AsyncStorage.getItem('userToken')
-      const bId   = businessId ?? await AsyncStorage.getItem('businessId')
+      const bId = businessId ?? await AsyncStorage.getItem('businessId')
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
 
       const payload = {
@@ -516,16 +516,17 @@ export default function BuyInstantScreen() {
         ...(isDigital
           ? { itemType: 'digital', email }
           : {
-              addresses: [{ type: 'shipping',
-                addressSnapshot: { line1: selectedAddr?.address?.addressLine1, city: selectedAddr?.address?.city, state: selectedAddr?.address?.state, country: selectedAddr?.address?.country ?? 'India', pincode: selectedAddr?.address?.postalCode },
-                contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.userProfile?.email || '' },
-              }],
-              itemType: 'physical',
-            }),
+            addresses: [{
+              type: 'shipping',
+              addressSnapshot: { line1: selectedAddr?.address?.addressLine1, city: selectedAddr?.address?.city, state: selectedAddr?.address?.state, country: selectedAddr?.address?.country ?? 'India', pincode: selectedAddr?.address?.postalCode },
+              contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.userProfile?.email || '' },
+            }],
+            itemType: 'physical',
+          }),
         payment: { method: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD' },
       }
 
-      const res  = await fetch(`${BASE_URL}/customer/business/${bId}/orders/${itemId}/place`, {
+      const res = await fetch(`${BASE_URL}/customer/business/${bId}/orders/${itemId}/place`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -546,17 +547,17 @@ export default function BuyInstantScreen() {
   useFocusEffect(useCallback(() => { fetchUserProfile() }, []))
 
   // Derived preview values
-  const unitPrice           = preview?.pricing?.unitPrice ?? price
+  const unitPrice = preview?.pricing?.unitPrice ?? price
   const discountedUnitPrice = preview?.discountPricing?.finalUnitPrice ?? unitPrice
-  const baseSubtotal        = preview?.pricing?.baseSubtotal ?? price * qty
-  const totalDiscount       = preview?.totalDiscount ?? 0
-  const finalSubtotal       = preview?.discountPricing?.finalSubtotal ?? baseSubtotal
-  const taxTotal            = preview?.taxBreakdown?.taxTotal ?? 0
-  const totalPayable        = preview?.totalPayable ?? finalSubtotal + taxTotal
-  const discountSummary     = preview?.discountSummary ?? []
-  const taxComponents       = preview?.taxBreakdown?.components ?? {}
-  const taxMode             = preview?.taxBreakdown?.taxMode ?? 'exclusive'
-  const hasDiscount         = totalDiscount > 0
+  const baseSubtotal = preview?.pricing?.baseSubtotal ?? price * qty
+  const totalDiscount = preview?.totalDiscount ?? 0
+  const finalSubtotal = preview?.discountPricing?.finalSubtotal ?? baseSubtotal
+  const taxTotal = preview?.taxBreakdown?.taxTotal ?? 0
+  const totalPayable = preview?.totalPayable ?? finalSubtotal + taxTotal
+  const discountSummary = preview?.discountSummary ?? []
+  const taxComponents = preview?.taxBreakdown?.components ?? {}
+  const taxMode = preview?.taxBreakdown?.taxMode ?? 'exclusive'
+  const hasDiscount = totalDiscount > 0
   const activeTaxComponents = Object.entries(taxComponents).filter(([, v]) => v.amount > 0)
 
   return (
@@ -857,6 +858,12 @@ export default function BuyInstantScreen() {
                 <Icon name="download-circle" size={ms(20)} color={color.primary} />
                 <Text style={S.digitalInfoText}>Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)</Text>
               </View>
+              <View style={S.digitalDeliveryNote}>
+                <Icon name="whatsapp" size={22} color={color.GREEN} style={{ alignSelf: 'center' }} />
+                <Text style={S.digitalDeliveryNoteText}>
+                  You'll also receive the digital keys on your registered phone number via Whatsapp.
+                </Text>
+              </View>
             </View>
           )}
 
@@ -950,87 +957,87 @@ export default function BuyInstantScreen() {
 
 // ─── Address styles ───────────────────────────────────────────────────────────
 const addr = ScaledSheet.create({
-  loadingRow:  { flexDirection: 'row', alignItems: 'center', gap: '10@s', paddingVertical: '12@vs' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: '10@s', paddingVertical: '12@vs' },
   loadingText: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
-  addrList:    { gap: '10@vs', marginBottom: '12@vs' },
-  addrCard:    { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', borderWidth: 1.5, borderColor: '#EBEBEB', borderRadius: '10@ms', padding: '12@s', backgroundColor: '#FAFAFA' },
+  addrList: { gap: '10@vs', marginBottom: '12@vs' },
+  addrCard: { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', borderWidth: 1.5, borderColor: '#EBEBEB', borderRadius: '10@ms', padding: '12@s', backgroundColor: '#FAFAFA' },
   addrCardSel: { borderColor: color.primary, backgroundColor: color.primary + 20 },
-  radioCol:    { paddingTop: '2@vs' },
-  radioOuter:  { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
+  radioCol: { paddingTop: '2@vs' },
+  radioOuter: { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
   radioOuterActive: { borderColor: color.primary },
-  radioInner:  { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
-  addrTopRow:  { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginBottom: '6@vs', flexWrap: 'wrap' },
-  labelBadge:  { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs' },
-  labelBadgeActive:     { backgroundColor: color.primary },
-  labelBadgeText:       { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#555' },
+  radioInner: { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
+  addrTopRow: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginBottom: '6@vs', flexWrap: 'wrap' },
+  labelBadge: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs' },
+  labelBadgeActive: { backgroundColor: color.primary },
+  labelBadgeText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#555' },
   labelBadgeTextActive: { color: '#fff' },
   defaultBadge: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: '#FFFBEB', borderRadius: '6@ms', paddingHorizontal: '6@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#FDE68A' },
   defaultBadgeText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#D97706' },
-  editBtn:     { marginLeft: 'auto', padding: '2@s' },
-  line1:       { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '3@vs' },
-  line2:       { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium, marginBottom: '6@vs' },
-  contactRow:  { flexDirection: 'row', alignItems: 'center', gap: '4@s', flexWrap: 'wrap' },
+  editBtn: { marginLeft: 'auto', padding: '2@s' },
+  line1: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '3@vs' },
+  line2: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium, marginBottom: '6@vs' },
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: '4@s', flexWrap: 'wrap' },
   contactText: { fontSize: '11@ms', color: '#BDBDBD', fontFamily: FONTS.Medium },
-  dotSep:      { width: '3@s', height: '3@s', borderRadius: '2@ms', backgroundColor: '#E0E0E0', marginHorizontal: '2@s' },
-  emptyAddr:   { alignItems: 'center', paddingVertical: '16@vs', gap: '4@vs' },
-  emptyText:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#BDBDBD' },
-  emptySub:    { fontSize: '12@ms', color: '#E0E0E0', fontFamily: FONTS.Medium },
-  addBtn:      { flexDirection: 'row', alignItems: 'center', gap: '10@s', borderWidth: 1.5, borderColor: color.primary, borderStyle: 'dashed', borderRadius: '10@ms', paddingVertical: '12@vs', paddingHorizontal: '14@s', backgroundColor: color.primary + 20 },
+  dotSep: { width: '3@s', height: '3@s', borderRadius: '2@ms', backgroundColor: '#E0E0E0', marginHorizontal: '2@s' },
+  emptyAddr: { alignItems: 'center', paddingVertical: '16@vs', gap: '4@vs' },
+  emptyText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#BDBDBD' },
+  emptySub: { fontSize: '12@ms', color: '#E0E0E0', fontFamily: FONTS.Medium },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: '10@s', borderWidth: 1.5, borderColor: color.primary, borderStyle: 'dashed', borderRadius: '10@ms', paddingVertical: '12@vs', paddingHorizontal: '14@s', backgroundColor: color.primary + 20 },
   addIconWrap: { width: '30@s', height: '30@s', borderRadius: '8@ms', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
-  addText:     { flex: 1, fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary },
+  addText: { flex: 1, fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary },
 })
 
 // ─── Bottom sheet styles ──────────────────────────────────────────────────────
 const sh = ScaledSheet.create({
-  backdrop:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  kavWrap:     { flex: 1, justifyContent: 'flex-end' },
-  sheet:       { backgroundColor: '#fff', borderTopLeftRadius: '20@ms', borderTopRightRadius: '20@ms', maxHeight: SCREEN_HEIGHT * 0.9, elevation: 20 },
-  handle:      { width: '40@s', height: '4@vs', borderRadius: '2@ms', backgroundColor: '#E0E0E0', alignSelf: 'center', marginTop: '10@vs', marginBottom: '4@vs' },
-  sheetHead:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '20@s', paddingVertical: '14@vs', borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  kavWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: '20@ms', borderTopRightRadius: '20@ms', maxHeight: SCREEN_HEIGHT * 0.9, elevation: 20 },
+  handle: { width: '40@s', height: '4@vs', borderRadius: '2@ms', backgroundColor: '#E0E0E0', alignSelf: 'center', marginTop: '10@vs', marginBottom: '4@vs' },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '20@s', paddingVertical: '14@vs', borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   sheetHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: '12@s' },
   sheetIconWrap: { width: '38@s', height: '38@s', borderRadius: '10@ms', backgroundColor: color.primary + 20, justifyContent: 'center', alignItems: 'center' },
-  sheetTitle:  { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
-  sheetSub:    { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '1@vs' },
-  closeBtn:    { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: color.background, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
-  formScroll:  { paddingHorizontal: '20@s', paddingTop: '14@vs' },
-  fieldLabel:  { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '4@vs', marginTop: '6@vs' },
-  required:    { color: '#C62828', fontSize: '13@ms' },
-  labelRow:    { flexDirection: 'row', gap: '8@s', flexWrap: 'wrap', marginBottom: '8@vs' },
-  labelChip:   { flexDirection: 'row', alignItems: 'center', gap: '5@s', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', paddingVertical: '6@vs', backgroundColor: color.background },
-  labelChipActive:     { borderColor: color.primary, backgroundColor: color.primary },
-  labelChipText:       { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#555' },
+  sheetTitle: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
+  sheetSub: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '1@vs' },
+  closeBtn: { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: color.background, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E0E0E0' },
+  formScroll: { paddingHorizontal: '20@s', paddingTop: '14@vs' },
+  fieldLabel: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '4@vs', marginTop: '6@vs' },
+  required: { color: '#C62828', fontSize: '13@ms' },
+  labelRow: { flexDirection: 'row', gap: '8@s', flexWrap: 'wrap', marginBottom: '8@vs' },
+  labelChip: { flexDirection: 'row', alignItems: 'center', gap: '5@s', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', paddingVertical: '6@vs', backgroundColor: color.background },
+  labelChipActive: { borderColor: color.primary, backgroundColor: color.primary },
+  labelChipText: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: '#555' },
   labelChipTextActive: { color: '#fff', fontSize: '12@ms', fontFamily: FONTS.Bold },
-  input:       { backgroundColor: '#fff', marginBottom: '6@vs' },
-  rowDouble:   { flexDirection: 'row', gap: '10@s' },
-  defaultRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', backgroundColor: color.background, borderRadius: '10@ms', padding: '14@s', marginTop: '8@vs', marginBottom: '14@vs', borderWidth: 1, borderColor: '#E0E0E0' },
-  checkbox:    { width: '22@s', height: '22@s', borderRadius: '6@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center', marginTop: '1@vs' },
+  input: { backgroundColor: '#fff', marginBottom: '6@vs' },
+  rowDouble: { flexDirection: 'row', gap: '10@s' },
+  defaultRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', backgroundColor: color.background, borderRadius: '10@ms', padding: '14@s', marginTop: '8@vs', marginBottom: '14@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  checkbox: { width: '22@s', height: '22@s', borderRadius: '6@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center', marginTop: '1@vs' },
   checkboxActive: { backgroundColor: color.primary, borderColor: color.primary },
   defaultLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
-  defaultSub:   { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
-  saveBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '10@s', backgroundColor: color.primary, borderRadius: '10@ms', paddingVertical: '14@vs', elevation: 3 },
+  defaultSub: { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '10@s', backgroundColor: color.primary, borderRadius: '10@ms', paddingVertical: '14@vs', elevation: 3 },
   saveBtnDisabled: { opacity: 0.7 },
-  saveBtnText:  { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  saveBtnText: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#fff' },
 })
 
 // ─── Free gift styles ─────────────────────────────────────────────────────────
 const fg = ScaledSheet.create({
-  card:    { backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, overflow: 'hidden', marginBottom: '10@vs' },
-  topBar:  { height: '3@vs' },
-  inner:   { flexDirection: 'row', padding: '12@s', gap: '12@s' },
+  card: { backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, overflow: 'hidden', marginBottom: '10@vs' },
+  topBar: { height: '3@vs' },
+  inner: { flexDirection: 'row', padding: '12@s', gap: '12@s' },
   imgWrap: { position: 'relative', width: '70@s', height: '70@s', borderRadius: '8@ms', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E0E0E0' },
-  img:     { width: '100%', height: '100%', borderRadius: '8@ms', resizeMode: 'contain' },
+  img: { width: '100%', height: '100%', borderRadius: '8@ms', resizeMode: 'contain' },
   badgeWrap: { position: 'absolute', bottom: '-1@vs', left: '-1@s', right: '-1@s', alignItems: 'center' },
-  badge:   { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   badgeText: { fontSize: '8@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.5 },
   details: { flex: 1, justifyContent: 'space-between' },
-  title:   { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '6@vs' },
-  footer:  { flexDirection: 'row', alignItems: 'center', gap: '8@s', flexWrap: 'wrap' },
+  title: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms', marginBottom: '6@vs' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: '8@s', flexWrap: 'wrap' },
   qtyPill: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: '#fff', borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#E0E0E0' },
   qtyText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: color.primary },
   complPill: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.primary, borderRadius: '6@ms', paddingHorizontal: '8@s', paddingVertical: '3@vs' },
   complText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff' },
-  note:    { flexDirection: 'row', alignItems: 'center', gap: '6@s', backgroundColor: '#fff', paddingHorizontal: '12@s', paddingVertical: '7@vs', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
-  noteText:{ fontSize: '11@ms', color: color.primary, fontFamily: FONTS.Medium, flex: 1 },
+  note: { flexDirection: 'row', alignItems: 'center', gap: '6@s', backgroundColor: '#fff', paddingHorizontal: '12@s', paddingVertical: '7@vs', borderTopWidth: 1, borderTopColor: '#E0E0E0' },
+  noteText: { fontSize: '11@ms', color: color.primary, fontFamily: FONTS.Medium, flex: 1 },
 })
 
 // ─── Main styles — ONLY color.* ───────────────────────────────────────────────
@@ -1038,125 +1045,143 @@ const S = ScaledSheet.create({
   container: { flex: 1, backgroundColor: color.background },
 
   // Header
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
   headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff', flex: 1, textAlign: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: '4@s' },
-  secureText:  { fontSize: '12@ms', color: '#fff', fontFamily: FONTS.Medium },
+  secureText: { fontSize: '12@ms', color: '#fff', fontFamily: FONTS.Medium },
 
   // Card
-  card:       { backgroundColor: '#fff', marginHorizontal: '14@s', marginBottom: '10@vs', borderRadius: '10@ms', padding: '14@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, borderWidth: 1, borderColor: '#EBEBEB' },
+  card: { backgroundColor: '#fff', marginHorizontal: '14@s', marginBottom: '10@vs', borderRadius: '10@ms', padding: '14@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, borderWidth: 1, borderColor: '#EBEBEB' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: '14@vs', gap: '10@s' },
   sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
-  divider:    { height: 1, backgroundColor: '#F0F0F0', marginVertical: '12@vs' },
+  divider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: '12@vs' },
 
   // Product row
   productRow: { flexDirection: 'row', marginBottom: '14@vs' },
-  imgBox:     { position: 'relative', width: '90@s', height: '90@s', borderRadius: '8@ms', backgroundColor: color.primary + 20, marginRight: '12@s', borderWidth: 1, borderColor: '#EEE' },
+  imgBox: { position: 'relative', width: '90@s', height: '90@s', borderRadius: '8@ms', backgroundColor: color.primary + 20, marginRight: '12@s', borderWidth: 1, borderColor: '#EEE' },
   productImg: { width: '100%', height: '100%', borderRadius: '8@ms', resizeMode: 'contain' },
   digitalBadge: { position: 'absolute', top: '5@vs', left: '5@s', flexDirection: 'row', alignItems: 'center', backgroundColor: color.primary, paddingHorizontal: '5@s', paddingVertical: '2@vs', borderRadius: '6@ms', gap: '3@s' },
   digitalBadgeText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff' },
   productInfo: { flex: 1, justifyContent: 'space-between' },
-  productTitle:{ fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '19@ms', marginBottom: '5@vs' },
-  catBadge:   { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', alignSelf: 'flex-start', marginBottom: '5@vs' },
-  catText:    { fontSize: '10@ms', color: '#888', fontFamily: FONTS.Medium },
-  unitPrice:  { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
-  unitPriceRow:  { flexDirection: 'row', alignItems: 'center', gap: '6@s', flexWrap: 'wrap' },
+  productTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '19@ms', marginBottom: '5@vs' },
+  catBadge: { flexDirection: 'row', alignItems: 'center', gap: '4@s', backgroundColor: color.background, paddingHorizontal: '6@s', paddingVertical: '2@vs', borderRadius: '4@ms', alignSelf: 'flex-start', marginBottom: '5@vs' },
+  catText: { fontSize: '10@ms', color: '#888', fontFamily: FONTS.Medium },
+  unitPrice: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  unitPriceRow: { flexDirection: 'row', alignItems: 'center', gap: '6@s', flexWrap: 'wrap' },
   unitPriceStrike: { fontSize: '12@ms', color: '#BDBDBD', textDecorationLine: 'line-through', fontFamily: FONTS.Medium },
-  unitPriceDisc:   { fontSize: '13@ms', color: '#2E7D32', fontFamily: FONTS.Bold },
+  unitPriceDisc: { fontSize: '13@ms', color: '#2E7D32', fontFamily: FONTS.Bold },
 
   // Qty
   qtySection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14@vs' },
-  qtyLabel:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
-  qtyBox:     { flexDirection: 'row', alignItems: 'center', backgroundColor: color.background, borderRadius: '25@ms', paddingHorizontal: '4@s', paddingVertical: '4@vs', borderWidth: 1, borderColor: '#E0E0E0' },
-  qtyBtn:     { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 1, borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyLabel: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  qtyBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: color.background, borderRadius: '25@ms', paddingHorizontal: '4@s', paddingVertical: '4@vs', borderWidth: 1, borderColor: '#E0E0E0' },
+  qtyBtn: { width: '34@s', height: '34@s', borderRadius: '17@ms', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 1, borderWidth: 1, borderColor: '#E0E0E0' },
   qtyDisplay: { paddingHorizontal: '18@s' },
-  qtyText:    { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
+  qtyText: { fontSize: '16@ms', fontFamily: FONTS.Bold, color: color.text },
 
   // Price breakdown
   priceBreakdown: { marginBottom: '10@vs' },
-  priceRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10@vs' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10@vs' },
   priceLabel: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium },
-  priceVal:   { fontSize: '13@ms', fontFamily: FONTS.Medium, color: color.text },
-  priceFree:  { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  priceVal: { fontSize: '13@ms', fontFamily: FONTS.Medium, color: color.text },
+  priceFree: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
   discLabelRow: { flexDirection: 'row', alignItems: 'center', gap: '5@s', flex: 1, marginRight: '8@s' },
-  discLabel:  { fontSize: '12@ms', color: '#2E7D32', fontFamily: FONTS.Medium, flex: 1 },
-  discVal:    { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
-  taxHeader:  { flexDirection: 'row', alignItems: 'center', gap: '5@s', marginBottom: '6@vs', marginTop: '4@vs' },
+  discLabel: { fontSize: '12@ms', color: '#2E7D32', fontFamily: FONTS.Medium, flex: 1 },
+  discVal: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
+  taxHeader: { flexDirection: 'row', alignItems: 'center', gap: '5@s', marginBottom: '6@vs', marginTop: '4@vs' },
   taxHeaderText: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
-  taxLabel:   { fontSize: '12@ms', color: '#888' },
-  taxVal:     { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
+  taxLabel: { fontSize: '12@ms', color: '#888' },
+  taxVal: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
 
   // Total
-  totalRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel:  { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
   savingsNote: { fontSize: '12@ms', color: '#2E7D32', fontFamily: FONTS.Medium, marginTop: '2@vs' },
-  totalAmt:    { fontSize: '22@ms', fontFamily: FONTS.Bold, color: color.primary },
+  totalAmt: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: color.primary },
 
   // Free gift section
   freeGiftSection: { marginHorizontal: '14@s', marginBottom: '10@vs' },
-  freeGiftHead:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10@vs' },
-  freeGiftTitle:   { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
-  freeGiftCountPill:{ backgroundColor: color.primary, borderRadius: '10@ms', paddingHorizontal: '8@s', paddingVertical: '2@vs' },
-  freeGiftCountText:{ fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  freeGiftHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10@vs' },
+  freeGiftTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  freeGiftCountPill: { backgroundColor: color.primary, borderRadius: '10@ms', paddingHorizontal: '8@s', paddingVertical: '2@vs' },
+  freeGiftCountText: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
   // Offers
-  offerRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
-  offerLeft:  { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
-  offerText:  { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium },
+  offerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '10@vs' },
+  offerLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
+  offerText: { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Medium },
   offerDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: '4@vs' },
   appliedBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#E8F5E9', borderRadius: '8@ms', padding: '12@s', marginBottom: '10@vs', borderWidth: 1, borderColor: '#C8E6C9' },
-  appliedLabel:  { fontSize: '11@ms', color: '#2E7D32', fontFamily: FONTS.Medium },
-  appliedCode:   { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Bold, marginTop: '1@vs' },
-  codeRow:    { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '8@vs', marginBottom: '4@vs' },
-  codeInput:  { flex: 1, height: '44@vs', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', fontSize: '14@ms', color: color.text, backgroundColor: color.background, fontFamily: FONTS.Medium },
-  applyBtn:   { backgroundColor: color.primary, paddingHorizontal: '16@s', height: '44@vs', borderRadius: '8@ms', justifyContent: 'center', alignItems: 'center', minWidth: '70@s' },
+  appliedLabel: { fontSize: '11@ms', color: '#2E7D32', fontFamily: FONTS.Medium },
+  appliedCode: { fontSize: '14@ms', color: color.text, fontFamily: FONTS.Bold, marginTop: '1@vs' },
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '8@vs', marginBottom: '4@vs' },
+  codeInput: { flex: 1, height: '44@vs', borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms', paddingHorizontal: '12@s', fontSize: '14@ms', color: color.text, backgroundColor: color.background, fontFamily: FONTS.Medium },
+  applyBtn: { backgroundColor: color.primary, paddingHorizontal: '16@s', height: '44@vs', borderRadius: '8@ms', justifyContent: 'center', alignItems: 'center', minWidth: '70@s' },
   applyBtnDis: { backgroundColor: '#BDBDBD' },
   applyBtnText: { color: '#fff', fontFamily: FONTS.Bold, fontSize: '14@ms' },
 
   // Email
-  emailNote:     { fontSize: '13@ms', color: '#888', marginBottom: '10@vs', fontFamily: FONTS.Medium },
-  emailInput:    { backgroundColor: '#fff', marginBottom: '12@vs' },
-  digitalInfoBox:{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', gap: '10@s', borderWidth: 1, borderColor: '#E0E0E0' },
+  emailNote: { fontSize: '13@ms', color: '#888', marginBottom: '10@vs', fontFamily: FONTS.Medium },
+  emailInput: { backgroundColor: '#fff', marginBottom: '12@vs' },
+  digitalInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', gap: '10@s', borderWidth: 1, borderColor: '#E0E0E0' },
   digitalInfoText: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '19@ms' },
 
   // Payment
-  payOption:    { flexDirection: 'row', alignItems: 'center', padding: '14@s', borderRadius: '8@ms', borderWidth: 1.5, borderColor: '#EBEBEB', marginBottom: '10@vs' },
+  payOption: { flexDirection: 'row', alignItems: 'center', padding: '14@s', borderRadius: '8@ms', borderWidth: 1.5, borderColor: '#EBEBEB', marginBottom: '10@vs' },
   payOptionActive: { borderColor: color.primary, backgroundColor: color.primary + 20 },
   payOptionDis: { opacity: 0.5, backgroundColor: color.background },
-  payLeft:      { flexDirection: 'row', alignItems: 'center', gap: '12@s', flex: 1 },
-  radio:        { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
-  radioActive:  { borderColor: color.primary },
-  radioDis:     { borderColor: '#E0E0E0' },
-  radioInner:   { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
-  payTitle:     { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
-  paySub:       { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
+  payLeft: { flexDirection: 'row', alignItems: 'center', gap: '12@s', flex: 1 },
+  radio: { width: '20@s', height: '20@s', borderRadius: '10@ms', borderWidth: 2, borderColor: '#BDBDBD', justifyContent: 'center', alignItems: 'center' },
+  radioActive: { borderColor: color.primary },
+  radioDis: { borderColor: '#E0E0E0' },
+  radioInner: { width: '10@s', height: '10@s', borderRadius: '5@ms', backgroundColor: color.primary },
+  payTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  paySub: { fontSize: '11@ms', color: '#888', marginTop: '2@vs', fontFamily: FONTS.Medium },
 
   // Security
   securityBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', marginHorizontal: '14@s', marginBottom: '14@vs', padding: '12@s', borderRadius: '10@ms', gap: '12@s', borderWidth: 1, borderColor: '#C8E6C9' },
-  securityTitle:  { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '1@vs' },
-  securitySub:    { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium },
+  securityTitle: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '1@vs' },
+  securitySub: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium },
 
   // Incomplete profile
-  incompleteCard:  { alignItems: 'center', paddingVertical: '24@vs', paddingHorizontal: '16@s', backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, marginTop: '8@vs' },
+  incompleteCard: { alignItems: 'center', paddingVertical: '24@vs', paddingHorizontal: '16@s', backgroundColor: color.primary + 20, borderRadius: '10@ms', borderWidth: 1.5, borderColor: color.primary, marginTop: '8@vs' },
   incompleteTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.primary, marginTop: '10@vs', marginBottom: '6@vs' },
-  incompleteText:  { fontSize: '13@ms', color: '#888', textAlign: 'center', lineHeight: '19@ms', marginBottom: '16@vs', fontFamily: FONTS.Medium },
+  incompleteText: { fontSize: '13@ms', color: '#888', textAlign: 'center', lineHeight: '19@ms', marginBottom: '16@vs', fontFamily: FONTS.Medium },
   completeProfBtn: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.primary, paddingHorizontal: '18@s', paddingVertical: '11@vs', borderRadius: '8@ms', elevation: 2 },
   completeProfText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#fff' },
 
   // Bottom bar
-  bottomBar:   { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: '14@s', paddingVertical: '12@vs', backgroundColor: '#fff', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 6, borderTopWidth: 1, borderTopColor: '#EBEBEB' },
-  bottomLeft:  { flex: 1 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: '14@s', paddingVertical: '12@vs', backgroundColor: '#fff', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 6, borderTopWidth: 1, borderTopColor: '#EBEBEB' },
+  bottomLeft: { flex: 1 },
   bottomLabel: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
   bottomTotal: { fontSize: '20@ms', fontFamily: FONTS.Bold, color: color.text },
   // Place Order — yellow like Flipkart's CTA
-  placeBtn:    { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.secondary, paddingHorizontal: '22@s', paddingVertical: '13@vs', borderRadius: '8@ms', elevation: 2 },
+  placeBtn: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.secondary, paddingHorizontal: '22@s', paddingVertical: '13@vs', borderRadius: '8@ms', elevation: 2 },
   placeBtnDis: { opacity: 0.65 },
-  placeBtnText:{ fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
+  placeBtnText: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
 
   // Loading overlay
   loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  loadingCard:    { backgroundColor: '#fff', padding: '28@s', borderRadius: '12@ms', alignItems: 'center', elevation: 8, minWidth: '200@s' },
-  loadingText:    { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text, marginTop: '14@vs' },
-  loadingSub:     { fontSize: '12@ms', color: '#888', marginTop: '4@vs', fontFamily: FONTS.Medium },
+  loadingCard: { backgroundColor: '#fff', padding: '28@s', borderRadius: '12@ms', alignItems: 'center', elevation: 8, minWidth: '200@s' },
+  loadingText: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text, marginTop: '14@vs' },
+  loadingSub: { fontSize: '12@ms', color: '#888', marginTop: '4@vs', fontFamily: FONTS.Medium },
+  digitalDeliveryNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: '8@s',
+    backgroundColor: color.GREEN + '12',
+    borderRadius: '8@ms',
+    padding: '10@s',
+    marginTop: '10@vs',
+    borderWidth: 1,
+    borderColor: color.GREEN + '40',
+  },
+  digitalDeliveryNoteText: {
+    fontSize: '12@ms',
+    color: color.GREEN,
+    fontFamily: FONTS.Medium,
+    flex: 1,
+    lineHeight: '17@ms',
+  },
 })

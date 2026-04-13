@@ -23,8 +23,6 @@ import color from '../../../utils/color'
 import BASE_URL from '../../../services/api'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const RETURN_REASONS = [
   { key: 'damaged',       label: 'Product is damaged',         icon: 'package-variant-closed-remove' },
   { key: 'wrong_item',    label: 'Wrong item received',        icon: 'swap-horizontal-circle-outline' },
@@ -37,7 +35,6 @@ const RETURN_REASONS = [
 ]
 
 const REQUEST_TYPES = [
-  { key: 'return',       label: 'Return & Refund', icon: 'keyboard-return',   desc: 'Send the product back and get your money refunded' },
   { key: 'replacement',  label: 'Replacement',     icon: 'swap-horizontal',   desc: 'Send the product back and get a new one delivered' },
 ]
 

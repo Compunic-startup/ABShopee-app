@@ -939,6 +939,16 @@ export default function CartScreen() {
               </View>
               <Text style={styles.emailNote}>Enter email to receive digital products</Text>
               <TextInput mode="outlined" placeholder="your.email@example.com" placeholderTextColor="#bbb" value={digitalEmail} onChangeText={setDigitalEmail} keyboardType="email-address" autoCapitalize="none" outlineColor="#E0E0E0" activeOutlineColor={color.primary} />
+              <View style={styles.digitalInfoBox}>
+                <Icon name="download-circle" size={ms(20)} color={color.primary} />
+                <Text style={styles.digitalInfoText}>Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)</Text>
+              </View>
+              <View style={styles.digitalDeliveryNote}>
+                <Icon name="whatsapp" size={22} color={color.GREEN} style={{ alignSelf: 'center' }} />
+                <Text style={styles.digitalDeliveryNoteText}>
+                  You'll also receive the digital keys on your registered phone number via Whatsapp.
+                </Text>
+              </View>
             </View>
           )}
 
@@ -1302,6 +1312,10 @@ const styles = ScaledSheet.create({
   paymentSubtitle: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '2@vs' },
   paymentDisabled: { color: '#BDBDBD' },
 
+  
+    digitalInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', gap: '10@s', borderWidth: 1, borderColor: '#E0E0E0' , marginTop: '10@vs' },
+    digitalInfoText: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '19@ms' },
+
   // ── Info cards ───────────────────────────────────────────────────────────────
   infoCard: { backgroundColor: '#fff', marginHorizontal: '14@s', marginBottom: '10@vs', borderRadius: '10@ms', padding: '14@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, borderWidth: 1, borderColor: '#EBEBEB' },
   infoHeader: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: '8@vs' },
@@ -1323,4 +1337,22 @@ const styles = ScaledSheet.create({
   checkoutBtn: { flexDirection: 'row', alignItems: 'center', gap: '8@s', backgroundColor: color.secondary, paddingHorizontal: '22@s', paddingVertical: '13@vs', borderRadius: '8@ms', elevation: 2 },
   checkoutBtnDisabled: { opacity: 0.65 },
   checkoutText: { color: color.text, fontFamily: FONTS.Bold, fontSize: '15@ms' },
+  digitalDeliveryNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: '8@s',
+    backgroundColor: color.GREEN + '12',
+    borderRadius: '8@ms',
+    padding: '10@s',
+    marginTop: '10@vs',
+    borderWidth: 1,
+    borderColor: color.GREEN + '40',
+  },
+  digitalDeliveryNoteText: {
+    fontSize: '12@ms',
+    color: color.GREEN,
+    fontFamily: FONTS.Medium,
+    flex: 1,
+    lineHeight: '17@ms',
+  },
 })

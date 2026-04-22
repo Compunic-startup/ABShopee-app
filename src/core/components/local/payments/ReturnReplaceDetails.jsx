@@ -8,129 +8,105 @@ import {
   Animated,
   StatusBar,
   Image,
+  Platform,
   ToastAndroid,
 } from 'react-native'
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import FONTS from '../../../utils/fonts'
 import color from '../../../utils/color'
+import BASE_URL from '../../../services/api'
 
-// ─── Dummy data (same shape as ReturnReplacementScreen) ──────────────────────
-const DUMMY_DETAILS = {
-  RET2024032801: {
-    returnId: 'RET2024032801',
-    orderId: 'ORD2024031501',
-    type: 'return',
-    status: 'approved',
-    createdAt: '2024-03-28T10:30:00Z',
-    item: {
-      title: 'Samsung Galaxy Buds Pro 2',
-      quantity: 1,
-      price: 15999,
-      image: null,
-      attributes: [{ label: 'Color', displayValue: 'Bora Purple' }],
-      itemType: 'physical',
-    },
-    reason: 'Product damaged',
-    description: 'The charging case has a crack on the lid. The crack appeared right out of the box.',
-    refundAmount: 15999,
-    refundMethod: 'Original Payment Method',
-    refundTimeline: '5-7 business days',
-    pickupAddress: {
-      name: 'Rahul Verma',
-      phone: '+91 98765 43210',
-      line1: '12, Shanti Nagar, Near Bus Stand',
-      city: 'Raipur',
-      state: 'Chhattisgarh',
-      pincode: '492001',
-    },
-    pickupScheduled: '2024-04-01T10:00:00Z',
-    timeline: [
-      { status: 'requested', date: '2024-03-28T10:30:00Z', label: 'Return Requested', description: 'Your return request has been submitted successfully.' },
-      { status: 'approved', date: '2024-03-28T14:15:00Z', label: 'Return Approved', description: 'Our team has reviewed and approved your return request.' },
-      { status: 'pickup_scheduled', date: '2024-03-29T09:00:00Z', label: 'Pickup Scheduled', description: 'A pickup has been scheduled for your item.' },
-    ],
-  },
-  REP2024032502: {
-    returnId: 'REP2024032502',
-    orderId: 'ORD2024031203',
-    type: 'replacement',
-    status: 'processing',
-    createdAt: '2024-03-25T16:20:00Z',
-    item: {
-      title: 'Nike Air Max 270 Running Shoes',
-      quantity: 1,
-      price: 12995,
-      image: null,
-      attributes: [
-        { label: 'Size', displayValue: 'UK 8 (Wrong)' },
-        { label: 'Color', displayValue: 'Black/White' },
-      ],
-      itemType: 'physical',
-    },
-    reason: 'Wrong size delivered',
-    description: 'Ordered UK 9 but received UK 8. The shoe is too tight and cannot be worn.',
-    newItem: {
-      title: 'Nike Air Max 270 Running Shoes',
-      image: null,
-      attributes: [
-        { label: 'Size', displayValue: 'UK 9 (Correct)' },
-        { label: 'Color', displayValue: 'Black/White' },
-      ],
-      estimatedDelivery: '2024-04-05T00:00:00Z',
-      trackingId: 'BLUEDART4892011',
-      carrier: 'Blue Dart',
-      shipmentStatus: 'shipped',
-    },
-    pickupAddress: {
-      name: 'Priya Sharma',
-      phone: '+91 91234 56789',
-      line1: 'Flat 4B, Sunshine Apartments, Civil Lines',
-      city: 'Raipur',
-      state: 'Chhattisgarh',
-      pincode: '492001',
-    },
-    pickupScheduled: '2024-03-28T11:00:00Z',
-    timeline: [
-      { status: 'requested', date: '2024-03-25T16:20:00Z', label: 'Replacement Requested', description: 'Your replacement request has been submitted.' },
-      { status: 'approved', date: '2024-03-25T19:45:00Z', label: 'Replacement Approved', description: 'Our team has approved your replacement request.' },
-      { status: 'processing', date: '2024-03-26T09:00:00Z', label: 'Item Picked Up', description: 'The original item has been picked up from your address.' },
-      { status: 'shipped', date: '2024-03-27T14:30:00Z', label: 'Replacement Dispatched', description: 'Your replacement item has been dispatched.' },
-    ],
-  },
-}
+// ─── Adapter: raw detail API response → component shape ──────────────────────
+const adaptDetail = raw => ({
+  returnId:        raw.returnId,
+  orderId:         raw.orderId,
+  type:            raw.type,
+  status:          raw.status,
+  workflowStatus:  raw.workflowStatus,
+  createdAt:       raw.createdAt,
+  updatedAt:       raw.updatedAt,
 
-// ─── Status config (mirrors ReturnReplacementScreen) ─────────────────────────
+  reason:          raw.reason,
+  reasonKey:       raw.reasonKey,
+  description:     raw.description,
+
+  item: {
+    title:      raw.item?.title      || 'Product',
+    image:      raw.item?.image      || null,
+    price:      raw.item?.price      ?? null,
+    quantity:   raw.item?.quantity   ?? 1,
+    itemType:   raw.item?.itemType   || 'physical',
+    attributes: raw.item?.attributes || [],
+  },
+
+  evidence:     raw.evidence || [],
+  photos:       raw.photos   || [],
+
+  refundAmount:   raw.refundAmount   ?? null,
+  refundMethod:   raw.refundMethod   ?? null,
+  refundTimeline: raw.refundTimeline ?? null,
+
+  // courier info (flat on detail response)
+  courier: raw.courier
+    ? {
+        trackingId:   raw.courier.trackingId   || null,
+        courierName:  raw.courier.courierName  || null,
+        courierDate:  raw.courier.courierDate  || null,
+      }
+    : null,
+
+  pickupAddress:   raw.pickupAddress   || null,
+  pickupScheduled: raw.pickupScheduled || null,
+
+  newItem: raw.newItem
+    ? {
+        title:            raw.newItem.title            || 'Replacement Product',
+        image:            raw.newItem.image            || null,
+        attributes:       raw.newItem.attributes       || [],
+        estimatedDelivery:raw.newItem.estimatedDelivery|| null,
+        trackingId:       raw.newItem.trackingId       || null,
+        carrier:          raw.newItem.carrier          || null,
+        shipmentStatus:   raw.newItem.shipmentStatus   || null,
+      }
+    : null,
+
+  timeline: raw.timeline || [],
+})
+
+// ─── Status config ────────────────────────────────────────────────────────────
 const getStatusConfig = status => {
   const map = {
-    pending:          { color: color.secondary, bg: color.secondarylight,  icon: 'clock-outline',         label: 'Pending' },
-    approved:         { color: color.primary,   bg: '#E8EDFF',              icon: 'check-circle-outline',  label: 'Approved' },
-    rejected:         { color: '#C62828',        bg: '#FFEBEE',              icon: 'close-circle-outline',  label: 'Rejected' },
-    processing:       { color: color.primary,   bg: '#E8EDFF',              icon: 'package-variant',       label: 'Processing' },
-    completed:        { color: '#2E7D32',        bg: '#E8F5E9',              icon: 'check-all',             label: 'Completed' },
-    cancelled:        { color: '#C62828',        bg: '#FFEBEE',              icon: 'cancel',                label: 'Cancelled' },
-    pickup_scheduled: { color: '#E65100',        bg: '#FFF3E0',              icon: 'calendar-check-outline',label: 'Pickup Scheduled' },
-    shipped:          { color: '#1565C0',        bg: '#E3F2FD',              icon: 'truck-fast-outline',    label: 'Shipped' },
+    pending:          { color: color.primary, bg: color.primary+20, icon: 'clock-outline',          label: 'Pending'          },
+    submitted:        { color: color.primary, bg: color.primary+20, icon: 'clock-outline',          label: 'Pending'          },
+    approved:         { color: color.primary,   bg: '#E8EDFF',             icon: 'check-circle-outline',   label: 'Approved'         },
+    rejected:         { color: '#C62828',        bg: '#FFEBEE',             icon: 'close-circle-outline',   label: 'Rejected'         },
+    processing:       { color: color.primary,   bg: '#E8EDFF',             icon: 'package-variant',        label: 'Processing'       },
+    completed:        { color: '#2E7D32',        bg: '#E8F5E9',             icon: 'check-all',              label: 'Completed'        },
+    cancelled:        { color: '#C62828',        bg: '#FFEBEE',             icon: 'cancel',                 label: 'Cancelled'        },
+    pickup_scheduled: { color: '#E65100',        bg: '#FFF3E0',             icon: 'calendar-check-outline', label: 'Pickup Scheduled' },
+    shipped:          { color: '#1565C0',        bg: '#E3F2FD',             icon: 'truck-fast-outline',     label: 'Shipped'          },
   }
   return map[status?.toLowerCase()] || {
-    color: color.text, bg: color.background, icon: 'help-circle-outline', label: status,
+    color: color.text, bg: color.background, icon: 'help-circle-outline', label: status || 'Unknown',
   }
 }
 
 const getShipmentStatusConfig = status => {
   const map = {
-    pending:    { color: '#E65100', bg: '#FFF3E0', icon: 'clock-outline',          label: 'Pending' },
-    shipped:    { color: '#1565C0', bg: '#E3F2FD', icon: 'truck-fast-outline',     label: 'Shipped' },
+    pending:    { color: '#E65100', bg: '#FFF3E0', icon: 'clock-outline',          label: 'Pending'    },
+    shipped:    { color: '#1565C0', bg: '#E3F2FD', icon: 'truck-fast-outline',     label: 'Shipped'    },
     in_transit: { color: '#6A1B9A', bg: '#F3E5F5', icon: 'truck-delivery-outline', label: 'In Transit' },
-    delivered:  { color: '#2E7D32', bg: '#E8F5E9', icon: 'check-circle',           label: 'Delivered' },
+    delivered:  { color: '#2E7D32', bg: '#E8F5E9', icon: 'check-circle',           label: 'Delivered'  },
   }
   return map[status?.toLowerCase()] || {
     color: color.text, bg: color.background, icon: 'truck-outline', label: status || 'Unknown',
   }
 }
 
-// ─── Section Header (shared pattern) ─────────────────────────────────────────
+// ─── Section Header ───────────────────────────────────────────────────────────
 const SectionHeader = ({ icon, title }) => (
   <View style={styles.sectionHeader}>
     <Icon name={icon} size={ms(20)} color={color.primary} />
@@ -138,13 +114,14 @@ const SectionHeader = ({ icon, title }) => (
   </View>
 )
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ReturnReplaceDetailsScreen() {
-  const navigation = useNavigation()
-  const { returnId } = useRoute().params
+  const navigation         = useNavigation()
+  const { returnId }       = useRoute().params
 
   const [detail, setDetail]   = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
   const [fadeAnim]            = useState(new Animated.Value(0))
 
   useEffect(() => { fetchDetail() }, [])
@@ -157,24 +134,36 @@ export default function ReturnReplaceDetailsScreen() {
 
   const fetchDetail = async () => {
     try {
-      // Replace with real API call when available:
-      // const token = await AsyncStorage.getItem('userToken')
-      // const businessId = await AsyncStorage.getItem('businessId')
-      // const res = await fetch(`${BASE_URL}/customer/business/${businessId}/returns/${returnId}`, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // })
-      // const json = await res.json()
-      // setDetail(json?.data)
-      await new Promise(resolve => setTimeout(resolve, 700))
-      setDetail(DUMMY_DETAILS[returnId] ?? null)
+      setLoading(true)
+      setError(null)
+
+      const token      = await AsyncStorage.getItem('userToken')
+      const businessId = await AsyncStorage.getItem('businessId')
+
+      if (!token || !businessId) throw new Error('Missing auth credentials')
+
+      const res = await fetch(
+        `${BASE_URL}/customer/business/${businessId}/returns/${returnId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+
+      const json = await res.json()
+
+      if (!json.success) throw new Error(json.message || 'Failed to load details')
+
+      setDetail(adaptDetail(json.data))
     } catch (e) {
+      console.log('ReturnReplaceDetails fetch error:', e)
+      setError('Failed to load request details.')
       ToastAndroid.show('Failed to load details', ToastAndroid.SHORT)
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Loading state ──
+  // ── Loading ──
   if (loading) {
     return (
       <View style={styles.container}>
@@ -194,26 +183,49 @@ export default function ReturnReplaceDetailsScreen() {
     )
   }
 
-  if (!detail) return null
+  // ── Error ──
+  if (error || !detail) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Icon name="arrow-left" size={ms(22)} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Request Details</Text>
+          <View style={{ width: ms(36) }} />
+        </View>
+        <View style={styles.loader}>
+          <Icon name="alert-circle-outline" size={ms(48)} color="#C62828" />
+          <Text style={styles.loadingText}>{error || 'Something went wrong.'}</Text>
+          <TouchableOpacity onPress={fetchDetail} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
 
-  const isReturn         = detail.type === 'return'
-  const statusConfig     = getStatusConfig(detail.status)
-  const isCancellable    = ['pending'].includes(detail.status?.toLowerCase())
-  const requestedDate    = new Date(detail.createdAt).toLocaleDateString('en-IN', {
+  // ── Derived values ──
+  const isReturn      = detail.type === 'return'
+  const statusConfig  = getStatusConfig(detail.status)
+  const isCancellable = ['pending', 'submitted'].includes(detail.status?.toLowerCase())
+
+  const requestedDate = new Date(detail.createdAt).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
-  const requestedTime    = new Date(detail.createdAt).toLocaleTimeString('en-IN', {
+  const requestedTime = new Date(detail.createdAt).toLocaleTimeString('en-IN', {
     hour: '2-digit', minute: '2-digit',
   })
 
-  const newItem       = detail.newItem
-  const shipConfig    = newItem ? getShipmentStatusConfig(newItem.shipmentStatus) : null
-  const estDelivery   = newItem?.estimatedDelivery
+  const newItem    = detail.newItem
+  const shipConfig = newItem ? getShipmentStatusConfig(newItem.shipmentStatus) : null
+  const estDelivery = newItem?.estimatedDelivery
     ? new Date(newItem.estimatedDelivery).toLocaleDateString('en-IN', {
         weekday: 'long', day: 'numeric', month: 'short', year: 'numeric',
       })
     : null
-  const pickupDate    = detail.pickupScheduled
+  const pickupDate = detail.pickupScheduled
     ? new Date(detail.pickupScheduled).toLocaleDateString('en-IN', {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
       })
@@ -251,9 +263,7 @@ export default function ReturnReplaceDetailsScreen() {
                   {statusConfig.label}
                 </Text>
               </View>
-              <View style={[styles.typePill, {
-                backgroundColor: isReturn ? '#FFF3E0' : '#E8EDFF',
-              }]}>
+              <View style={[styles.typePill, { backgroundColor: isReturn ? '#FFF3E0' : '#E8EDFF' }]}>
                 <Icon
                   name={isReturn ? 'keyboard-return' : 'swap-horizontal'}
                   size={ms(12)}
@@ -265,23 +275,23 @@ export default function ReturnReplaceDetailsScreen() {
               </View>
             </View>
 
-            {/* ID + Date row */}
+            {/* ID + Order row */}
             <View style={styles.idDateRow}>
               <View style={styles.idBox}>
                 <Icon name="receipt" size={ms(14)} color="#888" />
-                <Text style={styles.idText}>
-                  #{returnId.slice(-10).toUpperCase()}
+                <Text style={styles.idText} numberOfLines={1}>
+                  #{detail.returnId.slice(-10).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.idBox}>
                 <Icon name="shopping-outline" size={ms(14)} color="#888" />
-                <Text style={styles.idText}>
+                <Text style={styles.idText} numberOfLines={1}>
                   Order #{detail.orderId.slice(-8).toUpperCase()}
                 </Text>
               </View>
             </View>
 
-            {/* Requested date/time */}
+            {/* Date + Time */}
             <View style={styles.dateTimeRow}>
               <View style={styles.dateTimeItem}>
                 <Icon name="calendar-outline" size={ms(13)} color="#888" />
@@ -296,16 +306,20 @@ export default function ReturnReplaceDetailsScreen() {
           </View>
 
           {/* ═══════════════════════════════════════════════════════════
-              2. ORIGINAL ITEM CARD
+              2. ITEM CARD
           ══════════════════════════════════════════════════════════════ */}
           <View style={styles.sectionCard}>
-            <SectionHeader icon="cube-outline" title="Original Item" />
+            <SectionHeader icon="cube-outline" title="Item" />
 
             <View style={styles.itemRow}>
               <View style={styles.itemThumb}>
                 {detail.item?.image
                   ? <Image source={{ uri: detail.item.image }} style={styles.itemImage} />
-                  : <Icon name="cube-outline" size={ms(28)} color={color.primary} />
+                  : <Icon
+                      name={detail.item?.itemType === 'digital' ? 'download-box' : 'cube-outline'}
+                      size={ms(28)}
+                      color={color.primary}
+                    />
                 }
               </View>
               <View style={styles.itemMeta}>
@@ -325,32 +339,56 @@ export default function ReturnReplaceDetailsScreen() {
                   <View style={styles.qtyChip}>
                     <Text style={styles.qtyText}>Qty: {detail.item?.quantity}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>₹{detail.item?.price?.toLocaleString('en-IN')}</Text>
+                  {detail.item?.price != null && detail.item.price > 0 && (
+                    <Text style={styles.itemPrice}>₹{detail.item.price.toLocaleString('en-IN')}</Text>
+                  )}
+                  {detail.item?.itemType === 'digital' && (
+                    <View style={styles.digitalChip}>
+                      <Icon name="download-box" size={ms(11)} color={color.primary} />
+                      <Text style={styles.digitalChipText}>Digital</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
 
-            {/* Reason block */}
+            {/* Reason */}
             <View style={styles.reasonBlock}>
               <View style={styles.reasonHeader}>
                 <Icon name="information-outline" size={ms(14)} color={color.primary} />
                 <Text style={styles.reasonTitle}>Reason</Text>
               </View>
               <Text style={styles.reasonMain}>{detail.reason}</Text>
-              {detail.description && (
+              {!!detail.description && (
                 <Text style={styles.reasonDesc}>{detail.description}</Text>
               )}
             </View>
+
+            {/* Photos / Evidence */}
+            {detail.photos?.length > 0 && (
+              <View style={styles.photosRow}>
+                <View style={styles.photosHeader}>
+                  <Icon name="image-multiple-outline" size={ms(14)} color={color.primary} />
+                  <Text style={styles.photosLabel}>
+                    {detail.photos.length} photo{detail.photos.length > 1 ? 's' : ''} attached
+                  </Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: vs(8) }}>
+                  {detail.photos.map((uri, i) => (
+                    <Image key={i} source={{ uri }} style={styles.photoThumb} />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           {/* ═══════════════════════════════════════════════════════════
-              3a. REPLACEMENT ITEM CARD (only for replacements)
+              3. REPLACEMENT ITEM CARD (replacements only)
           ══════════════════════════════════════════════════════════════ */}
           {!isReturn && newItem && (
             <View style={styles.sectionCard}>
               <SectionHeader icon="swap-horizontal" title="Replacement Item" />
 
-              {/* Shipment status pill */}
               {shipConfig && (
                 <View style={[styles.shipStatusBanner, { backgroundColor: shipConfig.bg }]}>
                   <Icon name={shipConfig.icon} size={ms(16)} color={shipConfig.color} />
@@ -385,9 +423,7 @@ export default function ReturnReplaceDetailsScreen() {
 
               <View style={styles.separator} />
 
-              {/* Delivery details grid */}
               <View style={styles.deliveryGrid}>
-                {/* Estimated delivery */}
                 {estDelivery && (
                   <View style={styles.deliveryCell}>
                     <Icon name="calendar-clock" size={ms(18)} color={color.primary} />
@@ -395,8 +431,6 @@ export default function ReturnReplaceDetailsScreen() {
                     <Text style={styles.deliveryCellValue}>{estDelivery}</Text>
                   </View>
                 )}
-
-                {/* Carrier */}
                 {newItem.carrier && (
                   <View style={styles.deliveryCell}>
                     <Icon name="truck-outline" size={ms(18)} color={color.primary} />
@@ -404,8 +438,6 @@ export default function ReturnReplaceDetailsScreen() {
                     <Text style={styles.deliveryCellValue}>{newItem.carrier}</Text>
                   </View>
                 )}
-
-                {/* Tracking ID */}
                 {newItem.trackingId && (
                   <View style={[styles.deliveryCell, styles.deliveryCellFull]}>
                     <Icon name="barcode-scan" size={ms(18)} color={color.primary} />
@@ -414,38 +446,67 @@ export default function ReturnReplaceDetailsScreen() {
                   </View>
                 )}
               </View>
-
-              {newItem.trackingId && (
-                <View style={styles.trackingNote}>
-                  <Icon name="information-outline" size={ms(12)} color={color.primary} />
-                  <Text style={styles.trackingNoteText}>
-                    Use the tracking ID on {newItem.carrier}'s website to track your package
-                  </Text>
-                </View>
-              )}
             </View>
           )}
 
           {/* ═══════════════════════════════════════════════════════════
-              3b. REFUND DETAILS CARD (only for returns)
+              3b. COURIER CARD (when courier info exists on return/replacement)
           ══════════════════════════════════════════════════════════════ */}
-          {isReturn && (
+          {detail.courier?.trackingId && (
+            <View style={styles.sectionCard}>
+              <SectionHeader icon="truck-delivery-outline" title="Courier Info" />
+              <View style={styles.deliveryGrid}>
+                {detail.courier.courierName && (
+                  <View style={styles.deliveryCell}>
+                    <Icon name="truck-outline" size={ms(18)} color={color.primary} />
+                    <Text style={styles.deliveryCellLabel}>Courier</Text>
+                    <Text style={styles.deliveryCellValue}>{detail.courier.courierName}</Text>
+                  </View>
+                )}
+                {detail.courier.courierDate && (
+                  <View style={styles.deliveryCell}>
+                    <Icon name="calendar-outline" size={ms(18)} color={color.primary} />
+                    <Text style={styles.deliveryCellLabel}>Date</Text>
+                    <Text style={styles.deliveryCellValue}>
+                      {new Date(detail.courier.courierDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                )}
+                <View style={[styles.deliveryCell, styles.deliveryCellFull]}>
+                  <Icon name="barcode-scan" size={ms(18)} color={color.primary} />
+                  <Text style={styles.deliveryCellLabel}>Tracking ID</Text>
+                  <Text style={styles.deliveryCellValue}>{detail.courier.trackingId}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════
+              4. REFUND DETAILS (returns only)
+          ══════════════════════════════════════════════════════════════ */}
+          {isReturn && (detail.refundAmount != null || detail.refundMethod) && (
             <View style={styles.sectionCard}>
               <SectionHeader icon="cash-refund" title="Refund Details" />
 
-              <View style={styles.refundAmountRow}>
-                <Text style={styles.refundAmountLabel}>Refund Amount</Text>
-                <Text style={styles.refundAmountValue}>
-                  ₹{detail.refundAmount?.toLocaleString('en-IN')}
-                </Text>
-              </View>
+              {detail.refundAmount != null && (
+                <View style={styles.refundAmountRow}>
+                  <Text style={styles.refundAmountLabel}>Refund Amount</Text>
+                  <Text style={styles.refundAmountValue}>
+                    ₹{detail.refundAmount.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.refundInfoGrid}>
-                <View style={styles.refundInfoCell}>
-                  <Icon name="credit-card-outline" size={ms(16)} color={color.primary} />
-                  <Text style={styles.refundInfoLabel}>Method</Text>
-                  <Text style={styles.refundInfoValue}>{detail.refundMethod}</Text>
-                </View>
+                {detail.refundMethod && (
+                  <View style={styles.refundInfoCell}>
+                    <Icon name="credit-card-outline" size={ms(16)} color={color.primary} />
+                    <Text style={styles.refundInfoLabel}>Method</Text>
+                    <Text style={styles.refundInfoValue}>{detail.refundMethod}</Text>
+                  </View>
+                )}
                 {detail.refundTimeline && (
                   <View style={styles.refundInfoCell}>
                     <Icon name="clock-fast" size={ms(16)} color={color.primary} />
@@ -465,21 +526,29 @@ export default function ReturnReplaceDetailsScreen() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════
-              4. PICKUP ADDRESS CARD
+              5. PICKUP ADDRESS
           ══════════════════════════════════════════════════════════════ */}
           {detail.pickupAddress && (
             <View style={styles.sectionCard}>
               <SectionHeader icon="map-marker-outline" title="Pickup Address" />
-
               <View style={styles.addressCard}>
-                <Text style={styles.addressName}>{detail.pickupAddress.name}</Text>
-                <Text style={styles.addressPhone}>{detail.pickupAddress.phone}</Text>
-                <Text style={styles.addressLine}>{detail.pickupAddress.line1}</Text>
-                <Text style={styles.addressLine}>
-                  {detail.pickupAddress.city}, {detail.pickupAddress.state} – {detail.pickupAddress.pincode}
-                </Text>
+                {detail.pickupAddress.name && (
+                  <Text style={styles.addressName}>{detail.pickupAddress.name}</Text>
+                )}
+                {detail.pickupAddress.phone && (
+                  <Text style={styles.addressPhone}>{detail.pickupAddress.phone}</Text>
+                )}
+                {detail.pickupAddress.line1 && (
+                  <Text style={styles.addressLine}>{detail.pickupAddress.line1}</Text>
+                )}
+                {(detail.pickupAddress.city || detail.pickupAddress.state) && (
+                  <Text style={styles.addressLine}>
+                    {[detail.pickupAddress.city, detail.pickupAddress.state]
+                      .filter(Boolean).join(', ')}
+                    {detail.pickupAddress.pincode ? ` – ${detail.pickupAddress.pincode}` : ''}
+                  </Text>
+                )}
               </View>
-
               {pickupDate && (
                 <View style={styles.pickupScheduleRow}>
                   <Icon name="calendar-check-outline" size={ms(16)} color="#E65100" />
@@ -492,25 +561,23 @@ export default function ReturnReplaceDetailsScreen() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════
-              5. ORDER TIMELINE CARD
+              6. TIMELINE
           ══════════════════════════════════════════════════════════════ */}
           {detail.timeline?.length > 0 && (
             <View style={styles.sectionCard}>
               <SectionHeader icon="timeline-clock" title="Request Timeline" />
-
               {detail.timeline.map((step, idx) => {
-                const stepConfig  = getStatusConfig(step.status)
-                const stepDate    = new Date(step.date).toLocaleDateString('en-IN', {
+                const stepConfig = getStatusConfig(step.status)
+                const stepDate   = new Date(step.date).toLocaleDateString('en-IN', {
                   day: 'numeric', month: 'short', year: 'numeric',
                 })
-                const stepTime    = new Date(step.date).toLocaleTimeString('en-IN', {
+                const stepTime = new Date(step.date).toLocaleTimeString('en-IN', {
                   hour: '2-digit', minute: '2-digit',
                 })
-                const isLast      = idx === detail.timeline.length - 1
+                const isLast = idx === detail.timeline.length - 1
 
                 return (
                   <View key={idx} style={styles.timelineItem}>
-                    {/* Dot + line column */}
                     <View style={styles.timelineDotCol}>
                       <View style={[
                         styles.timelineDot,
@@ -520,8 +587,6 @@ export default function ReturnReplaceDetailsScreen() {
                       </View>
                       {!isLast && <View style={styles.timelineLine} />}
                     </View>
-
-                    {/* Content */}
                     <View style={styles.timelineContent}>
                       <Text style={[
                         styles.timelineLabel,
@@ -529,7 +594,7 @@ export default function ReturnReplaceDetailsScreen() {
                       ]}>
                         {step.label}
                       </Text>
-                      {step.description && (
+                      {!!step.description && (
                         <Text style={styles.timelineDesc}>{step.description}</Text>
                       )}
                       <Text style={styles.timelineDate}>{stepDate} • {stepTime}</Text>
@@ -541,14 +606,14 @@ export default function ReturnReplaceDetailsScreen() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════
-              6. HELP CARD
+              7. HELP CARD
           ══════════════════════════════════════════════════════════════ */}
           <View style={styles.helpCard}>
             <Icon name="help-circle-outline" size={ms(22)} color={color.primary} />
             <View style={styles.helpTextWrap}>
               <Text style={styles.helpTitle}>Need Help?</Text>
               <Text style={styles.helpText}>
-                Contact our support team for any queries about this {isReturn ? 'return' : 'replacement'}
+                Contact support for any queries about this {isReturn ? 'return' : 'replacement'}
               </Text>
             </View>
             <TouchableOpacity style={styles.helpBtn} activeOpacity={0.7}>
@@ -558,28 +623,17 @@ export default function ReturnReplaceDetailsScreen() {
 
         </Animated.View>
       </ScrollView>
-
-      {/* ── Bottom action bar ── */}
-      {isCancellable && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.8}>
-            <Icon name="close-circle-outline" size={ms(18)} color="#C62828" />
-            <Text style={styles.cancelBtnText}>Cancel Request</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: color.background },
 
-  // ── Header ──
   header: {
     backgroundColor: color.primary,
-    paddingTop: '14@vs',
+    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
     paddingBottom: '14@vs',
     paddingHorizontal: '16@s',
     elevation: 3,
@@ -592,8 +646,7 @@ const styles = ScaledSheet.create({
     justifyContent: 'space-between',
   },
   backBtn: {
-    width: '36@s', height: '36@s',
-    borderRadius: '18@ms',
+    width: '36@s', height: '36@s', borderRadius: '18@ms',
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: {
@@ -604,11 +657,14 @@ const styles = ScaledSheet.create({
 
   scrollContent: { paddingBottom: '100@vs' },
 
-  // ── Loader ──
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: '14@vs', fontSize: '14@ms', color: '#888', fontFamily: FONTS.Medium },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: '12@vs' },
+  loadingText: { fontSize: '14@ms', color: '#888', fontFamily: FONTS.Medium },
+  retryBtn: {
+    marginTop: '8@vs', paddingHorizontal: '24@s', paddingVertical: '10@vs',
+    borderRadius: '6@ms', borderWidth: 1.5, borderColor: color.primary,
+  },
+  retryBtnText: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.primary },
 
-  // ── Status Card ──
   statusCard: {
     backgroundColor: '#fff',
     marginHorizontal: '12@s', marginTop: '14@vs',
@@ -626,19 +682,15 @@ const styles = ScaledSheet.create({
   statusValue: { fontSize: '18@ms', fontFamily: FONTS.Bold },
   typePill: {
     flexDirection: 'row', alignItems: 'center', gap: '4@s',
-    paddingHorizontal: '10@s', paddingVertical: '5@vs',
-    borderRadius: '20@ms',
+    paddingHorizontal: '10@s', paddingVertical: '5@vs', borderRadius: '20@ms',
   },
   typePillText: { fontSize: '11@ms', fontFamily: FONTS.Bold },
   idDateRow: {
     flexDirection: 'row', gap: '8@s',
-    backgroundColor: color.background,
-    borderRadius: '6@ms', padding: '10@s',
-    marginBottom: '10@vs',
+    backgroundColor: color.background, borderRadius: '6@ms',
+    padding: '10@s', marginBottom: '10@vs',
   },
-  idBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: '5@s',
-  },
+  idBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: '5@s' },
   idText: { fontSize: '11@ms', color: '#666', fontFamily: FONTS.Medium, flexShrink: 1 },
   dateTimeRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '12@s',
@@ -647,7 +699,6 @@ const styles = ScaledSheet.create({
   dateTimeText: { fontSize: '12@ms', color: '#666', fontFamily: FONTS.Medium },
   dateTimeDivider: { width: 1, height: '14@vs', backgroundColor: '#E0E0E0' },
 
-  // ── Section Card (shared) ──
   sectionCard: {
     backgroundColor: '#fff',
     marginHorizontal: '12@s', marginTop: '10@vs',
@@ -663,7 +714,6 @@ const styles = ScaledSheet.create({
   sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
   separator: { height: 1, backgroundColor: '#F0F0F0', marginVertical: '10@vs' },
 
-  // ── Item row (original + new) ──
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', marginBottom: '12@vs' },
   itemThumb: {
     width: '60@s', height: '60@s', borderRadius: '8@ms',
@@ -681,13 +731,10 @@ const styles = ScaledSheet.create({
     borderRadius: '4@ms', borderWidth: 1, borderColor: '#E0E0E0',
   },
   attrChipNew: {
-    backgroundColor: color.primary + '10',
-    borderColor: color.primary + '40',
+    backgroundColor: color.primary + '10', borderColor: color.primary + '40',
   },
   attrText: { fontSize: '10@ms', color: '#555', fontFamily: FONTS.Medium },
-  itemFootRow: {
-    flexDirection: 'row', alignItems: 'center', gap: '10@s', marginTop: '6@vs',
-  },
+  itemFootRow: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginTop: '6@vs' },
   qtyChip: {
     backgroundColor: color.background,
     paddingHorizontal: '8@s', paddingVertical: '3@vs',
@@ -695,19 +742,31 @@ const styles = ScaledSheet.create({
   },
   qtyText: { fontSize: '11@ms', color: '#666', fontFamily: FONTS.Medium },
   itemPrice: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
+  digitalChip: {
+    flexDirection: 'row', alignItems: 'center', gap: '3@s',
+    backgroundColor: color.primary + '15',
+    paddingHorizontal: '7@s', paddingVertical: '3@vs',
+    borderRadius: '4@ms',
+  },
+  digitalChipText: { fontSize: '10@ms', color: color.primary, fontFamily: FONTS.Medium },
 
-  // ── Reason block ──
   reasonBlock: {
-    backgroundColor: color.background,
-    borderRadius: '8@ms', padding: '10@s',
-    borderLeftWidth: 3, borderLeftColor: color.primary,
+    backgroundColor: color.background, borderRadius: '8@ms',
+    padding: '10@s', borderLeftWidth: 3, borderLeftColor: color.primary,
   },
   reasonHeader: { flexDirection: 'row', alignItems: 'center', gap: '6@s', marginBottom: '4@vs' },
   reasonTitle: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text },
   reasonMain: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '4@vs' },
   reasonDesc: { fontSize: '12@ms', color: '#666', fontFamily: FONTS.Medium, lineHeight: '17@ms' },
 
-  // ── Shipment status banner ──
+  photosRow: { marginTop: '10@vs' },
+  photosHeader: { flexDirection: 'row', alignItems: 'center', gap: '6@s' },
+  photosLabel: { fontSize: '12@ms', color: color.primary, fontFamily: FONTS.Medium },
+  photoThumb: {
+    width: '72@s', height: '72@s', borderRadius: '6@ms',
+    marginRight: '8@s', backgroundColor: '#EEE',
+  },
+
   shipStatusBanner: {
     flexDirection: 'row', alignItems: 'center', gap: '8@s',
     paddingHorizontal: '12@s', paddingVertical: '8@vs',
@@ -715,43 +774,27 @@ const styles = ScaledSheet.create({
   },
   shipStatusText: { fontSize: '13@ms', fontFamily: FONTS.Bold },
 
-  // ── Delivery grid ──
-  deliveryGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: '8@s', marginTop: '4@vs',
-  },
+  deliveryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: '8@s', marginTop: '4@vs' },
   deliveryCell: {
     flex: 1, minWidth: '120@s',
-    backgroundColor: color.background,
-    borderRadius: '8@ms', padding: '10@s',
-    borderWidth: 1, borderColor: '#EBEBEB',
+    backgroundColor: color.background, borderRadius: '8@ms',
+    padding: '10@s', borderWidth: 1, borderColor: '#EBEBEB',
     alignItems: 'flex-start', gap: '4@vs',
   },
   deliveryCellFull: { minWidth: '100%' },
   deliveryCellLabel: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium },
   deliveryCellValue: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
-  trackingNote: {
-    flexDirection: 'row', alignItems: 'center', gap: '6@s',
-    backgroundColor: color.primary + '10',
-    borderRadius: '6@ms', paddingHorizontal: '10@s', paddingVertical: '7@vs',
-    marginTop: '8@vs',
-  },
-  trackingNoteText: { fontSize: '11@ms', color: color.primary, fontFamily: FONTS.Medium, flex: 1 },
 
-  // ── Refund details ──
   refundAmountRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: '12@vs',
   },
   refundAmountLabel: { fontSize: '14@ms', fontFamily: FONTS.Medium, color: '#666' },
   refundAmountValue: { fontSize: '22@ms', fontFamily: FONTS.Bold, color: '#2E7D32' },
-  refundInfoGrid: {
-    flexDirection: 'row', gap: '8@s', marginBottom: '10@vs',
-  },
+  refundInfoGrid: { flexDirection: 'row', gap: '8@s', marginBottom: '10@vs' },
   refundInfoCell: {
-    flex: 1, backgroundColor: color.background,
-    borderRadius: '8@ms', padding: '10@s',
-    borderWidth: 1, borderColor: '#EBEBEB',
-    gap: '3@vs',
+    flex: 1, backgroundColor: color.background, borderRadius: '8@ms',
+    padding: '10@s', borderWidth: 1, borderColor: '#EBEBEB', gap: '3@vs',
   },
   refundInfoLabel: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium },
   refundInfoValue: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text },
@@ -762,7 +805,6 @@ const styles = ScaledSheet.create({
   },
   refundNoteText: { fontSize: '11@ms', color: '#2E7D32', fontFamily: FONTS.Medium, flex: 1 },
 
-  // ── Address card ──
   addressCard: {
     backgroundColor: color.background, borderRadius: '8@ms',
     padding: '12@s', marginBottom: '10@vs',
@@ -778,10 +820,7 @@ const styles = ScaledSheet.create({
   },
   pickupScheduleText: { fontSize: '12@ms', color: '#E65100', fontFamily: FONTS.Medium, flex: 1 },
 
-  // ── Timeline ──
-  timelineItem: {
-    flexDirection: 'row', gap: '12@s', marginBottom: '4@vs',
-  },
+  timelineItem: { flexDirection: 'row', gap: '12@s', marginBottom: '4@vs' },
   timelineDotCol: { alignItems: 'center', width: '24@s' },
   timelineDot: {
     width: '22@s', height: '22@s', borderRadius: '11@ms',
@@ -789,8 +828,7 @@ const styles = ScaledSheet.create({
   },
   timelineLine: {
     width: 2, flex: 1, backgroundColor: '#E0E0E0',
-    marginTop: '3@vs', marginBottom: '3@vs',
-    minHeight: '16@vs',
+    marginTop: '3@vs', marginBottom: '3@vs', minHeight: '16@vs',
   },
   timelineContent: { flex: 1, paddingBottom: '12@vs' },
   timelineLabel: { fontSize: '13@ms', color: '#444', fontFamily: FONTS.Medium },
@@ -800,7 +838,6 @@ const styles = ScaledSheet.create({
   },
   timelineDate: { fontSize: '10@ms', color: '#BBB', fontFamily: FONTS.Medium, marginTop: '4@vs' },
 
-  // ── Help card ──
   helpCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff',
@@ -820,12 +857,10 @@ const styles = ScaledSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
 
-  // ── Bottom bar ──
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: '#fff',
-    paddingHorizontal: '16@s', paddingVertical: '12@vs',
-    paddingBottom: '24@vs',
+    paddingHorizontal: '16@s', paddingVertical: '12@vs', paddingBottom: '24@vs',
     elevation: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 6,
     borderTopWidth: 1, borderTopColor: '#EBEBEB',

@@ -10,7 +10,6 @@ import {
   TextInput,
   ToastAndroid,
   Animated,
-  Alert,
   Platform,
 } from 'react-native'
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
@@ -23,47 +22,72 @@ import color from '../../../utils/color'
 import BASE_URL from '../../../services/api'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 
+
 const RETURN_REASONS = [
-  { key: 'damaged',       label: 'Product is damaged',         icon: 'package-variant-closed-remove' },
-  { key: 'wrong_item',    label: 'Wrong item received',        icon: 'swap-horizontal-circle-outline' },
-  { key: 'not_working',   label: 'Product not working',        icon: 'alert-circle-outline' },
-  { key: 'size_issue',    label: 'Size / fit issue',           icon: 'ruler' },
-  { key: 'quality',       label: 'Quality not as expected',    icon: 'thumb-down-outline' },
-  { key: 'missing_parts', label: 'Missing parts / accessories',icon: 'puzzle-remove-outline' },
-  { key: 'changed_mind',  label: 'Changed my mind',            icon: 'emoticon-confused-outline' },
-  { key: 'other',         label: 'Other reason',               icon: 'dots-horizontal-circle-outline' },
+  { key: 'damaged', label: 'Product is damaged', icon: 'package-variant-closed' },
+  { key: 'wrong_item', label: 'Wrong item received', icon: 'swap-horizontal-circle-outline' },
+  { key: 'not_working', label: 'Product not working', icon: 'alert-circle-outline' },
+  { key: 'missing_parts', label: 'Missing parts / accessories', icon: 'puzzle-remove-outline' },
+  { key: 'other', label: 'Other reason', icon: 'dots-horizontal-circle-outline' },
 ]
 
 const REQUEST_TYPES = [
-  { key: 'replacement',  label: 'Replacement',     icon: 'swap-horizontal',   desc: 'Send the product back and get a new one delivered' },
+  {
+    key: 'replacement',
+    label: 'Replacement',
+    icon: 'swap-horizontal',
+    desc: 'Send the product back and get a new one delivered',
+  },
 ]
 
 const OFFICE_ADDRESS = {
-  name: 'Returns & Replacement Department',
+  name: 'Ab Shopee',
   line1: '123, Industrial Area, Phase 2',
-  city: 'Raipur',
-  state: 'Chhattisgarh',
-  pincode: '492001',
+  city: 'Indore',
+  state: 'Madhya Pradesh',
+  pincode: '452012',
   phone: '+91 98765 00000',
   hours: 'Mon–Sat, 10 AM – 6 PM',
 }
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
 const STEPS = ['Select Item', 'Reason', 'Photos', 'Courier Info']
 
+// ─── Helper: normalise a raw API item ────────────────────────────────────────
+function normaliseItem(raw) {
+  const dv = raw?.dataValues ?? raw ?? {}
+
+  const isReturnActive = raw?.isReturnActive ?? dv?.isReturnActive ?? false
+
+  console.log('Normalised item:', {
+    raw: raw?.isReturnActive,
+    dv: dv?.isReturnActive,
+    final: isReturnActive,
+  })
+
+  return {
+    itemId: dv.itemId,
+    variantId: dv.variantId ?? null,
+    quantity: dv.quantity ?? 1,
+    itemSnapshot: dv.itemSnapshot ?? {},
+    selectedAttributes: dv.selectedAttributes ?? {},
+    isReturnActive,
+  }
+}
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
 function StepBar({ current }) {
   return (
     <View style={styles.stepBar}>
       {STEPS.map((label, i) => {
-        const done    = i < current
-        const active  = i === current
-        const isLast  = i === STEPS.length - 1
+        const done = i < current
+        const active = i === current
+        const isLast = i === STEPS.length - 1
         return (
           <React.Fragment key={i}>
             <View style={styles.stepItem}>
               <View style={[
                 styles.stepCircle,
-                done   && styles.stepCircleDone,
+                done && styles.stepCircleDone,
                 active && styles.stepCircleActive,
               ]}>
                 {done
@@ -71,7 +95,11 @@ function StepBar({ current }) {
                   : <Text style={[styles.stepNum, active && { color: '#fff' }]}>{i + 1}</Text>
                 }
               </View>
-              <Text style={[styles.stepLabel, active && styles.stepLabelActive, done && styles.stepLabelDone]}>
+              <Text style={[
+                styles.stepLabel,
+                active && styles.stepLabelActive,
+                done && styles.stepLabelDone,
+              ]}>
                 {label}
               </Text>
             </View>
@@ -85,7 +113,7 @@ function StepBar({ current }) {
   )
 }
 
-// ─── Section wrapper ─────────────────────────────────────────────────────────
+// ─── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, subtitle, children }) {
   return (
     <View style={styles.section}>
@@ -103,74 +131,73 @@ function Section({ icon, title, subtitle, children }) {
   )
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CreateReturnScreen() {
   const navigation = useNavigation()
-  const route      = useRoute()
+  const route = useRoute()
 
-  // orderId comes from OrderDetails → navigate('CreateReturn', { orderId, items })
   const { orderId, items: passedItems } = route.params ?? {}
 
   // ── state ──
-  const [step,         setStep]         = useState(0)
-  const [order,        setOrder]        = useState(null)
-  const [items,        setItems]        = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [submitting,   setSubmitting]   = useState(false)
+  const [step, setStep] = useState(0)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  // step 0 – item + request type
-  const [selectedItem, setSelectedItem] = useState(null)   // full item object
-  const [requestType,  setRequestType]  = useState('return')
+  // step 0
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [requestType, setRequestType] = useState('replacement')
 
-  // step 1 – reason
-  const [reason,       setReason]       = useState(null)
-  const [description,  setDescription]  = useState('')
+  // step 1
+  const [reason, setReason] = useState(null)
+  const [description, setDescription] = useState('')
 
-  // step 2 – photos (max 4)
-  const [photos,       setPhotos]       = useState([])
+  // step 2
+  const [photos, setPhotos] = useState([])
 
-  // step 3 – courier details
-  const [courierName,     setCourierName]     = useState('')
-  const [trackingId,      setTrackingId]      = useState('')
-  const [courierDate,     setCourierDate]     = useState('')
-  const [agreedToPolicy,  setAgreedToPolicy]  = useState(false)
+  // step 3
+  const [courierName, setCourierName] = useState('')
+  const [trackingId, setTrackingId] = useState('')
+  const [courierDate, setCourierDate] = useState('')
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false)
 
   const fadeAnim = useRef(new Animated.Value(1)).current
   const scrollRef = useRef(null)
 
-  // ── fetch order ──
+  // ── fetch / normalise items ──
   useEffect(() => {
-    // If items were already passed from OrderDetails, skip the fetch
-    if (passedItems?.length) {
-      setItems(passedItems)
-      setLoading(false)
-      return
-    }
     fetchOrder()
   }, [])
 
   const fetchOrder = async () => {
     try {
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
-      const res  = await fetch(
+      const res = await fetch(
         `${BASE_URL}/customer/business/${businessId}/orders/${orderId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       )
       const json = await res.json()
+      console.log(json)
+
       const allItems = json?.data?.items ?? []
-      // deduplicate same itemId
+
+      const normalised = allItems.map(normaliseItem)
+
       const deduped = Object.values(
-        allItems.reduce((acc, item) => {
+        normalised.reduce((acc, item) => {
           if (acc[item.itemId]) {
-            acc[item.itemId] = { ...acc[item.itemId], quantity: acc[item.itemId].quantity + item.quantity }
+            acc[item.itemId] = {
+              ...acc[item.itemId],
+              quantity: acc[item.itemId].quantity + item.quantity,
+            }
           } else {
             acc[item.itemId] = { ...item }
           }
           return acc
-        }, {})
+        }, {}),
       )
-      setOrder(json?.data)
+
       setItems(deduped)
     } catch {
       ToastAndroid.show('Failed to load order details', ToastAndroid.SHORT)
@@ -205,9 +232,11 @@ export default function CreateReturnScreen() {
       { mediaType: 'photo', quality: 0.7, selectionLimit: 4 - photos.length },
       res => {
         if (res.didCancel || res.errorCode) return
-        const newPhotos = (res.assets ?? []).map(a => ({ uri: a.uri, name: a.fileName, type: a.type }))
+        const newPhotos = (res.assets ?? []).map(a => ({
+          uri: a.uri, name: a.fileName, type: a.type,
+        }))
         setPhotos(prev => [...prev, ...newPhotos].slice(0, 4))
-      }
+      },
     )
   }
 
@@ -217,8 +246,13 @@ export default function CreateReturnScreen() {
   const canProceed = () => {
     if (step === 0) return !!selectedItem && !!requestType
     if (step === 1) return !!reason && description.trim().length >= 10
-    if (step === 2) return photos.length >= 1   // at least 1 photo required
-    if (step === 3) return courierName.trim() && trackingId.trim() && courierDate.trim() && agreedToPolicy
+    if (step === 2) return photos.length >= 1
+    if (step === 3) return (
+      courierName.trim() !== '' &&
+      trackingId.trim() !== '' &&
+      courierDate.trim() !== '' &&
+      agreedToPolicy
+    )
     return false
   }
 
@@ -227,33 +261,35 @@ export default function CreateReturnScreen() {
     if (!canProceed()) return
     try {
       setSubmitting(true)
-      const token      = await AsyncStorage.getItem('userToken')
+      const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
 
       const formData = new FormData()
-      formData.append('orderId',     orderId)
-      formData.append('itemId',      selectedItem.itemId)
-      formData.append('type',        requestType)
-      formData.append('reason',      reason)
+      formData.append('orderId', orderId)
+      formData.append('itemId', selectedItem.itemId)
+      formData.append('type', requestType)
+      formData.append('reason', reason)
       formData.append('description', description)
       formData.append('courierName', courierName)
-      formData.append('trackingId',  trackingId)
+      formData.append('trackingId', trackingId)
       formData.append('courierDate', courierDate)
-      photos.forEach((p, i) => formData.append(`photos`, { uri: p.uri, name: p.name ?? `photo_${i}.jpg`, type: p.type ?? 'image/jpeg' }))
+      photos.forEach((p, i) =>
+        formData.append('photos', {
+          uri: p.uri,
+          name: p.name ?? `photo_${i}.jpg`,
+          type: p.type ?? 'image/jpeg',
+        }),
+      )
 
-      // Uncomment when API is ready:
-      // const res = await fetch(
-      //   `${BASE_URL}/customer/business/${businessId}/returns`,
-      //   { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData }
-      // )
-      // const json = await res.json()
-      // if (!json?.success) throw new Error(json?.message ?? 'Submission failed')
-
-      // Simulate success for now
-      await new Promise(r => setTimeout(r, 1200))
+      const res = await fetch(
+        `${BASE_URL}/customer/business/${businessId}/returns`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData },
+      )
+      const json = await res.json()
+      if (!json?.success) throw new Error(json?.message ?? 'Submission failed')
 
       ToastAndroid.show('Request submitted successfully!', ToastAndroid.SHORT)
-      navigation.navigate('ReturnReplacement')
+      navigation.navigate('returnreplacement')
     } catch (e) {
       ToastAndroid.show(e.message ?? 'Something went wrong', ToastAndroid.SHORT)
     } finally {
@@ -278,6 +314,38 @@ export default function CreateReturnScreen() {
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={color.primary} />
           <Text style={styles.loaderText}>Loading order details…</Text>
+        </View>
+      </View>
+    )
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // No eligible items
+  // ─────────────────────────────────────────────────────────────────────────
+  if (!loading && items.length === 0) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Icon name="arrow-left" size={ms(22)} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create Request</Text>
+          <View style={{ width: s(36) }} />
+        </View>
+        <View style={styles.emptyState}>
+          <Icon name="package-variant-closed-remove" size={ms(56)} color="#BDBDBD" />
+          <Text style={styles.emptyTitle}>No Items Available</Text>
+          <Text style={styles.emptySubtitle}>
+            All items in this order already have an active return or replacement request.
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => navigation.navigate('returnreplacement')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.emptyBtnText}>View My Requests</Text>
+          </TouchableOpacity>
         </View>
       </View>
     )
@@ -327,33 +395,76 @@ export default function CreateReturnScreen() {
         subtitle={`${items.length} item${items.length > 1 ? 's' : ''} in this order`}
       >
         {items.map(item => {
-          const snap   = item.itemSnapshot ?? {}
-          const attrs  = (item.selectedAttributes?.attributes ?? []).map(a => `${a.label}: ${a.displayValue}`).join(' · ')
+          const snap = item.itemSnapshot ?? {}
+          const attrs = (item.selectedAttributes?.attributes ?? [])
+            .map(a => `${a.label}: ${a.displayValue}`)
+            .join(' · ')
           const active = selectedItem?.itemId === item.itemId
+
+          // ── Disable conditions ──
+          const isDigital =
+            snap.isDigital ??
+            snap.digital ??
+            snap.itemType === 'digital'
+          const isDisabled = item.isReturnActive || isDigital
+
           return (
             <TouchableOpacity
               key={item.itemId}
-              style={[styles.itemCard, active && styles.itemCardActive]}
-              onPress={() => setSelectedItem(item)}
-              activeOpacity={0.7}
+              style={[
+                styles.itemCard,
+                active && styles.itemCardActive,
+                isDisabled && styles.itemCardDisabled,
+              ]}
+              onPress={() => !isDisabled && setSelectedItem(item)}
+              activeOpacity={isDisabled ? 1 : 0.7}
+              disabled={isDisabled}
             >
               <Image
                 source={snap.image ? { uri: snap.image } : noimage}
-                style={styles.itemImg}
+                style={[styles.itemImg, isDisabled && styles.itemImgDisabled]}
               />
               <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={2}>{snap.title || 'Product'}</Text>
+                <Text
+                  style={[styles.itemName, isDisabled && styles.itemNameDisabled]}
+                  numberOfLines={2}
+                >
+                  {snap.title || 'Product'}
+                </Text>
                 {!!attrs && <Text style={styles.itemAttrs} numberOfLines={1}>{attrs}</Text>}
                 <View style={styles.itemFoot}>
                   <View style={styles.qtyChip}>
                     <Text style={styles.qtyChipTxt}>Qty: {item.quantity}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>₹{snap.price?.toLocaleString('en-IN')}</Text>
+
+                  {/* ── Status badge ── */}
+                  {item.isReturnActive && (
+                    <View style={styles.disabledBadge}>
+                      <Icon name="swap-horizontal-circle" size={ms(11)} color="#fff" />
+                      <Text style={styles.disabledBadgeText}>Already in Return</Text>
+                    </View>
+                  )}
+                  {isDigital && !item.isReturnActive && (
+                    <View style={[styles.disabledBadge, styles.disabledBadgeDigital]}>
+                      <Icon name="download-circle-outline" size={ms(11)} color="#fff" />
+                      <Text style={styles.disabledBadgeText}>Digital – Not Returnable</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-              <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
-                {active && <View style={styles.radioInner} />}
-              </View>
+
+              {/* Radio for eligible items, lock icon for disabled */}
+              {!isDisabled ? (
+                <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
+                  {active && <View style={styles.radioInner} />}
+                </View>
+              ) : (
+                <Icon
+                  name={isDigital ? 'cloud-lock-outline' : 'lock-outline'}
+                  size={ms(18)}
+                  color="#BDBDBD"
+                />
+              )}
             </TouchableOpacity>
           )
         })}
@@ -385,7 +496,14 @@ export default function CreateReturnScreen() {
                 <Text style={[styles.reasonChipText, active && styles.reasonChipTextActive]}>
                   {r.label}
                 </Text>
-                {active && <Icon name="check-circle" size={ms(14)} color={color.primary} style={{ marginLeft: 'auto' }} />}
+                {active && (
+                  <Icon
+                    name="check-circle"
+                    size={ms(14)}
+                    color={color.primary}
+                    style={{ marginLeft: 'auto' }}
+                  />
+                )}
               </TouchableOpacity>
             )
           })}
@@ -422,7 +540,6 @@ export default function CreateReturnScreen() {
       title="Attach photos of the product"
       subtitle="Upload clear pictures of the issue. At least 1 photo required, max 4."
     >
-      {/* Info banner */}
       <View style={styles.infoBanner}>
         <Icon name="information-outline" size={ms(14)} color={color.primary} />
         <Text style={styles.infoBannerText}>
@@ -464,17 +581,17 @@ export default function CreateReturnScreen() {
       <Section icon="information-circle-outline" title="How does this work?">
         <View style={styles.howItWorksCard}>
           {[
-            { icon: 'package-variant',       text: 'Pack your product securely in a box or bag' },
+            { icon: 'package-variant', text: 'Pack your product securely in a box or bag' },
             { icon: 'truck-delivery-outline', text: 'Drop it off at your nearest courier service (e.g. Delhivery, Blue Dart, India Post)' },
-            { icon: 'map-marker-outline',    text: 'Send it to our office address shown below' },
-            { icon: 'receipt-text-outline',  text: 'Fill in the courier name and tracking ID below so we can track it' },
-            { icon: 'check-circle-outline',  text: 'Once received, we\'ll process your request within 3–5 business days' },
-          ].map((s, i) => (
+            { icon: 'map-marker-outline', text: 'Send it to our office address shown below' },
+            { icon: 'receipt-text-outline', text: 'Fill in the courier name and tracking ID below so we can track it' },
+            { icon: 'check-circle-outline', text: "Once received, we'll process your request within 3–5 business days" },
+          ].map((row, i) => (
             <View key={i} style={styles.howRow}>
               <View style={styles.howIconWrap}>
-                <Icon name={s.icon} size={ms(16)} color={color.primary} />
+                <Icon name={row.icon} size={ms(16)} color={color.primary} />
               </View>
-              <Text style={styles.howText}>{s.text}</Text>
+              <Text style={styles.howText}>{row.text}</Text>
             </View>
           ))}
         </View>
@@ -507,7 +624,6 @@ export default function CreateReturnScreen() {
           </View>
         </View>
 
-        {/* Important notice */}
         <View style={styles.noticeBox}>
           <Icon name="alert-circle-outline" size={ms(15)} color="#E65100" />
           <Text style={styles.noticeText}>
@@ -526,7 +642,9 @@ export default function CreateReturnScreen() {
         subtitle="Fill this in after you've sent the package"
       >
         <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Courier / Delivery Partner Name <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.formLabel}>
+            Courier / Delivery Partner Name <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.formInput}
             placeholder="e.g. Delhivery, Blue Dart, India Post"
@@ -537,7 +655,9 @@ export default function CreateReturnScreen() {
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Tracking ID / AWB Number <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.formLabel}>
+            Tracking ID / AWB Number <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.formInput}
             placeholder="e.g. DELVR123456789"
@@ -546,11 +666,15 @@ export default function CreateReturnScreen() {
             onChangeText={setTrackingId}
             autoCapitalize="characters"
           />
-          <Text style={styles.formHint}>You'll get this from the courier receipt when you drop off the package</Text>
+          <Text style={styles.formHint}>
+            You'll get this from the courier receipt when you drop off the package
+          </Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Date of Dispatch <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.formLabel}>
+            Date of Dispatch <Text style={styles.required}>*</Text>
+          </Text>
           <TextInput
             style={styles.formInput}
             placeholder="e.g. 01 Apr 2025"
@@ -583,10 +707,10 @@ export default function CreateReturnScreen() {
         <Text style={styles.summaryTitle}>📦 Request Summary</Text>
         <View style={styles.summaryCard}>
           {[
-            { label: 'Product',      value: (selectedItem?.itemSnapshot ?? {}).title ?? '—' },
-            { label: 'Request type', value: requestType === 'return' ? 'Return & Refund' : 'Replacement' },
-            { label: 'Reason',       value: RETURN_REASONS.find(r => r.key === reason)?.label ?? '—' },
-            { label: 'Photos',       value: `${photos.length} attached` },
+            { label: 'Product', value: (selectedItem?.itemSnapshot ?? {}).title ?? '—' },
+            { label: 'Request type', value: 'Replacement' },
+            { label: 'Reason', value: RETURN_REASONS.find(r => r.key === reason)?.label ?? '—' },
+            { label: 'Photos', value: `${photos.length} attached` },
           ].map((row, i) => (
             <View key={i} style={[styles.summaryRow, i > 0 && styles.summaryRowBorder]}>
               <Text style={styles.summaryLabel}>{row.label}</Text>
@@ -607,7 +731,7 @@ export default function CreateReturnScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.7}>
           <Icon name="arrow-left" size={ms(22)} color="#fff" />
@@ -616,10 +740,10 @@ export default function CreateReturnScreen() {
         <View style={{ width: s(36) }} />
       </View>
 
-      {/* ── Step bar ── */}
+      {/* Step bar */}
       <StepBar current={step} />
 
-      {/* ── Content ── */}
+      {/* Content */}
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -627,7 +751,6 @@ export default function CreateReturnScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View style={{ opacity: fadeAnim }}>
-          {/* Order badge */}
           <View style={styles.orderBadge}>
             <Icon name="receipt" size={ms(13)} color="#888" />
             <Text style={styles.orderBadgeText}>Order #{orderId?.slice(-8).toUpperCase()}</Text>
@@ -640,7 +763,7 @@ export default function CreateReturnScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* ── Bottom CTA ── */}
+      {/* Bottom CTA */}
       <View style={styles.bottomBar}>
         {step > 0 && (
           <TouchableOpacity style={styles.btnBack} onPress={goBack} activeOpacity={0.7}>
@@ -673,11 +796,11 @@ export default function CreateReturnScreen() {
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = ScaledSheet.create({
   container: { flex: 1, backgroundColor: color.background },
 
-  // ── Header ──
+  // Header
   header: {
     backgroundColor: color.primary,
     paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
@@ -697,28 +820,33 @@ const styles = ScaledSheet.create({
     letterSpacing: 0.2, flex: 1, textAlign: 'center',
   },
 
-  // ── Step bar ──
+  // Step bar
   stepBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff', paddingHorizontal: '14@s', paddingVertical: '12@vs',
     borderBottomWidth: 1, borderBottomColor: '#EBEBEB',
   },
   stepItem: { alignItems: 'center', gap: '4@vs' },
-  stepLine: { flex: 1, height: 2, backgroundColor: '#E0E0E0', marginHorizontal: '4@s', marginBottom: '16@vs' },
+  stepLine: {
+    flex: 1, height: 2, backgroundColor: '#E0E0E0',
+    marginHorizontal: '4@s', marginBottom: '16@vs',
+  },
   stepLineDone: { backgroundColor: color.primary },
   stepCircle: {
     width: '24@s', height: '24@s', borderRadius: '12@ms',
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center',
   },
   stepCircleActive: { backgroundColor: color.primary },
   stepCircleDone: { backgroundColor: color.primary },
   stepNum: { fontSize: '11@ms', fontFamily: FONTS.Bold, color: '#999' },
-  stepLabel: { fontSize: '9@ms', fontFamily: FONTS.Medium, color: '#BDBDBD', textAlign: 'center', maxWidth: '56@s' },
+  stepLabel: {
+    fontSize: '9@ms', fontFamily: FONTS.Medium, color: '#BDBDBD',
+    textAlign: 'center', maxWidth: '56@s',
+  },
   stepLabelActive: { color: color.primary, fontFamily: FONTS.Bold },
   stepLabelDone: { color: color.primary },
 
-  // ── Scroll + order badge ──
+  // Scroll + order badge
   scroll: { paddingBottom: '110@vs' },
   orderBadge: {
     flexDirection: 'row', alignItems: 'center', gap: '6@s',
@@ -727,7 +855,7 @@ const styles = ScaledSheet.create({
   },
   orderBadgeText: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  // ── Section ──
+  // Section
   section: {
     backgroundColor: '#fff', marginTop: '8@vs',
     paddingHorizontal: '16@s', paddingVertical: '16@vs',
@@ -738,13 +866,12 @@ const styles = ScaledSheet.create({
   sectionIconWrap: {
     width: '34@s', height: '34@s', borderRadius: '10@ms',
     backgroundColor: color.primary + '18',
-    justifyContent: 'center', alignItems: 'center',
-    marginTop: '1@vs',
+    justifyContent: 'center', alignItems: 'center', marginTop: '1@vs',
   },
   sectionTitle: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: color.text },
   sectionSubtitle: { fontSize: '12@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs', lineHeight: '17@ms' },
 
-  // ── Request type ──
+  // Request type
   typeRow: { flexDirection: 'row', gap: '10@s' },
   typeCard: {
     flex: 1, borderRadius: '10@ms', padding: '12@s',
@@ -755,8 +882,7 @@ const styles = ScaledSheet.create({
   typeCardActive: { borderColor: color.primary, backgroundColor: color.primary + '08' },
   typeIconWrap: {
     width: '44@s', height: '44@s', borderRadius: '22@ms',
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center',
   },
   typeIconWrapActive: { backgroundColor: color.primary },
   typeLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#888', textAlign: 'center' },
@@ -765,7 +891,7 @@ const styles = ScaledSheet.create({
   typeDescActive: { color: '#777' },
   typeCheck: { position: 'absolute', top: '8@vs', right: '8@s' },
 
-  // ── Item card ──
+  // Item card
   itemCard: {
     flexDirection: 'row', alignItems: 'center', gap: '10@s',
     borderRadius: '8@ms', padding: '10@s',
@@ -773,15 +899,18 @@ const styles = ScaledSheet.create({
     marginBottom: '8@vs', backgroundColor: color.background,
   },
   itemCardActive: { borderColor: color.primary, backgroundColor: color.primary + '06' },
+  itemCardDisabled: { opacity: 0.6, backgroundColor: '#F9F9F9' },
   itemImg: {
     width: '52@s', height: '52@s', borderRadius: '6@ms',
     backgroundColor: color.primary + '15', resizeMode: 'contain',
     borderWidth: 1, borderColor: '#EEE',
   },
+  itemImgDisabled: { opacity: 0.5 },
   itemInfo: { flex: 1 },
   itemName: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, lineHeight: '18@ms' },
+  itemNameDisabled: { color: '#AAAAAA' },
   itemAttrs: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '2@vs' },
-  itemFoot: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginTop: '5@vs' },
+  itemFoot: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginTop: '5@vs', flexWrap: 'wrap' },
   itemPrice: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text },
   qtyChip: {
     backgroundColor: '#EEE', paddingHorizontal: '7@s', paddingVertical: '2@vs',
@@ -789,6 +918,17 @@ const styles = ScaledSheet.create({
   },
   qtyChipTxt: { fontSize: '10@ms', color: '#666', fontFamily: FONTS.Medium },
 
+  // Disabled badges
+  disabledBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: '4@s',
+    backgroundColor: '#757575',
+    paddingHorizontal: '7@s', paddingVertical: '3@vs',
+    borderRadius: '4@ms',
+  },
+  disabledBadgeDigital: { backgroundColor: '#5C6BC0' },
+  disabledBadgeText: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: '#fff' },
+
+  // Radio
   radioOuter: {
     width: '20@s', height: '20@s', borderRadius: '10@ms',
     borderWidth: 2, borderColor: '#BDBDBD',
@@ -800,7 +940,7 @@ const styles = ScaledSheet.create({
     backgroundColor: color.primary,
   },
 
-  // ── Reason grid ──
+  // Reason grid
   reasonGrid: { gap: '8@vs' },
   reasonChip: {
     flexDirection: 'row', alignItems: 'center', gap: '10@s',
@@ -812,7 +952,7 @@ const styles = ScaledSheet.create({
   reasonChipText: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium, flex: 1 },
   reasonChipTextActive: { color: color.primary, fontFamily: FONTS.Bold },
 
-  // ── Text area ──
+  // Text area
   textArea: {
     borderWidth: 1.5, borderColor: '#E0E0E0', borderRadius: '8@ms',
     paddingHorizontal: '12@s', paddingVertical: '10@vs',
@@ -821,11 +961,9 @@ const styles = ScaledSheet.create({
   },
   charCount: { fontSize: '11@ms', color: '#BBB', fontFamily: FONTS.Medium, textAlign: 'right', marginTop: '5@vs' },
 
-  // ── Photo grid ──
+  // Photo grid
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: '10@s', marginTop: '6@vs' },
-  photoThumb: {
-    width: '80@s', height: '80@s', borderRadius: '8@ms', overflow: 'visible',
-  },
+  photoThumb: { width: '80@s', height: '80@s', borderRadius: '8@ms', overflow: 'visible' },
   photoImg: {
     width: '80@s', height: '80@s', borderRadius: '8@ms',
     borderWidth: 1, borderColor: '#E0E0E0',
@@ -847,7 +985,7 @@ const styles = ScaledSheet.create({
     marginTop: '12@vs', lineHeight: '18@ms',
   },
 
-  // ── Info banner ──
+  // Info banner
   infoBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: '8@s',
     backgroundColor: color.primary + '10',
@@ -858,22 +996,20 @@ const styles = ScaledSheet.create({
     fontFamily: FONTS.Medium, lineHeight: '18@ms',
   },
 
-  // ── How it works ──
+  // How it works
   howItWorksCard: {
     backgroundColor: color.background, borderRadius: '8@ms',
-    padding: '12@s', gap: '10@vs',
-    borderWidth: 1, borderColor: '#EBEBEB',
+    padding: '12@s', gap: '10@vs', borderWidth: 1, borderColor: '#EBEBEB',
   },
   howRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s' },
   howIconWrap: {
     width: '30@s', height: '30@s', borderRadius: '15@ms',
     backgroundColor: color.primary + '18',
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0,
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
   howText: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '19@ms' },
 
-  // ── Office card ──
+  // Office card
   officeCard: {
     backgroundColor: color.background, borderRadius: '10@ms',
     padding: '14@s', marginBottom: '10@vs',
@@ -886,7 +1022,7 @@ const styles = ScaledSheet.create({
   officeMetaItem: { flexDirection: 'row', alignItems: 'center', gap: '5@s' },
   officeMetaText: { fontSize: '12@ms', color: '#666', fontFamily: FONTS.Medium },
 
-  // ── Notice box ──
+  // Notice box
   noticeBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: '8@s',
     backgroundColor: '#FFF3E0', borderRadius: '8@ms',
@@ -894,7 +1030,7 @@ const styles = ScaledSheet.create({
   },
   noticeText: { flex: 1, fontSize: '12@ms', color: '#E65100', fontFamily: FONTS.Medium, lineHeight: '18@ms' },
 
-  // ── Form ──
+  // Form
   formGroup: { marginBottom: '14@vs' },
   formLabel: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '7@vs' },
   required: { color: '#C62828' },
@@ -906,7 +1042,7 @@ const styles = ScaledSheet.create({
   },
   formHint: { fontSize: '11@ms', color: '#BBB', fontFamily: FONTS.Medium, marginTop: '5@vs' },
 
-  // ── Checkbox ──
+  // Checkbox
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s' },
   checkbox: {
     width: '20@s', height: '20@s', borderRadius: '5@ms',
@@ -917,26 +1053,36 @@ const styles = ScaledSheet.create({
   checkboxChecked: { backgroundColor: color.primary, borderColor: color.primary },
   checkText: { flex: 1, fontSize: '12@ms', color: '#555', fontFamily: FONTS.Medium, lineHeight: '18@ms' },
 
-  // ── Summary ──
+  // Summary
   summaryTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '10@vs' },
-  summaryCard: {
-    borderRadius: '8@ms', borderWidth: 1, borderColor: '#EBEBEB',
-    overflow: 'hidden',
-  },
+  summaryCard: { borderRadius: '8@ms', borderWidth: 1, borderColor: '#EBEBEB', overflow: 'hidden' },
   summaryRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingHorizontal: '12@s', paddingVertical: '10@vs',
-    backgroundColor: '#fff',
+    paddingHorizontal: '12@s', paddingVertical: '10@vs', backgroundColor: '#fff',
   },
   summaryRowBorder: { borderTopWidth: 1, borderTopColor: '#F5F5F5' },
   summaryLabel: { fontSize: '12@ms', color: '#999', fontFamily: FONTS.Medium, width: '90@s' },
   summaryValue: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.text, flex: 1, textAlign: 'right' },
 
-  // ── Loader ──
+  // Loader
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loaderText: { marginTop: '14@vs', fontSize: '14@ms', color: '#888', fontFamily: FONTS.Medium },
 
-  // ── Bottom bar ──
+  // Empty state
+  emptyState: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: '32@s', gap: '12@vs',
+  },
+  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, textAlign: 'center' },
+  emptySubtitle: { fontSize: '13@ms', color: '#888', fontFamily: FONTS.Medium, textAlign: 'center', lineHeight: '20@ms' },
+  emptyBtn: {
+    marginTop: '8@vs', backgroundColor: color.primary,
+    paddingHorizontal: '24@s', paddingVertical: '12@vs',
+    borderRadius: '8@ms',
+  },
+  emptyBtnText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#fff' },
+
+  // Bottom bar
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center',

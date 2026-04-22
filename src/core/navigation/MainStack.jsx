@@ -7,6 +7,7 @@ import WishlistScreen from '../components/local/Home/WishlistScreen'
 import BuyInstantScreen from '../components/local/Home/BuyInstantScreen'
 import OrderPlacedAnimation from '../components/global/OrderPlacedAnimation'
 import OrderDetailsScreen from '../components/local/Home/OrderDetailsScreen'
+import OrderPendingApprovalScreen from '../components/local/Home/OrderPendingApprovalScreen'
 import coupondiscounts from '../components/local/Categories/CouponsDiscounts'
 import UserRefunds from '../../core/components/local/payments/UserRefunds'
 import UserTransactions from '../../core/components/local/payments/UserTransactions'
@@ -14,6 +15,7 @@ import NotificationsScreen from '../components/local/Home/NotificationsScreen'
 import EditProfileScreen from '../components/local/Account/EditProfileScreen'
 import ProfileInfoScreen from '../components/global/ProfileInfoScreen'
 import AddressesScreen from '../components/local/Account/AddressesScreen'
+import SellerDashboardScreen from '../../modules/main/SellerDashboardScreen'
 import ReturnsReplacemnet from '../components/local/payments/ReturnsReplacement'
 import ReturnReplaceDetails from '../components/local/payments/ReturnReplaceDetails'
 import CreateReturn from '../components/local/payments/CreateReturn'
@@ -61,6 +63,10 @@ export default function MainStack({setIsLoggedIn}) {
         component={OrderDetailsScreen} options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="OrderPendingApprovalScreen"
+        component={OrderPendingApprovalScreen} options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="userrefunds"
         component={UserRefunds} options={{ headerShown: false }}
       />
@@ -95,6 +101,10 @@ export default function MainStack({setIsLoggedIn}) {
        <Stack.Screen
         name="AddressesScreen"
         component={AddressesScreen} options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SellerDashboardScreen"
+        component={SellerDashboardScreen} options={{ headerShown: false }}
       />
     </Stack.Navigator>
   )

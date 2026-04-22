@@ -537,7 +537,7 @@ export default function HomeBanner({ onShopNow }) {
 
         <Image
           source={{
-            uri: 'https://png.pngtree.com/png-clipart/20220404/original/pngtree-colorful-free-illustration-happy-akshaya-tritiya-festival-png-image_7497290.png'
+            uri: 'https://png.pngtree.com/png-vector/20230408/ourmid/pngtree-traditional-hindu-festival-akshaya-tritiya-decorative-pots-and-coins-vector-png-image_6689649.png'
           }}
           style={styles.bannerImage}
         />

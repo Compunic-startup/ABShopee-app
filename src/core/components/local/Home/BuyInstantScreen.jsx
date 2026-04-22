@@ -430,7 +430,7 @@ export default function BuyInstantScreen() {
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
-  }, [])
+  }, [fadeAnim])
 
   const incrementQty = () => setQty(prev => prev + 1)
   const decrementQty = () => { if (qty > 1) setQty(prev => prev - 1) }
@@ -453,6 +453,7 @@ export default function BuyInstantScreen() {
     } catch (err) { console.log('Error fetching profile:', err); setUserProfile(null) }
     finally { setProfileLoading(false) }
   }
+
 
   const fetchPreview = async (code = appliedCode) => {
     setLoading(true)
@@ -497,8 +498,6 @@ export default function BuyInstantScreen() {
   const placeBuyNowOrder = async () => {
     if (placing) return
     if (isProfileEmpty(userProfile)) { toast('Please complete your profile first'); navigation.navigate('ProfileInfoScreen'); return }
-    if (isDigital && !email) { toast('Please enter email for digital delivery'); return }
-    if (isDigital && !email.includes('@')) { toast('Please enter a valid email address'); return }
     if (!isDigital && !selectedAddressId) { toast('Please select a delivery address'); return }
     if (paymentMethod === 'COD' && isDigital) { toast('COD not available for digital items'); return }
 
@@ -509,17 +508,16 @@ export default function BuyInstantScreen() {
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
 
       const payload = {
-        variantId: product.variantId ?? null,
         quantity: qty,
         selectedAttributes,
         ...(appliedCode ? { code: appliedCode } : {}),
         ...(isDigital
-          ? { itemType: 'digital', email }
+          ? { itemType: 'digital', email: finalEmail }
           : {
             addresses: [{
               type: 'shipping',
               addressSnapshot: { line1: selectedAddr?.address?.addressLine1, city: selectedAddr?.address?.city, state: selectedAddr?.address?.state, country: selectedAddr?.address?.country ?? 'India', pincode: selectedAddr?.address?.postalCode },
-              contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.userProfile?.email || '' },
+              contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.email || '' },
             }],
             itemType: 'physical',
           }),
@@ -534,8 +532,20 @@ export default function BuyInstantScreen() {
       const json = await res.json()
       if (!res.ok) throw json
 
+      // Handle bulk digital order approval workflow
+      if (json.status === 'pending_approval') {
+        if (!json.orderId) {
+          toast('Order created but ID missing. Please contact support.')
+          return
+        }
+        navigation.navigate('OrderPendingApprovalScreen', { orderId: json.orderId })
+        return
+      }
+
       if (json.paymentMethod === 'RAZORPAY') {
-        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: isDigital ? email : selectedAddr?.contactInfo?.email || '' })
+        const razorpayEmail = finalEmail || 'customer@example.com'
+        console.log('Passing email to Razorpay:', razorpayEmail)
+        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: razorpayEmail })
         return
       }
       toast('Order placed successfully 🎉')
@@ -545,6 +555,13 @@ export default function BuyInstantScreen() {
   }
 
   useFocusEffect(useCallback(() => { fetchUserProfile() }, []))
+  useEffect(() => {
+    if (userProfile?.email) {
+      setEmail(userProfile.userProfile.email)
+    }
+  }, [userProfile])
+
+  const finalEmail = email || userProfile?.email || ''
 
   // Derived preview values
   const unitPrice = preview?.pricing?.unitPrice ?? price
@@ -852,11 +869,9 @@ export default function BuyInstantScreen() {
                 <Icon name="email-outline" size={ms(20)} color={color.primary} />
                 <Text style={S.sectionTitle}>Digital Delivery</Text>
               </View>
-              <Text style={S.emailNote}>Enter your email to receive the digital product</Text>
-              <TextInput mode="outlined" placeholder="your.email@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" style={S.emailInput} outlineColor="#E0E0E0" activeOutlineColor={color.primary} left={<TextInput.Icon icon="email" />} theme={{ roundness: 10 }} />
               <View style={S.digitalInfoBox}>
                 <Icon name="download-circle" size={ms(20)} color={color.primary} />
-                <Text style={S.digitalInfoText}>Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)</Text>
+                <Text style={S.digitalInfoText}>Digital Product Keys will be sent on your registered email (Check Your Spam Folder, If not found in Inbox)</Text>
               </View>
               <View style={S.digitalDeliveryNote}>
                 <Icon name="whatsapp" size={22} color={color.GREEN} style={{ alignSelf: 'center' }} />

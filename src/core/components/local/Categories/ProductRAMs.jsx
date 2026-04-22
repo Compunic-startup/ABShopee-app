@@ -320,14 +320,16 @@ export default function ProductTiles({ categoryId }) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchProducts(true)
-    }, [])
+      if (categoryId && isValidUUID(categoryId)) {
+        fetchProducts(true)
+      }
+    }, [categoryId])
   )
 
   useEffect(() => {
     if (searchQuery.trim().length >= 3) searchProducts(searchQuery.trim())
-    else fetchProducts(false)
-  }, [sortOption])
+    else if (categoryId && isValidUUID(categoryId)) fetchProducts(false)
+  }, [sortOption, categoryId])
 
   useEffect(() => {
     if (!loading && !contentLoading && products.length > 0) {
@@ -344,6 +346,17 @@ export default function ProductTiles({ categoryId }) {
     setCurrentPage(1)
     listRef.current?.scrollToOffset?.({ offset: 0, animated: false })
   }, [selectedFilter, sortOption, searchQuery])
+
+  useEffect(() => {
+    if (!categoryId || !isValidUUID(categoryId)) return
+    fetchProducts(true)
+  }, [categoryId])
+
+  // UUID validation function
+  const isValidUUID = (uuid) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(uuid)
+  }
 
   // ── WishlistHeart ─────────────────────────────────────────────────────────
   const WishlistHeart = ({ active, onPress }) => {
@@ -524,11 +537,7 @@ export default function ProductTiles({ categoryId }) {
     listRef.current?.scrollToOffset?.({ offset: 0, animated: true })
   }
 
-  useEffect(() => {
-    if (!categoryId) return
-    fetchProducts(true)
-  }, [categoryId])
-
+  
   // ── Render item ───────────────────────────────────────────────────────────
   const renderItem = useCallback(({ item }) => {
     const isDigital = item.itemType === 'digital'

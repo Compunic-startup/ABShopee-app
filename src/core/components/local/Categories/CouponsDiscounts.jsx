@@ -476,7 +476,7 @@ const S = ScaledSheet.create({
   tabTextActive: { color: color.primary, fontFamily: FONTS.Bold },
 
   // Applied bar
-  appliedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: color.secondarylight, paddingHorizontal: '14@s', paddingVertical: '10@vs', borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
+  appliedBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: color.primary+20, paddingHorizontal: '14@s', paddingVertical: '10@vs', borderBottomWidth: 1, borderBottomColor: '#E0E0E0' },
   appliedBarL: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
   appliedBarLabel: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium },
   appliedBarCode: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.primary },
@@ -487,7 +487,7 @@ const S = ScaledSheet.create({
   // Section header
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10@vs', marginTop: '8@vs' },
   sectionHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: '10@s' },
-  sectionIconBox: { width: '28@s', height: '28@s', borderRadius: '8@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center' },
+  sectionIconBox: { width: '28@s', height: '28@s', borderRadius: '8@ms', backgroundColor: color.primary+20, justifyContent: 'center', alignItems: 'center' },
   sectionTitle: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text },
   sectionSub: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '1@vs' },
   sectionCountPill: { backgroundColor: color.primary, borderRadius: '10@ms', paddingHorizontal: '9@s', paddingVertical: '3@vs' },
@@ -503,7 +503,7 @@ const S = ScaledSheet.create({
   // Shared chips
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: '6@s', alignItems: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.background, borderRadius: '4@ms', paddingHorizontal: '7@s', paddingVertical: '3@vs', borderWidth: 1, borderColor: '#E0E0E0' },
-  chipHL: { backgroundColor: color.secondarylight, borderColor: color.primary },
+  chipHL: { backgroundColor: color.primary+20, borderColor: color.primary },
   chipUrgent: { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' },
   chipExpired: { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' },
   chipText: { fontSize: '10@ms', color: '#888', fontFamily: FONTS.Medium },
@@ -514,23 +514,23 @@ const S = ScaledSheet.create({
   autoBar: { width: '4@s', backgroundColor: color.primary },
   autoBody: { flex: 1, padding: '12@s', gap: '8@vs' },
   autoTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s' },
-  autoIconBox: { width: '40@s', height: '40@s', borderRadius: '8@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  autoIconBox: { width: '40@s', height: '40@s', borderRadius: '8@ms', backgroundColor: color.primary+20, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   autoName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '3@vs' },
   autoValue: { fontSize: '12@ms', fontFamily: FONTS.Bold, color: color.primary },
   autoPill: { flexDirection: 'row', alignItems: 'center', gap: '3@s', backgroundColor: color.primary, borderRadius: '4@ms', paddingHorizontal: '6@s', paddingVertical: '2@vs' },
   autoPillText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.5 },
   autoDesc: { fontSize: '12@ms', color: '#888', fontFamily: FONTS.Medium, lineHeight: '17@ms' },
-  autoStrip: { flexDirection: 'row', alignItems: 'flex-start', gap: '6@s', backgroundColor: color.secondarylight, borderRadius: '6@ms', padding: '8@s' },
+  autoStrip: { flexDirection: 'row', alignItems: 'flex-start', gap: '6@s', backgroundColor: color.primary+20, borderRadius: '6@ms', padding: '8@s' },
   autoStripText: { flex: 1, fontSize: '11@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '16@ms' },
 
   // Coupon card
   couponCard: { backgroundColor: '#fff', borderRadius: '8@ms', marginBottom: '10@vs', overflow: 'hidden', borderWidth: 1, borderColor: '#EBEBEB', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
-  couponCardApplied: { borderColor: color.primary, borderWidth: 1.5, backgroundColor: color.secondarylight },
+  couponCardApplied: { borderColor: color.primary, borderWidth: 1.5, backgroundColor: color.primary+20 },
   appliedBanner: { flexDirection: 'row', alignItems: 'center', gap: '5@s', backgroundColor: color.primary, alignSelf: 'flex-start', borderBottomRightRadius: '6@ms', paddingHorizontal: '10@s', paddingVertical: '4@vs' },
   appliedBannerText: { fontSize: '9@ms', fontFamily: FONTS.Bold, color: '#fff', letterSpacing: 0.8 },
 
   couponTop: { flexDirection: 'row', alignItems: 'flex-start', gap: '12@s', paddingHorizontal: '14@s', paddingTop: '14@vs', paddingBottom: '10@vs' },
-  couponValueBox: { width: '64@s', minHeight: '64@s', backgroundColor: color.secondarylight, borderRadius: '8@ms', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderWidth: 1, borderColor: '#E0E0E0' },
+  couponValueBox: { width: '64@s', minHeight: '64@s', backgroundColor: color.primary+20, borderRadius: '8@ms', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderWidth: 1, borderColor: '#E0E0E0' },
   couponValueNum: { fontSize: '20@ms', fontFamily: FONTS.Bold, color: color.primary, lineHeight: '24@ms' },
   couponValueOff: { fontSize: '10@ms', fontFamily: FONTS.Bold, color: color.primary, letterSpacing: 1 },
   couponName: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '3@vs' },
@@ -552,15 +552,15 @@ const S = ScaledSheet.create({
   // Skeleton
   skeletonWrap: { paddingHorizontal: '14@s', paddingTop: '12@vs' },
   skeletonCard: { backgroundColor: '#fff', borderRadius: '8@ms', padding: '16@s', marginBottom: '10@vs', flexDirection: 'row', gap: '14@s', elevation: 1 },
-  skeletonLeft: { width: '64@s', height: '60@vs', borderRadius: '8@ms', backgroundColor: color.secondarylight },
+  skeletonLeft: { width: '64@s', height: '60@vs', borderRadius: '8@ms', backgroundColor: color.primary+20 },
   skeletonRight: { flex: 1, gap: '10@vs', justifyContent: 'center' },
-  skeletonLine1: { height: '14@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '70%' },
-  skeletonLine2: { height: '11@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '90%' },
-  skeletonLine3: { height: '10@vs', backgroundColor: color.secondarylight, borderRadius: '4@ms', width: '45%' },
+  skeletonLine1: { height: '14@vs', backgroundColor: color.primary+20, borderRadius: '4@ms', width: '70%' },
+  skeletonLine2: { height: '11@vs', backgroundColor: color.primary+20, borderRadius: '4@ms', width: '90%' },
+  skeletonLine3: { height: '10@vs', backgroundColor: color.primary+20, borderRadius: '4@ms', width: '45%' },
 
   // Empty
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: '32@s' },
-  emptyIconBox: { width: '88@s', height: '88@s', borderRadius: '44@ms', backgroundColor: color.secondarylight, justifyContent: 'center', alignItems: 'center', marginBottom: '16@vs', borderWidth: 1, borderColor: '#EEE' },
+  emptyIconBox: { width: '88@s', height: '88@s', borderRadius: '44@ms', backgroundColor: color.primary+20, justifyContent: 'center', alignItems: 'center', marginBottom: '16@vs', borderWidth: 1, borderColor: '#EEE' },
   emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '8@vs', textAlign: 'center' },
   emptySubtitle: { fontSize: '13@ms', color: '#888', textAlign: 'center', lineHeight: '20@ms', marginBottom: '20@vs' },
   clearBtn: { backgroundColor: color.primary, borderRadius: '6@ms', paddingHorizontal: '24@s', paddingVertical: '10@vs' },

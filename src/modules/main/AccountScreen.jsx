@@ -20,7 +20,6 @@ import BASE_URL from '../../core/services/api'
 import FONTS from '../../core/utils/fonts'
 import color from '../../core/utils/color'
 
-// ─── Menu sections — Flipkart grouping ────────────────────────────────────────
 const MENU_SECTIONS = [
   {
     title: 'My Orders & Activity',
@@ -47,7 +46,6 @@ const MENU_SECTIONS = [
   },
 ]
 
-// ─── Single menu row — Flipkart style: icon + label + chevron ─────────────────
 function MenuRow({ item, isLast, onPress }) {
   return (
     <TouchableOpacity
@@ -64,7 +62,6 @@ function MenuRow({ item, isLast, onPress }) {
   )
 }
 
-// ─── Profile row (email / phone / address etc.) ────────────────────────────────
 function InfoRow({ icon, value }) {
   if (!value) return null
   return (
@@ -75,7 +72,6 @@ function InfoRow({ icon, value }) {
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function AccountScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
 
@@ -85,7 +81,6 @@ export default function AccountScreen({ setIsLoggedIn }) {
 
   const fadeAnim = useRef(new Animated.Value(0)).current
 
-  // ── fetch profile ────────────────────────────────────────────────────────
   const fetchProfile = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('userToken')
@@ -127,13 +122,11 @@ export default function AccountScreen({ setIsLoggedIn }) {
 
   useFocusEffect(useCallback(() => { fetchProfile() }, []))
 
-  // ── logout ────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     await AsyncStorage.multiRemove(['userToken', 'userProfile', 'Identifier'])
     setIsLoggedIn(false)
   }
 
-  // ── derived data — null-safe ───────────────────────────────────────────────
   const userProfile = profile?.userProfile ?? {}
   const firstName = userProfile.firstName || null
   const lastName = userProfile.lastName || null
@@ -156,7 +149,6 @@ export default function AccountScreen({ setIsLoggedIn }) {
 
   const initial = (firstName?.[0] || 'U').toUpperCase()
 
-  // ── loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={styles.container}>
@@ -193,8 +185,7 @@ export default function AccountScreen({ setIsLoggedIn }) {
         }
       >
         <Animated.View style={{ opacity: fadeAnim }}>
-
-          {/* ── Profile Hero — Flipkart: name + email, avatar left ── */}
+          
           <View style={styles.profileHero}>
             {/* Avatar */}
             <View style={styles.avatarWrap}>

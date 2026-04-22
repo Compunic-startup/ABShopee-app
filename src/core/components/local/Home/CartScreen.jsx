@@ -546,6 +546,12 @@ export default function CartScreen() {
 
   useEffect(() => { if (businessId) fetchUserProfile() }, [businessId])
 
+  useEffect(() => {
+    if (userProfile?.userProfile?.email) {
+      setDigitalEmail(userProfile.userProfile.email)
+    }
+  }, [userProfile])
+
   // ── Build order payload ────────────────────────────────────────────────────
   const buildOrderPayload = ({ cartId, cartItems, paymentMethod, selectedAddr, email, code }) => {
     const hasPhysical = cartItems.some(i => i.itemSnapshot?.itemType !== 'digital')
@@ -579,23 +585,42 @@ export default function CartScreen() {
       setPlacing(true)
       const hasDigital = cartItems.some(i => i.itemSnapshot?.itemType === 'digital')
       const hasPhysical = cartItems.some(i => i.itemSnapshot?.itemType !== 'digital')
-      if (hasDigital && !digitalEmail) { ToastAndroid.show('Enter email for digital delivery', ToastAndroid.SHORT); return }
-      if (hasDigital && !digitalEmail.includes('@')) { ToastAndroid.show('Enter valid email address', ToastAndroid.SHORT); return }
+      const finalEmail =
+        digitalEmail ||
+        userProfile?.userProfile?.email ||
+        selectedAddr?.contactInfo?.email ||
+        userProfile?.email
+
+      if (hasDigital && !finalEmail) {
+        console.log('No email found for digital items. Profile email:', userProfile?.userProfile?.email, 'Selected address email:', selectedAddr?.contactInfo?.email)
+        ToastAndroid.show('No email found in profile', ToastAndroid.SHORT)
+        return
+      }
       if (hasPhysical && !selectedAddressId) { ToastAndroid.show('Please select a delivery address', ToastAndroid.SHORT); return }
       if (paymentMethod === 'COD' && hasDigital) { ToastAndroid.show('COD not available for digital items', ToastAndroid.SHORT); return }
 
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
       const token = await AsyncStorage.getItem('userToken')
       const bId = businessId ?? await AsyncStorage.getItem('businessId')
-      const body = buildOrderPayload({ cartId, cartItems, paymentMethod, selectedAddr, email: digitalEmail, code: appliedCode })
+      const body = buildOrderPayload({ cartId, cartItems, paymentMethod, selectedAddr, email: finalEmail, code: appliedCode })
       console.log('ORDER PAYLOAD →', JSON.stringify(body, null, 2))
 
       const res = await fetch(`${BASE_URL}/customer/business/${bId}/order/place`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
       const json = await res.json()
       if (!res.ok) throw json
 
+      // Handle bulk digital order approval workflow
+      if (json.status === 'pending_approval') {
+        if (!json.orderId) {
+          ToastAndroid.show('Order created but ID missing. Please contact support.', ToastAndroid.LONG)
+          return
+        }
+        navigation.navigate('OrderPendingApprovalScreen', { orderId: json.orderId })
+        return
+      }
+
       if (json.paymentMethod === 'RAZORPAY') {
-        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: digitalEmail || selectedAddr?.contactInfo?.email || '' })
+        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: finalEmail || selectedAddr?.contactInfo?.email || '' })
         return
       }
       ToastAndroid.show('Order placed successfully 🎉', ToastAndroid.SHORT)
@@ -937,11 +962,11 @@ export default function CartScreen() {
                 <Icon name="email-outline" size={ms(20)} color={color.primary} />
                 <Text style={styles.sectionTitle}>Digital Delivery</Text>
               </View>
-              <Text style={styles.emailNote}>Enter email to receive digital products</Text>
-              <TextInput mode="outlined" placeholder="your.email@example.com" placeholderTextColor="#bbb" value={digitalEmail} onChangeText={setDigitalEmail} keyboardType="email-address" autoCapitalize="none" outlineColor="#E0E0E0" activeOutlineColor={color.primary} />
               <View style={styles.digitalInfoBox}>
                 <Icon name="download-circle" size={ms(20)} color={color.primary} />
-                <Text style={styles.digitalInfoText}>Digital Product Keys will be sent instantly after payment (Check Your Spam Folder, If not found in Inbox)</Text>
+                <Text style={styles.digitalInfoText}>
+                  Digital Product Keys will be sent on your registered email.
+                </Text>
               </View>
               <View style={styles.digitalDeliveryNote}>
                 <Icon name="whatsapp" size={22} color={color.GREEN} style={{ alignSelf: 'center' }} />
@@ -1312,10 +1337,9 @@ const styles = ScaledSheet.create({
   paymentSubtitle: { fontSize: '11@ms', color: '#888', fontFamily: FONTS.Medium, marginTop: '2@vs' },
   paymentDisabled: { color: '#BDBDBD' },
 
-  
-    digitalInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', gap: '10@s', borderWidth: 1, borderColor: '#E0E0E0' , marginTop: '10@vs' },
-    digitalInfoText: { flex: 1, fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, lineHeight: '19@ms' },
-
+  digitalInfoBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.primary + 20, padding: '12@s', borderRadius: '8@ms', borderWidth: 1, borderColor: '#E0E0E0', marginTop: '10@vs', gap: '10@s' },
+  digitalInfoText: {  fontSize: '13@ms', color: color.text, fontFamily: FONTS.Medium, },
+  digitalInfoText2: { fontSize: '13@ms', color: color.primary, fontFamily: FONTS.Bold },
   // ── Info cards ───────────────────────────────────────────────────────────────
   infoCard: { backgroundColor: '#fff', marginHorizontal: '14@s', marginBottom: '10@vs', borderRadius: '10@ms', padding: '14@s', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, borderWidth: 1, borderColor: '#EBEBEB' },
   infoHeader: { flexDirection: 'row', alignItems: 'center', gap: '8@s', marginBottom: '8@vs' },

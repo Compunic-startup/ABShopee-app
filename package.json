@@ -12,6 +12,7 @@
   "dependencies": {
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-firebase/app": "^23.8.6",
     "@react-native-firebase/messaging": "^23.8.6",
     "@react-native-google-signin/google-signin": "^16.1.1",
@@ -24,6 +25,7 @@
     "nativewind": "^4.2.1",
     "react": "19.2.0",
     "react-native": "0.83.1",
+    "react-native-config": "^1.6.1",
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",
     "react-native-image-picker": "^8.2.1",

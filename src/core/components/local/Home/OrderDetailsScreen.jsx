@@ -21,6 +21,7 @@ import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import color from '../../../utils/color'
+import { openRazorpay } from '../../global/razorpaymodule'
 
 // ─── Step pipeline — keyed to real API events[].toStatus ─────────────────────
 const STEPS = [
@@ -166,14 +167,39 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [fadeAnim] = useState(new Animated.Value(0))
+  const [userProfile, setUserProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
-  useEffect(() => { fetchOrder() }, [])
-
+  useEffect(() => { 
+    fetchOrder()
+    fetchUserProfile()
+  }, [])
 
   useEffect(() => {
     if (!loading && order)
       Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
   }, [loading, order])
+
+  const fetchUserProfile = async () => {
+    try {
+      setProfileLoading(true)
+      const token = await AsyncStorage.getItem('userToken')
+      const bId = await AsyncStorage.getItem('businessId')
+      const res = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, { 
+        method: 'GET', 
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } 
+      })
+      const json = await res.json()
+      console.log('Fetched profile in order details:', json)
+      setUserProfile(json?.success && json?.data ? json.data : null)
+      console.log('Is profile empty?', !json?.data || !json?.data?.userProfile?.email)
+    } catch (err) { 
+      console.log('Error fetching user profile in order details:', err)
+      setUserProfile(null) 
+    } finally { 
+      setProfileLoading(false) 
+    }
+  }
 
   const fetchOrder = async () => {
     try {
@@ -224,6 +250,113 @@ export default function OrderDetailsScreen() {
     ToastAndroid.show('Order ID copied', ToastAndroid.SHORT)
   }
 
+  const initiatePayment = async () => {
+    try {
+      console.log('=== PAYMENT INITIATION START ===')
+      
+      const token = await AsyncStorage.getItem('userToken')
+      const businessId = await AsyncStorage.getItem('businessId')
+      
+      console.log('Auth check - Token:', token ? 'exists' : 'missing', 'BusinessId:', businessId ? 'exists' : 'missing')
+      
+      // Validate authentication
+      if (!token) {
+        console.log('ERROR: No token found')
+        ToastAndroid.show('Please login again to continue', ToastAndroid.LONG)
+        navigation.navigate('LoginScreen')
+        return
+      }
+      if (!businessId) {
+        console.log('ERROR: No businessId found')
+        ToastAndroid.show('Business ID missing. Please login again.', ToastAndroid.LONG)
+        return
+      }
+      
+      console.log('Step 1: Auth validated, initiating payment for order:', orderId)
+      
+      const apiUrl = `${BASE_URL}/customer/business/${businessId}/orders/${orderId}/initiate-payment`
+      console.log('Step 2: Calling API:', apiUrl)
+      
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        }
+      })
+      
+      console.log('Step 3: API response status:', res.status, res.statusText)
+      
+      const json = await res.json()
+      console.log('Step 4: Payment initiation response:', JSON.stringify(json, null, 2))
+      
+      if (!res.ok) {
+        console.log('ERROR: Payment initiation failed:', json)
+        throw json
+      }
+
+      console.log('Step 5: Checking payment method in response...')
+      console.log('Payment method:', json.paymentMethod)
+      console.log('Has razorpay object:', !!json.razorpay)
+      console.log('Razorpay object:', json.razorpay)
+
+      // Open Razorpay with the returned payment details
+      if (json.paymentMethod === 'RAZORPAY' && json.razorpay) {
+        
+        // Use profile email first, then order email, then fallback
+        const email = userProfile?.email ||
+                     order?.addresses?.[0]?.contactSnapshot?.email || 
+                     order?.metadata?.email || 
+                     'pranay@example.com' // Final fallback
+        
+                     console.log(userProfile)
+        // Use profile phone first, then order phone, then fallback
+        const phone = userProfile?.userProfile?.phone ||
+                     order?.addresses?.[0]?.contactSnapshot?.phone || 
+                     '9999999999' // Final fallback
+        
+        console.log('Order:', order);
+        console.log('User Profile:', userProfile);
+        console.log('Step 6: Opening Razorpay with email:', email, 'phone:', phone)
+        console.log('Step 7: Calling openRazorpay with params:', {
+          razorpayOrder: json.razorpay,
+          orderId: json.orderId,
+          email: email,
+          phone: phone
+        })
+        
+        openRazorpay({ 
+          razorpayOrder: json.razorpay, 
+          orderId: json.orderId, 
+          navigation, 
+          email,
+          phone
+        })
+        
+        console.log('Step 8: openRazorpay called successfully')
+      } else {
+        console.log('ERROR: Invalid payment response - paymentMethod:', json.paymentMethod, 'hasRazorpay:', !!json.razorpay)
+        ToastAndroid.show('Invalid payment response from server', ToastAndroid.SHORT)
+      }
+    } catch (error) {
+      console.log('=== PAYMENT INITIATION ERROR ===')
+      console.log('Error type:', typeof error)
+      console.log('Error details:', JSON.stringify(error, null, 2))
+      console.log('Error message:', error?.message)
+      console.log('Error stack:', error?.stack)
+      
+      const errorMessage = error?.message || 'Failed to initiate payment'
+      ToastAndroid.show(errorMessage, ToastAndroid.LONG)
+      
+      // If it's an authentication error, redirect to login
+      if (errorMessage.includes('unauthorized') || errorMessage.includes('token') || errorMessage.includes('profile')) {
+        setTimeout(() => {
+          navigation.navigate('LoginScreen')
+        }, 2000)
+      }
+    }
+  }
+
   // ── Loading screen ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -254,7 +387,7 @@ export default function OrderDetailsScreen() {
   const isCancelled = currentStatus === 'cancelled'
 
   // items[] — deduplicate same itemId (your data has itemId 854df... twice)
-  const allItems = order.items ?? []
+  const allItems = (order.items ?? []).map(i => i.dataValues || i)
   const deduped = Object.values(
     allItems.reduce((acc, item) => {
       if (acc[item.itemId]) {
@@ -326,6 +459,11 @@ export default function OrderDetailsScreen() {
   //   !(order?.returnRequestExists)
 
   const canReturn = true
+
+  // Check if order should show Pay Now button
+  const canPayNow = currentStatus === 'created' && 
+                   order.metadata?.approvalStatus === 'approved' &&
+                   !isPaid
 
   const goToReturn = () => {
     navigation.navigate('createreturn', {
@@ -598,6 +736,17 @@ export default function OrderDetailsScreen() {
           </Text>
         </TouchableOpacity>
 
+        {canPayNow && (
+          <TouchableOpacity
+            style={styles.payNowBtn}
+            onPress={initiatePayment}
+            activeOpacity={0.8}
+          >
+            <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
+            <Text style={styles.payNowBtnTxt}>Pay Now</Text>
+          </TouchableOpacity>
+        )}
+
         {canReturn && (
           <TouchableOpacity
             style={styles.returnBtn}
@@ -820,6 +969,21 @@ const styles = ScaledSheet.create({
   },
 
   returnBtnTxt: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+  },
+  payNowBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6@s',
+    paddingVertical: '11@vs',
+    borderRadius: '8@ms',
+    backgroundColor: '#4CAF50',
+  },
+  payNowBtnTxt: {
     fontSize: '13@ms',
     fontFamily: FONTS.Bold,
     color: '#fff',

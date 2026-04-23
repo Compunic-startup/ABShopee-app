@@ -28,6 +28,7 @@ import { TextInput } from 'react-native-paper'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 import color from '../../../utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 

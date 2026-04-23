@@ -268,6 +268,7 @@ const styles = ScaledSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
+    paddingTop: '30@vs',
   },
   backBtn: {
     width: '36@s', height: '36@s', borderRadius: '18@ms',

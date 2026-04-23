@@ -774,6 +774,8 @@ const styles = ScaledSheet.create({
     backgroundColor: color.primary,
     paddingHorizontal: '14@s', paddingVertical: '13@vs',
     elevation: 4,
+    
+    paddingTop: '30@vs',
   },
   headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '17@ms', fontFamily: FONTS.Bold, color: '#fff' },

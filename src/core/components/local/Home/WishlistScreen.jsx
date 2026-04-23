@@ -418,6 +418,7 @@ const styles = ScaledSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     gap: '10@s',
+    paddingTop: '30@vs',
   },
   headerBtn: {
     width: '36@s', height: '36@s', borderRadius: '18@ms',

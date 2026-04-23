@@ -551,6 +551,7 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
     paddingHorizontal: '20@s',
     paddingTop: '16@vs',
+    paddingTop: '30@vs',
   },
   backBtn: {
     width: '36@s',

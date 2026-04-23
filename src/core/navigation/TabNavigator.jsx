@@ -5,6 +5,7 @@ import CategoriesScreen from '../../modules/main/CategoriesScreen'
 import OrdersScreen from '../../modules/main/OrdersScreen'
 import AccountScreen from '../../modules/main/AccountScreen'
 import color from '../utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const Tab = createBottomTabNavigator()
 
@@ -13,7 +14,7 @@ export default function TabNavigator({ setIsLoggedIn }) {
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: color.primary,
-        tabBarStyle: { backgroundColor: '#fff', height: 80, borderRadius: 15, paddingVertical: 10, elevation: 5, paddingTop: 10 },
+        tabBarStyle: { backgroundColor: '#fff', height: 85, borderRadius: 15, paddingVertical: 10, elevation: 5, paddingTop: 10, paddingBottom:30 },
         tabBarLabelStyle: { fontSize: 12, marginTop: 5 },
         headerShown: false,
       }}

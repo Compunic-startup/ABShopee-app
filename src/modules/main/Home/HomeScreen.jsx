@@ -7,6 +7,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useNavigation } from '@react-navigation/native'
 import color from '../../../core/utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { height } = Dimensions.get('window')
 
@@ -66,57 +67,57 @@ const HomeScreen = () => {
   const handleClose = () => {
     setShowModal(false)
   }
-  
+
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent'}}>
-      <ScrollView>
-        <HomeHeader />
-        <HomeCategories />
-        <CouponsHeader />
-        <RecommendedScreen />
-      </ScrollView>
+      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <ScrollView>
+          <HomeHeader />
+          <HomeCategories />
+          <CouponsHeader />
+          <RecommendedScreen />
+        </ScrollView>
 
-      <Modal transparent visible={showModal} animationType="fade" onRequestClose={handleClose}>
-        <TouchableOpacity 
-          style={styles.overlay} 
-          activeOpacity={1} 
-          onPress={handleClose}
-        >
-          <Animated.View 
-            style={[
-              styles.modalBox,
-              { transform: [{ translateY: slideAnim }] }
-            ]}
-            onStartShouldSetResponder={() => true}
+        <Modal transparent visible={showModal} animationType="fade" onRequestClose={handleClose}>
+          <TouchableOpacity
+            style={styles.overlay}
+            activeOpacity={1}
+            onPress={handleClose}
           >
-            {/* Handle bar */}
-            <View style={styles.handleBar} />
+            <Animated.View
+              style={[
+                styles.modalBox,
+                { transform: [{ translateY: slideAnim }] }
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              {/* Handle bar */}
+              <View style={styles.handleBar} />
 
-            {/* Icon */}
-            <View style={styles.iconContainer}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconText}>!</Text>
+              {/* Icon */}
+              <View style={styles.iconContainer}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconText}>!</Text>
+                </View>
               </View>
-            </View>
 
-            {/* Content */}
-            <Text style={styles.title}>Complete Your Business Profile</Text>
-            <Text style={styles.subtitle}>
-              Your profile is incomplete. Complete it now.
-            </Text>
+              {/* Content */}
+              <Text style={styles.title}>Complete Your Business Profile</Text>
+              <Text style={styles.subtitle}>
+                Your profile is incomplete. Complete it now.
+              </Text>
 
-            {/* Buttons */}
-            <TouchableOpacity style={styles.primaryButton} onPress={handleNavigate}>
-              <Text style={styles.primaryButtonText}>Complete Profile</Text>
-            </TouchableOpacity>
+              {/* Buttons */}
+              <TouchableOpacity style={styles.primaryButton} onPress={handleNavigate}>
+                <Text style={styles.primaryButtonText}>Complete Profile</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleClose}>
-              <Text style={styles.secondaryButtonText}>Maybe Later</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleClose}>
+                <Text style={styles.secondaryButtonText}>Maybe Later</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
   )
 }
 

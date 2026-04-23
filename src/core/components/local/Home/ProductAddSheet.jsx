@@ -79,6 +79,7 @@ const styles = ScaledSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingTop: '30@vs',
   },
 
   image: {

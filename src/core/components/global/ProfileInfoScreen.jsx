@@ -19,31 +19,32 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import FONTS from '../../utils/fonts'
 import BASE_URL from '../../services/api'
 import color from '../../utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 // ─── Constants (unchanged) ────────────────────────────────────────────────────
-const GST_REGEX   = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_REGEX = /^[6-9]\d{9}$/
-const RAPID_API_KEY  = '1d550a7dcfmsh641a25ca55510d5p1de5bdjsnc84e2976ceec'
+const RAPID_API_KEY = '1d550a7dcfmsh641a25ca55510d5p1de5bdjsnc84e2976ceec'
 const RAPID_API_HOST = 'gst-verification-api-get-profile-returns-data.p.rapidapi.com'
 
 const INDIAN_STATES = [
-    'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh',
-    'Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka',
-    'Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram',
-    'Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu',
-    'Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal',
-    'Andaman and Nicobar Islands','Chandigarh',
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh',
     'Dadra and Nagar Haveli and Daman and Diu',
-    'Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry',
+    'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
 ]
 
 const ADDRESS_LABELS = [
-    { value: 'home',      label: 'Home',      icon: 'home-outline'            },
-    { value: 'office',    label: 'Office',    icon: 'office-building-outline' },
-    { value: 'shop',      label: 'Shop',      icon: 'store-outline'           },
-    { value: 'warehouse', label: 'Warehouse', icon: 'warehouse'               },
-    { value: 'other',     label: 'Other',     icon: 'map-marker-outline'      },
+    { value: 'home', label: 'Home', icon: 'home-outline' },
+    { value: 'office', label: 'Office', icon: 'office-building-outline' },
+    { value: 'shop', label: 'Shop', icon: 'store-outline' },
+    { value: 'warehouse', label: 'Warehouse', icon: 'warehouse' },
+    { value: 'other', label: 'Other', icon: 'map-marker-outline' },
 ]
 
 // ─── Section header ───────────────────────────────────────────────────────────
@@ -72,14 +73,14 @@ function FieldInput({
     return (
         <View style={S.fieldWrap}>
             <Text style={S.fieldLabel}>
-                {label}{required && <Text style={{ color: '#C62828' }}> *</Text>}
+                {label}{required && <Text style={{ color: '#C62828', fontSize: 14 }}> *</Text>}
             </Text>
             <View style={[
                 S.inputBox,
-                focused    && S.inputBoxFocused,
-                error      && S.inputBoxError,
+                focused && S.inputBoxFocused,
+                error && S.inputBoxError,
                 autoFilled && S.inputBoxAutoFilled,
-                !editable  && S.inputBoxDisabled,
+                !editable && S.inputBoxDisabled,
             ]}>
                 {icon && (
                     <Icon
@@ -104,16 +105,16 @@ function FieldInput({
                 {loading && <ActivityIndicator size="small" color={color.primary} style={{ marginLeft: 4 }} />}
                 {autoFilled && !loading && <Icon name="auto-fix" size={15} color="#2E7D32" style={{ marginLeft: 4 }} />}
             </View>
-            {error  ? <View style={S.fieldErrRow}><Icon name="alert-circle-outline" size={11} color="#C62828" /><Text style={S.fieldErrText}>{error}</Text></View>
-             : hint  ? <Text style={S.fieldHint}>{hint}</Text>
-             : null}
+            {error ? <View style={S.fieldErrRow}><Icon name="alert-circle-outline" size={11} color="#C62828" /><Text style={S.fieldErrText}>{error}</Text></View>
+                : hint ? <Text style={S.fieldHint}>{hint}</Text>
+                    : null}
         </View>
     )
 }
 
 // ─── State picker ─────────────────────────────────────────────────────────────
 function StatePicker({ value, onChange, autoFilled, error }) {
-    const [open,        setOpen]        = useState(false)
+    const [open, setOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const filtered = INDIAN_STATES.filter(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
 
@@ -196,7 +197,7 @@ function CityInput({ value, onChange, autoFilled, onCitySelect, cities = [], loa
                     onFocus={() => setFocused(true)}
                     onBlur={() => setTimeout(() => setFocused(false), 200)}
                 />
-                {loading      && <ActivityIndicator size="small" color={color.primary} style={{ marginLeft: 4 }} />}
+                {loading && <ActivityIndicator size="small" color={color.primary} style={{ marginLeft: 4 }} />}
                 {autoFilled && !loading && <Icon name="auto-fix" size={15} color="#2E7D32" style={{ marginLeft: 4 }} />}
             </View>
             {error && <View style={S.fieldErrRow}><Icon name="alert-circle-outline" size={11} color="#C62828" /><Text style={S.fieldErrText}>{error}</Text></View>}
@@ -259,28 +260,28 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
     const navigation = useNavigation()
     const businessId = 'ad1351af-4c82-4206-9dee-2db2545acd19'
 
-    const lastFetchedGst      = useRef(null)
-    const postalCodeTimeout   = useRef(null)
-    const citySearchTimeout   = useRef(null)
+    const lastFetchedGst = useRef(null)
+    const postalCodeTimeout = useRef(null)
+    const citySearchTimeout = useRef(null)
 
-    const [identifier,     setIdentifier]     = useState('')
+    const [identifier, setIdentifier] = useState('')
     const [identifierType, setIdentifierType] = useState('')
 
     const [form, setForm] = useState({
         name: '', phone: '', email: '', gstNumber: '', legalName: '',
-        billingAddress:  { label: 'billing', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: 'India' },
-        shippingAddress: { label: '',        addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: 'India' },
+        billingAddress: { label: 'billing', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: 'India' },
+        shippingAddress: { label: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: 'India' },
     })
 
-    const [hasGst,         setHasGst]         = useState(false)
-    const [sameAsBilling,  setSameAsBilling]  = useState(true)
-    const [gstStatus,      setGstStatus]      = useState('idle')
-    const [saving,         setSaving]         = useState(false)
-    const [gstAutoFilled,  setGstAutoFilled]  = useState(false)
-    const [postalLoading,  setPostalLoading]  = useState(false)
-    const [cityLoading,    setCityLoading]    = useState(false)
-    const [citySuggestions,setCitySuggestions]= useState([])
-    const [errors,         setErrors]         = useState({})
+    const [hasGst, setHasGst] = useState(false)
+    const [sameAsBilling, setSameAsBilling] = useState(true)
+    const [gstStatus, setGstStatus] = useState('idle')
+    const [saving, setSaving] = useState(false)
+    const [gstAutoFilled, setGstAutoFilled] = useState(false)
+    const [postalLoading, setPostalLoading] = useState(false)
+    const [cityLoading, setCityLoading] = useState(false)
+    const [citySuggestions, setCitySuggestions] = useState([])
+    const [errors, setErrors] = useState({})
 
     const fadeAnim = useRef(new Animated.Value(0)).current
     const gstShake = useRef(new Animated.Value(0)).current
@@ -347,11 +348,11 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
         } else {
             setGstStatus('invalid')
             Animated.sequence([
-                Animated.timing(gstShake, { toValue:  8, duration: 60, useNativeDriver: true }),
+                Animated.timing(gstShake, { toValue: 8, duration: 60, useNativeDriver: true }),
                 Animated.timing(gstShake, { toValue: -8, duration: 60, useNativeDriver: true }),
-                Animated.timing(gstShake, { toValue:  6, duration: 50, useNativeDriver: true }),
+                Animated.timing(gstShake, { toValue: 6, duration: 50, useNativeDriver: true }),
                 Animated.timing(gstShake, { toValue: -6, duration: 50, useNativeDriver: true }),
-                Animated.timing(gstShake, { toValue:  0, duration: 40, useNativeDriver: true }),
+                Animated.timing(gstShake, { toValue: 0, duration: 40, useNativeDriver: true }),
             ]).start()
         }
     }
@@ -371,11 +372,11 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
                 headers: { 'X-RapidAPI-Key': RAPID_API_KEY, 'X-RapidAPI-Host': RAPID_API_HOST },
             })
             const json = await res.json()
-            const d    = json.data
+            const d = json.data
             const addr = d.place_of_business_principal?.address
             const addressParts = [addr?.door_num, addr?.floor_num, addr?.building_name, addr?.street, addr?.location].filter(Boolean)
-            const legalName     = d.legal_name || ''
-            const businessName  = legalName.replace(/\s*(PRIVATE LIMITED|PVT LTD|PVT\. LTD\.|LIMITED|LTD|LLP|PARTNERSHIP)\s*$/i, '').trim()
+            const legalName = d.legal_name || ''
+            const businessName = legalName.replace(/\s*(PRIVATE LIMITED|PVT LTD|PVT\. LTD\.|LIMITED|LTD|LLP|PARTNERSHIP)\s*$/i, '').trim()
             setForm(prev => ({
                 ...prev,
                 name: prev.name || businessName,
@@ -437,32 +438,45 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
             if (!form.legalName.trim()) e.legalName = 'Legal business name is required'
         }
         const b = form.billingAddress
-        if (!b.addressLine1.trim())                             e.billingAddressLine1  = 'Address is required'
-        if (!b.city.trim())                                     e.billingCity          = 'City is required'
-        if (!b.state.trim())                                    e.billingState         = 'State is required'
-        if (!b.postalCode.trim() || b.postalCode.length !== 6) e.billingPostalCode    = 'Enter valid 6-digit postal code'
+        if (!b.addressLine1.trim()) e.billingAddressLine1 = 'Address is required'
+        if (!b.city.trim()) e.billingCity = 'City is required'
+        if (!b.state.trim()) e.billingState = 'State is required'
+        if (!b.postalCode.trim() || b.postalCode.length !== 6) e.billingPostalCode = 'Enter valid 6-digit postal code'
         if (!sameAsBilling) {
             const sh = form.shippingAddress
-            if (!sh.label)                                          e.shippingLabel         = 'Select address type'
-            if (!sh.addressLine1.trim())                            e.shippingAddressLine1  = 'Address is required'
-            if (!sh.city.trim())                                    e.shippingCity          = 'City is required'
-            if (!sh.state.trim())                                   e.shippingState         = 'State is required'
-            if (!sh.postalCode.trim() || sh.postalCode.length !== 6) e.shippingPostalCode  = 'Enter valid 6-digit postal code'
+            if (!sh.label) e.shippingLabel = 'Select address type'
+            if (!sh.addressLine1.trim()) e.shippingAddressLine1 = 'Address is required'
+            if (!sh.city.trim()) e.shippingCity = 'City is required'
+            if (!sh.state.trim()) e.shippingState = 'State is required'
+            if (!sh.postalCode.trim() || sh.postalCode.length !== 6) e.shippingPostalCode = 'Enter valid 6-digit postal code'
         }
         setErrors(e)
-        return Object.keys(e).length === 0
+        return e
     }
 
     const handleSubmit = async () => {
-        if (!validate()) { ToastAndroid.show('Please fix all errors', ToastAndroid.LONG); return }
+
+        const validationErrors = validate()
+
+        if (Object.keys(validationErrors).length > 0) {
+            const firstError = Object.values(validationErrors)[0]
+            ToastAndroid.show(firstError, ToastAndroid.LONG)
+            return
+        }
+        
+        if (!validate()) {
+            const allErrors = Object.values(errors).join('\n')
+            ToastAndroid.show(allErrors, ToastAndroid.LONG)
+            return
+        }
         if (!businessId) { ToastAndroid.show('Business ID not found', ToastAndroid.SHORT); return }
         try {
             setSaving(true)
-            const token             = await AsyncStorage.getItem('userToken')
-            const rawIdentifier     = await AsyncStorage.getItem('Identifier')
-            const storedIdentifier  = rawIdentifier?.replace(/"/g, '').trim()
-            const phoneFromStorage  = PHONE_REGEX.test(storedIdentifier) ? storedIdentifier : ''
-            const emailFromStorage  = EMAIL_REGEX.test(storedIdentifier) ? storedIdentifier : ''
+            const token = await AsyncStorage.getItem('userToken')
+            const rawIdentifier = await AsyncStorage.getItem('Identifier')
+            const storedIdentifier = rawIdentifier?.replace(/"/g, '').trim()
+            const phoneFromStorage = PHONE_REGEX.test(storedIdentifier) ? storedIdentifier : ''
+            const emailFromStorage = EMAIL_REGEX.test(storedIdentifier) ? storedIdentifier : ''
 
             const payload = {
                 name: form.name.trim(),
@@ -490,7 +504,7 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
             }
 
             console.log('B2B REGISTRATION PAYLOAD →', JSON.stringify(payload, null, 2))
-            const res  = await fetch(`${BASE_URL}/customer/business/${businessId}/b2b-register`, {
+            const res = await fetch(`${BASE_URL}/customer/business/${businessId}/b2b-register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload),
@@ -510,6 +524,7 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
+
         <View style={S.container}>
             <StatusBar barStyle="light-content" backgroundColor={color.primary} />
             <SavingOverlay visible={saving} />
@@ -530,24 +545,6 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
                     contentContainerStyle={{ paddingBottom: 110 }}
                     keyboardShouldPersistTaps="handled"
                 >
-                    {/* ── Basic Info ── */}
-                    <View style={S.section}>
-                        <SectionHeader icon="account-outline" title="Basic Information" subtitle="Your name and contact details" />
-
-                        <FieldInput label="Full Name" value={form.name} onChangeText={v => setForm(prev => ({ ...prev, name: v }))} placeholder="Enter your full name" icon="account-outline" required error={errors.name} />
-
-                        {identifierType === 'email' ? (
-                            <>
-                                <FieldInput label="Email Address" value={form.email} onChangeText={() => {}} placeholder="Email" icon="email-outline" editable={false} autoFilled />
-                                <FieldInput label="Phone Number" value={form.phone} onChangeText={v => setForm(prev => ({ ...prev, phone: v.replace(/[^0-9]/g, '').slice(0, 10) }))} placeholder="Enter 10-digit mobile number" icon="phone-outline" keyboardType="phone-pad" required error={errors.phone} />
-                            </>
-                        ) : (
-                            <>
-                                <FieldInput label="Phone Number" value={form.phone} onChangeText={() => {}} placeholder="Phone" icon="phone-outline" editable={false} autoFilled />
-                                <FieldInput label="Email Address" value={form.email} onChangeText={v => setForm(prev => ({ ...prev, email: v.toLowerCase().trim() }))} placeholder="Enter your email" icon="email-outline" keyboardType="email-address" autoCapitalize="none" required error={errors.email} />
-                            </>
-                        )}
-                    </View>
 
                     {/* ── GST ── */}
                     <View style={S.section}>
@@ -582,8 +579,8 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
                                             />
                                             {gstStatus === 'loading' && <ActivityIndicator size="small" color={color.primary} />}
                                             {gstStatus === 'verified' && <Icon name="check-decagram" size={ms(18)} color="#2E7D32" />}
-                                            {gstStatus === 'invalid'  && <Icon name="alert-circle-outline" size={ms(18)} color="#C62828" />}
-                                            {gstStatus === 'valid'    && <ActivityIndicator size="small" color={color.primary} />}
+                                            {gstStatus === 'invalid' && <Icon name="alert-circle-outline" size={ms(18)} color="#C62828" />}
+                                            {gstStatus === 'valid' && <ActivityIndicator size="small" color={color.primary} />}
                                         </View>
                                         <Text style={[S.gstCount, { color: form.gstNumber.length === 15 ? color.primary : '#BDBDBD' }]}>
                                             {form.gstNumber.length}/15
@@ -610,14 +607,34 @@ export default function ProfileInfoScreen({ setIsLoggedIn }) {
                         )}
                     </View>
 
+
+                    {/* ── Basic Info ── */}
+                    <View style={S.section}>
+                        <SectionHeader icon="account-outline" title="Basic Information" subtitle="Your name and contact details" />
+
+                        <FieldInput label="Full Name" value={form.name} onChangeText={v => setForm(prev => ({ ...prev, name: v }))} placeholder="Enter your full name" icon="account-outline" required error={errors.name} />
+
+                        {identifierType === 'email' ? (
+                            <>
+                                <FieldInput label="Email Address" value={form.email} onChangeText={() => { }} placeholder="Email" icon="email-outline" editable={false} autoFilled />
+                                <FieldInput label="Phone Number" value={form.phone} onChangeText={v => setForm(prev => ({ ...prev, phone: v.replace(/[^0-9]/g, '').slice(0, 10) }))} placeholder="Enter 10-digit mobile number" icon="phone-outline" keyboardType="phone-pad" required error={errors.phone} />
+                            </>
+                        ) : (
+                            <>
+                                <FieldInput label="Phone Number" value={form.phone} onChangeText={() => { }} placeholder="Phone" icon="phone-outline" editable={false} autoFilled />
+                                <FieldInput label="Email Address" value={form.email} onChangeText={v => setForm(prev => ({ ...prev, email: v.toLowerCase().trim() }))} placeholder="Enter your email" icon="email-outline" keyboardType="email-address" autoCapitalize="none" required error={errors.email} />
+                            </>
+                        )}
+                    </View>
+
                     {/* ── Billing Address ── */}
                     <View style={S.section}>
                         <SectionHeader icon="map-marker-outline" title="Billing Address" subtitle="Where should we send invoices?" />
 
+                        <FieldInput label="Postal Code" value={form.billingAddress.postalCode} onChangeText={v => handlePostalCodeChange(v, 'billingAddress')} placeholder="Enter 6-digit postal code" icon="mailbox-outline" keyboardType="number-pad" required autoFilled={gstAutoFilled} loading={postalLoading} error={errors.billingPostalCode} />
                         <FieldInput label="Address Line 1" value={form.billingAddress.addressLine1} onChangeText={v => updateAddress('billingAddress', 'addressLine1', v)} placeholder="Building, Street" icon="home-outline" required autoFilled={gstAutoFilled} error={errors.billingAddressLine1} />
                         <CityInput value={form.billingAddress.city} onChange={v => handleCityChange(v, 'billingAddress')} autoFilled={gstAutoFilled} onCitySelect={d => handleCitySelect(d, 'billingAddress')} cities={citySuggestions} loading={cityLoading} error={errors.billingCity} />
                         <StatePicker value={form.billingAddress.state} onChange={v => updateAddress('billingAddress', 'state', v)} autoFilled={gstAutoFilled} error={errors.billingState} />
-                        <FieldInput label="Postal Code" value={form.billingAddress.postalCode} onChangeText={v => handlePostalCodeChange(v, 'billingAddress')} placeholder="Enter 6-digit postal code" icon="mailbox-outline" keyboardType="number-pad" required autoFilled={gstAutoFilled} loading={postalLoading} error={errors.billingPostalCode} />
                     </View>
 
                     {/* ── Shipping Address ── */}
@@ -677,7 +694,7 @@ const S = StyleSheet.create({
     // Header
     header: {
         backgroundColor: color.primary,
-        paddingTop: Platform.OS === 'android' ? 14 : 52,
+        paddingTop: Platform.OS === 'android' ? 10 : 52,
         paddingBottom: 14,
         paddingHorizontal: 14,
         flexDirection: 'row',
@@ -688,8 +705,9 @@ const S = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
+        paddingVertical: 25
     },
-    headerBtn:   { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    headerBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
     headerTitle: { fontSize: 17, fontFamily: FONTS.Bold, color: '#fff' },
 
     // Section card — Flipkart flat white block
@@ -722,7 +740,7 @@ const S = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
     },
     sectionTitle: { fontSize: 14, fontFamily: FONTS.Bold, color: color.text },
-    sectionSub:   { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 1 },
+    sectionSub: { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 1 },
 
     // Checkbox row
     checkboxRow: {
@@ -743,7 +761,7 @@ const S = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
     },
     checkboxActive: { backgroundColor: color.primary, borderColor: color.primary },
-    checkboxLabel:  { fontSize: 13, fontFamily: FONTS.Medium, color: color.text, flex: 1 },
+    checkboxLabel: { fontSize: 13, fontFamily: FONTS.Medium, color: color.text, flex: 1 },
 
     // Address label grid
     labelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -752,12 +770,12 @@ const S = StyleSheet.create({
         padding: 10, borderWidth: 1.5, borderColor: '#E0E0E0',
         borderRadius: 6, alignItems: 'center', backgroundColor: color.background,
     },
-    labelCardActive:     { borderColor: color.primary, backgroundColor: color.secondarylight },
-    labelCardText:       { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 4 },
+    labelCardActive: { borderColor: color.primary, backgroundColor: color.secondarylight },
+    labelCardText: { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 4 },
     labelCardTextActive: { color: color.primary, fontFamily: FONTS.Bold },
 
     // Field
-    fieldWrap:  { marginBottom: 12 },
+    fieldWrap: { marginBottom: 12 },
     fieldLabel: { fontSize: 11, fontFamily: FONTS.Bold, color: '#888', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
     inputBox: {
         flexDirection: 'row', alignItems: 'center',
@@ -765,20 +783,20 @@ const S = StyleSheet.create({
         borderRadius: 8, backgroundColor: color.background,
         paddingHorizontal: 12, minHeight: 44,
     },
-    inputBoxFocused:    { borderColor: color.primary, backgroundColor: '#fff' },
-    inputBoxError:      { borderColor: '#C62828', backgroundColor: '#FFEBEE' },
+    inputBoxFocused: { borderColor: color.primary, backgroundColor: '#fff' },
+    inputBoxError: { borderColor: '#C62828', backgroundColor: '#FFEBEE' },
     inputBoxAutoFilled: { borderColor: '#2E7D32', backgroundColor: '#E8F5E9' },
-    inputBoxDisabled:   { opacity: 0.5 },
+    inputBoxDisabled: { opacity: 0.5 },
     inputIcon: { marginRight: 8 },
     input: { flex: 1, fontSize: 14, fontFamily: FONTS.Medium, color: color.text, paddingVertical: 0 },
-    fieldErrRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    fieldErrRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
     fieldErrText: { fontSize: 11, color: '#C62828', fontFamily: FONTS.Medium },
-    fieldHint:    { fontSize: 11, color: '#888', fontFamily: FONTS.Medium, marginTop: 4 },
+    fieldHint: { fontSize: 11, color: '#888', fontFamily: FONTS.Medium, marginTop: 4 },
 
     // GST
-    gstCount:  { fontSize: 11, fontFamily: FONTS.Medium, textAlign: 'right', marginTop: 3 },
+    gstCount: { fontSize: 11, fontFamily: FONTS.Medium, textAlign: 'right', marginTop: 3 },
     statusRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 2, marginBottom: 8 },
-    statusText:{ fontSize: 11, fontFamily: FONTS.Medium, flex: 1, lineHeight: 16 },
+    statusText: { fontSize: 11, fontFamily: FONTS.Medium, flex: 1, lineHeight: 16 },
     verifiedBanner: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: '#E8F5E9', borderRadius: 6,
@@ -788,19 +806,19 @@ const S = StyleSheet.create({
 
     // Dropdowns
     pickerBtn: { justifyContent: 'space-between' },
-    dropdown:  { marginTop: 4, borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, backgroundColor: '#fff', overflow: 'hidden', maxHeight: 280 },
+    dropdown: { marginTop: 4, borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, backgroundColor: '#fff', overflow: 'hidden', maxHeight: 280 },
     dropdownSearch: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F0F0F0', paddingHorizontal: 12, paddingVertical: 10, backgroundColor: color.background },
     dropdownList: { maxHeight: 230 },
     dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-    dropdownItemActive:    { backgroundColor: color.secondarylight },
-    dropdownItemText:      { fontSize: 13, fontFamily: FONTS.Medium, color: color.text },
-    dropdownItemTextActive:{ color: color.primary, fontFamily: FONTS.Bold },
-    emptyDropdown:    { paddingVertical: 32, alignItems: 'center' },
-    emptyDropdownText:{ fontSize: 13, fontFamily: FONTS.Medium, color: '#BDBDBD', marginTop: 8 },
+    dropdownItemActive: { backgroundColor: color.secondarylight },
+    dropdownItemText: { fontSize: 13, fontFamily: FONTS.Medium, color: color.text },
+    dropdownItemTextActive: { color: color.primary, fontFamily: FONTS.Bold },
+    emptyDropdown: { paddingVertical: 32, alignItems: 'center' },
+    emptyDropdownText: { fontSize: 13, fontFamily: FONTS.Medium, color: '#BDBDBD', marginTop: 8 },
 
     citySugItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
     citySugCity: { fontSize: 13, fontFamily: FONTS.Bold, color: color.text },
-    citySugPin:  { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 2 },
+    citySugPin: { fontSize: 11, fontFamily: FONTS.Medium, color: '#888', marginTop: 2 },
 
     // Bottom bar
     bottomBar: {
@@ -823,11 +841,11 @@ const S = StyleSheet.create({
         borderRadius: 6,
         elevation: 2,
     },
-    saveBtnDis:  { opacity: 0.6, elevation: 0 },
+    saveBtnDis: { opacity: 0.6, elevation: 0 },
     saveBtnText: { fontSize: 15, fontFamily: FONTS.Bold, color: color.text, letterSpacing: 0.2 },
 
     // Overlay
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 99, justifyContent: 'center', alignItems: 'center' },
-    overlayCard:{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 32, paddingVertical: 24, alignItems: 'center', gap: 14, elevation: 10, minWidth: 200 },
-    overlayText:{ fontSize: 14, fontFamily: FONTS.Medium, color: color.text },
+    overlayCard: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 32, paddingVertical: 24, alignItems: 'center', gap: 14, elevation: 10, minWidth: 200 },
+    overlayText: { fontSize: 14, fontFamily: FONTS.Medium, color: color.text },
 })

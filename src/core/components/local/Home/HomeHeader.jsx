@@ -104,7 +104,7 @@ const styles = ScaledSheet.create({
   container: {
     backgroundColor: color.primary,
     paddingHorizontal: '16@s',
-    paddingTop: '20@vs',
+    paddingTop: '15@vs',
     paddingBottom: '12@vs',
   },
 

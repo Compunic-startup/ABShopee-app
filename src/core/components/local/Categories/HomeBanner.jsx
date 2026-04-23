@@ -465,7 +465,7 @@ export default function HomeBanner({ onShopNow }) {
       <View style={styles.leftCol}>
         {/* "Grand!" with wave animation */}
         <WaveText
-          text="Grand!"
+          text="Shop In"
           style={styles.headingGrand}
           color={color.secondary}
           baseDelay={800}
@@ -473,7 +473,7 @@ export default function HomeBanner({ onShopNow }) {
 
         {/* "Gudi Padwa" wave */}
         <WaveText
-          text="Akshay Tritiya"
+          text="Bulk & Get"
           style={styles.headingMain}
           color={color.secondary}
           baseDelay={1100}
@@ -483,7 +483,7 @@ export default function HomeBanner({ onShopNow }) {
           <View>
             {/* "Sale" wave */}
             <WaveText
-              text="Sale"
+              text="Off"
               style={styles.headingMain}
               color={color.secondary}
               baseDelay={1400}
@@ -503,9 +503,9 @@ export default function HomeBanner({ onShopNow }) {
 
           <ShimmerBadge>
             <Animated.View style={[styles.badge, { transform: [{ scale: badgeBounce }] }]}>
-              <Text style={styles.badgeUpTo}>UP TO</Text>
-              <Text style={styles.badgePct}>30%</Text>
-              <Text style={styles.badgeOff}>OFF</Text>
+              <Text style={styles.badgeUpTo}>GET</Text>
+              <Text style={styles.badgePct}>MAX</Text>
+              <Text style={styles.badgeOff}>SAVINGS</Text>
               <Text style={styles.starTL}>★</Text>
               <Text style={styles.starBR}>✦</Text>
             </Animated.View>
@@ -537,13 +537,14 @@ export default function HomeBanner({ onShopNow }) {
 
         <Image
           source={{
-            uri: 'https://png.pngtree.com/png-vector/20230408/ourmid/pngtree-traditional-hindu-festival-akshaya-tritiya-decorative-pots-and-coins-vector-png-image_6689649.png'
+            uri: 'https://i.ibb.co/VY2kHC9t/acdf275a-891f-4187-90e0-c3cc4086864a.png'
           }}
           style={styles.bannerImage}
         />
       </View>
     </Animated.View>
   )
+  
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -690,8 +691,9 @@ const styles = ScaledSheet.create({
   },
   bannerImage: {
     width: 150,
-    height: 150,
+    height: 160,
     resizeMode: 'contain',
     zIndex: 2,
+    marginRight:10
   },
 })

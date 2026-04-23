@@ -27,6 +27,7 @@ import { openRazorpay } from '../../global/razorpaymodule'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 import color from '../../../utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
@@ -580,7 +581,6 @@ export default function BuyInstantScreen() {
   return (
     <KeyboardAvoidingView style={S.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="light-content" backgroundColor={color.primary} />
-
       {/* ── Header ── */}
       <View style={S.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.headerBtn}>
@@ -1060,7 +1060,8 @@ const S = ScaledSheet.create({
   container: { flex: 1, backgroundColor: color.background },
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 , 
+    paddingTop: '30@vs',},
   headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff', flex: 1, textAlign: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: '4@s' },

@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import BASE_URL from '../../core/services/api'
 import FONTS from '../../core/utils/fonts'
 import color from '../../core/utils/color'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const MENU_SECTIONS = [
   {
@@ -165,137 +166,137 @@ export default function AccountScreen({ setIsLoggedIn }) {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={color.primary} />
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Account</Text>
-      </View>
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Account</Text>
+        </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[color.primary]}
-            tintColor={color.primary}
-          />
-        }
-      >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          
-          <View style={styles.profileHero}>
-            {/* Avatar */}
-            <View style={styles.avatarWrap}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitial}>{initial}</Text>
-                </View>
-              )}
-              {/* Active dot */}
-              <View style={[
-                styles.activeDot,
-                { backgroundColor: isActive ? '#43A047' : '#BDBDBD' },
-              ]} />
-            </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[color.primary]}
+              tintColor={color.primary}
+            />
+          }
+        >
+          <Animated.View style={{ opacity: fadeAnim }}>
 
-            {/* Name + status */}
-            <View style={styles.heroText}>
-              <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
-              {tradeName && tradeName !== displayName && (
-                <Text style={styles.heroTrade} numberOfLines={1}>{tradeName}</Text>
-              )}
-              <View style={[
-                styles.statusPill,
-                { backgroundColor: isActive ? color.primary + 20 : color.background },
-              ]}>
+            <View style={styles.profileHero}>
+              {/* Avatar */}
+              <View style={styles.avatarWrap}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <Text style={styles.avatarInitial}>{initial}</Text>
+                  </View>
+                )}
+                {/* Active dot */}
                 <View style={[
-                  styles.statusDot,
+                  styles.activeDot,
                   { backgroundColor: isActive ? '#43A047' : '#BDBDBD' },
                 ]} />
-                <Text style={[
-                  styles.statusTxt,
-                  { color: isActive ? '#2E7D32' : '#888' },
+              </View>
+
+              {/* Name + status */}
+              <View style={styles.heroText}>
+                <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+                {tradeName && tradeName !== displayName && (
+                  <Text style={styles.heroTrade} numberOfLines={1}>{tradeName}</Text>
+                )}
+                <View style={[
+                  styles.statusPill,
+                  { backgroundColor: isActive ? color.primary + 20 : color.background },
                 ]}>
-                  {isActive ? 'Active' : 'Inactive'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Edit shortcut */}
-            <TouchableOpacity
-              style={styles.editHeroBtn}
-              onPress={() => navigation.navigate('EditProfileScreen', { profile })}
-              activeOpacity={0.7}
-            >
-              <Icon name="pencil-outline" size={ms(16)} color={color.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Contact / business info block ── */}
-          {(email || phone || legalName || gst || pan || website) && (
-            <View style={styles.infoBlock}>
-              <InfoRow icon="email-outline" value={email} />
-              <InfoRow icon="phone-outline" value={phone} />
-              <InfoRow icon="domain" value={legalName} />
-              <InfoRow icon="file-certificate-outline" value={gst ? `GST: ${gst}` : null} />
-              <InfoRow icon="card-account-details-outline" value={pan ? `PAN: ${pan}` : null} />
-              <InfoRow icon="web" value={website} />
-            </View>
-          )}
-
-          {/* ── Menu sections — Flipkart layout ── */}
-          {MENU_SECTIONS.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <View style={styles.sectionCard}>
-                {section.items.map((item, i) => (
-                  <MenuRow
-                    key={item.key}
-                    item={item}
-                    isLast={i === section.items.length - 1}
-                    onPress={() => {
-                      if (item.key === 'orders') {
-                        navigation.navigate('Tabs', { screen: 'Orders' })
-                      } else if (item.key === 'edit') {
-                        navigation.navigate('EditProfileScreen', { profile })
-                      } else {
-                        navigation.navigate(item.route)
-                      }
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
-          ))}
-
-          {/* ── Logout ── */}
-          <View style={styles.section}>
-            <View style={styles.sectionCard}>
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={handleLogout}
-                activeOpacity={0.6}
-              >
-                <View style={[styles.menuIconBox, styles.menuIconBoxRed]}>
-                  <Icon name="logout" size={ms(20)} color="#C62828" />
+                  <View style={[
+                    styles.statusDot,
+                    { backgroundColor: isActive ? '#43A047' : '#BDBDBD' },
+                  ]} />
+                  <Text style={[
+                    styles.statusTxt,
+                    { color: isActive ? '#2E7D32' : '#888' },
+                  ]}>
+                    {isActive ? 'Active' : 'Inactive'}
+                  </Text>
                 </View>
-                <Text style={[styles.menuLabel, { color: '#C62828' }]}>Logout</Text>
-                <Icon name="chevron-right" size={ms(20)} color="#BDBDBD" />
+              </View>
+
+              {/* Edit shortcut */}
+              <TouchableOpacity
+                style={styles.editHeroBtn}
+                onPress={() => navigation.navigate('EditProfileScreen', { profile })}
+                activeOpacity={0.7}
+              >
+                <Icon name="pencil-outline" size={ms(16)} color={color.primary} />
               </TouchableOpacity>
             </View>
-          </View>
-          
-          {/* ── App version footer ── */}
-          <Text style={styles.versionText}>All Rights Reserved, AB Computers {'\n'} RNT Marg Silver Mall, Indore, 452012</Text>
-          <View style={{ height: vs(10) }} />
-        </Animated.View>
-      </ScrollView>
-    </View>
+
+            {/* ── Contact / business info block ── */}
+            {(email || phone || legalName || gst || pan || website) && (
+              <View style={styles.infoBlock}>
+                <InfoRow icon="email-outline" value={email} />
+                <InfoRow icon="phone-outline" value={phone} />
+                <InfoRow icon="domain" value={legalName} />
+                <InfoRow icon="file-certificate-outline" value={gst ? `GST: ${gst}` : null} />
+                <InfoRow icon="card-account-details-outline" value={pan ? `PAN: ${pan}` : null} />
+                <InfoRow icon="web" value={website} />
+              </View>
+            )}
+
+            {/* ── Menu sections — Flipkart layout ── */}
+            {MENU_SECTIONS.map((section) => (
+              <View key={section.title} style={styles.section}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <View style={styles.sectionCard}>
+                  {section.items.map((item, i) => (
+                    <MenuRow
+                      key={item.key}
+                      item={item}
+                      isLast={i === section.items.length - 1}
+                      onPress={() => {
+                        if (item.key === 'orders') {
+                          navigation.navigate('Tabs', { screen: 'Orders' })
+                        } else if (item.key === 'edit') {
+                          navigation.navigate('EditProfileScreen', { profile })
+                        } else {
+                          navigation.navigate(item.route)
+                        }
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            ))}
+
+            {/* ── Logout ── */}
+            <View style={styles.section}>
+              <View style={styles.sectionCard}>
+                <TouchableOpacity
+                  style={styles.menuRow}
+                  onPress={handleLogout}
+                  activeOpacity={0.6}
+                >
+                  <View style={[styles.menuIconBox, styles.menuIconBoxRed]}>
+                    <Icon name="logout" size={ms(20)} color="#C62828" />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: '#C62828' }]}>Logout</Text>
+                  <Icon name="chevron-right" size={ms(20)} color="#BDBDBD" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* ── App version footer ── */}
+            <Text style={styles.versionText}>All Rights Reserved, AB Computers {'\n'} RNT Marg Silver Mall, Indore, 452012</Text>
+            <View style={{ height: vs(10) }} />
+          </Animated.View>
+        </ScrollView>
+      </View>
   )
 }
 
@@ -309,7 +310,7 @@ const styles = ScaledSheet.create({
   // ── Header ────────────────────────────────────────────────────────────────
   header: {
     backgroundColor: color.primary,
-    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
+    paddingTop: Platform.OS === 'android' ? '14@vs' : '22@vs',
     paddingBottom: '14@vs',
     paddingHorizontal: '16@s',
     elevation: 3,

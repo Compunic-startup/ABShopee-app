@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { Image } from 'react-native'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
-import { openRazorpay } from '../../global/razorpaymodule'
+import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
 import { TextInput } from 'react-native-paper'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
@@ -377,6 +377,7 @@ export default function CartScreen() {
   const [appliedCode, setAppliedCode] = useState(null)
   const [appliedCodeType, setAppliedCodeType] = useState(null)
   const [applyingCode, setApplyingCode] = useState(false)
+  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const hasOnlyDigital = cart?.items?.length > 0 && cart.items.every(i => i.itemSnapshot?.itemType === 'digital')
@@ -621,7 +622,7 @@ export default function CartScreen() {
       }
 
       if (json.paymentMethod === 'RAZORPAY') {
-        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: finalEmail || selectedAddr?.contactInfo?.email || '' })
+        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: finalEmail || selectedAddr?.contactInfo?.email || '', setLoadingOverlay: setShowPaymentOverlay })
         return
       }
       ToastAndroid.show('Order placed successfully 🎉', ToastAndroid.SHORT)
@@ -1061,7 +1062,7 @@ export default function CartScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.paymentOption, paymentMethod === 'COD' && styles.paymentOptionActive, hasDigitalItem && styles.paymentOptionDisabled]}
               onPress={() => !hasDigitalItem && setPaymentMethod('COD')}
               disabled={hasDigitalItem}
@@ -1077,7 +1078,7 @@ export default function CartScreen() {
                   {hasDigitalItem && <Text style={styles.paymentSubtitle}>Not available for digital items</Text>}
                 </View>
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* ── Info cards ── */}
@@ -1122,6 +1123,9 @@ export default function CartScreen() {
           )}
         </TouchableOpacity>
       </View>
+      
+      {/* Payment Verification Overlay */}
+      <PaymentVerificationOverlay visible={showPaymentOverlay} />
     </View>
   )
 }
@@ -1200,7 +1204,7 @@ const styles = ScaledSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: color.primary,
-    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
+    paddingTop: Platform.OS === 'android' ? '10@vs' : '12@vs',
     paddingBottom: '14@vs', paddingHorizontal: '14@s',
     elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
   },

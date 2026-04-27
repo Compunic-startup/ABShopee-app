@@ -524,6 +524,7 @@
 //   },
 // })
 
+
 import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
@@ -533,8 +534,6 @@ import {
   ToastAndroid,
   Animated,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native'
 import { TextInput } from 'react-native-paper'
@@ -546,7 +545,7 @@ import BASE_URL from '../../core/services/api'
 import { googleLogin } from '../../core/services/googleAuth'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
 import { Linking } from 'react-native'
-import { SafeAreaInsetsContext, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function LoginSignupScreen({ setIsLoggedIn }) {
   const [value, setValue] = useState('')
@@ -656,94 +655,106 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={{flex:1}}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+      {/* Blue Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
       >
-        {/* Logo */}
-        <Animated.View
-          style={[
-            styles.topBar,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <Image
-            source={require('../../core/assets/images/constants/logodark.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </Animated.View>
+        <Image
+          source={require('../../core/assets/images/constants/aseb2.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
 
-        {/* Heading Block */}
-        <Animated.View
-          style={[
-            styles.headingBlock,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
+      {/* White Card Body */}
+      <View style={styles.card}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <Text style={styles.welcomeText}>Welcome Back 👋</Text>
-          <Text style={styles.appNameRow}>
-            Sign in or{' '}
-            <Text style={styles.appNameAccent}>create account</Text>
-          </Text>
-          <Text style={styles.subHeading}>
-            Hello there, enter your email or phone to continue
-          </Text>
-        </Animated.View>
+          {/* Heading Block */}
+          <Animated.View
+            style={[
+              styles.headingBlock,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <Text style={styles.welcomeText}>Welcome Back,</Text>
+            <Text style={styles.appNameRow}>
+              Sign in or{' '}
+              <Text style={styles.appNameAccent}>create account</Text>
+            </Text>
+            <Text style={styles.subHeading}>
+              Hello there, enter your email or phone to continue
+            </Text>
+          </Animated.View>
 
-        {/* Form Block */}
-        <Animated.View
-          style={[
-            styles.formBlock,
-            { opacity: cardFade, transform: [{ translateY: cardAnim }] },
-          ]}
-        >
-          {/* Input */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Email or Phone Number"
-              value={value}
-              onChangeText={(text) => {
-                const cleaned = text.trim()
-                if (/^\d+$/.test(cleaned)) {
-                  setValue(cleaned.slice(0, 10))
-                } else {
-                  setValue(cleaned)
-                }
-              }}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              keyboardType="default"
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-            {value.length > 0 && (
-              <View
-                style={[
-                  styles.validDot,
-                  { backgroundColor: isValidInput ? '#22C55E' : '#F87171' },
-                ]}
+          {/* Form Block */}
+          <Animated.View
+            style={[
+              styles.formBlock,
+              { opacity: cardFade, transform: [{ translateY: cardAnim }] },
+            ]}
+          >
+            {/* Input */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Email or Phone Number"
+                value={value}
+                onChangeText={(text) => {
+                  const cleaned = text.trim()
+                  if (/^\d+$/.test(cleaned)) {
+                    setValue(cleaned.slice(0, 10))
+                  } else {
+                    setValue(cleaned)
+                  }
+                }}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                keyboardType="default"
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
               />
-            )}
-          </View>
+              {value.length > 0 && (
+                <View
+                  style={[
+                    styles.validDot,
+                    { backgroundColor: isValidInput ? '#22C55E' : '#F87171' },
+                  ]}
+                />
+              )}
+            </View>
 
-          {/* Continue Button */}
+            {/* Terms */}
+            <Text style={styles.termsText}>
+              By continuing, you agree to our{' '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => openLink('https://abshopee.com/privacy-policy')}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </Animated.View>
+        </ScrollView>
+
+        {/* Continue Button — pinned to bottom */}
+        <Animated.View style={[styles.bottomBar, { opacity: cardFade }]}>
           <AppButton
             mode="contained"
             disabled={!isValidInput}
@@ -753,87 +764,65 @@ export default function LoginSignupScreen({ setIsLoggedIn }) {
           >
             Continue
           </AppButton>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.orText}>Or continue with social account</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google Button */}
-          <TouchableOpacity
-            style={styles.googleBtn}
-            onPress={handleGoogleLogin}
-            activeOpacity={0.75}
-          >
-            <Image
-              source={require('../../core/assets/images/constants/googleimg.png')}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleText}>Google</Text>
-          </TouchableOpacity>
         </Animated.View>
-
-        {/* Footer */}
-        <Animated.View style={[styles.footer, { opacity: cardFade }]}>
-          <Text style={styles.termsText}>
-            By continuing, you agree to our{' '}
-            <Text
-              style={styles.termsLink}
-              onPress={() => openLink('https://abshopee.com/privacy-policy')}
-            >
-              Privacy Policy
-            </Text>
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </View>
   )
 }
 
 const styles = ScaledSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: color.primary,
+  },
+
+  // ── Blue Header ──────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor: color.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: '18@vs',
+    paddingHorizontal: '16@s',
+  },
+  logo: {
+    height: '60@vs',
+    width: '260@s',
+  },
+
+  // ── White Card ───────────────────────────────────────────────────────────────
+  card: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: '18@ms',
+    borderTopRightRadius: '18@ms',
+    overflow: 'hidden',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: '24@s',
-    paddingTop: '16@vs',
-    paddingBottom: '32@vs',
-  },
-
-  // ── Top Bar / Logo ───────────────────────────────────────────────────────────
-  topBar: {
-    marginBottom: '32@vs',
-    marginTop: '8@vs',
-    paddingTop: '30@vs',
-  },
-  logo: {
-    height: '52@vs',
-    width: '110@s',
+    paddingHorizontal: '20@s',
+    paddingTop: '28@vs',
+    paddingBottom: '16@vs',
   },
 
   // ── Heading Block ────────────────────────────────────────────────────────────
   headingBlock: {
-    marginBottom: '36@vs',
+    marginBottom: '28@vs',
   },
   welcomeText: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '2@vs',
   },
   appNameRow: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '10@vs',
   },
   appNameAccent: {
     color: color.primary,
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
   },
   subHeading: {
@@ -851,7 +840,7 @@ const styles = ScaledSheet.create({
   // ── Input ────────────────────────────────────────────────────────────────────
   inputWrapper: {
     position: 'relative',
-    marginBottom: '20@vs',
+    marginBottom: '12@vs',
   },
   input: {
     backgroundColor: '#fff',
@@ -868,88 +857,47 @@ const styles = ScaledSheet.create({
     borderRadius: '5@ms',
   },
 
-  // ── Button ───────────────────────────────────────────────────────────────────
-  button: {
-    borderRadius: '14@ms',
-    marginBottom: '28@vs',
-    backgroundColor: color.primary,
-    shadowColor: color.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  buttonContent: {
-    height: '52@vs',
-  },
-
-  // ── Divider ──────────────────────────────────────────────────────────────────
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // ── Switch Row ────────────────────────────────────────────────────────────────
+  switchRow: {
+    alignSelf: 'flex-end',
     marginBottom: '20@vs',
-    gap: '10@s',
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E8ECF4',
-  },
-  orText: {
-    fontSize: '11@ms',
-    color: '#9AA3B2',
-    fontFamily: fonts.MontRegular,
-    textAlign: 'center',
-  },
-
-  // ── Google Button ─────────────────────────────────────────────────────────────
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: '14@ms',
-    paddingVertical: '14@vs',
-    backgroundColor: '#fff',
-    marginBottom: '28@vs',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-    gap: '10@s',
-  },
-  googleIcon: {
-    width: '22@ms',
-    height: '22@ms',
-  },
-  googleText: {
-    fontSize: '14@ms',
+  switchText: {
+    fontSize: '13@ms',
     fontFamily: fonts.MontBold,
-    color: '#1E293B',
+    color: color.primary,
   },
 
-  // ── Footer / Terms ────────────────────────────────────────────────────────────
-  footer: {
-    alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: '16@vs',
-  },
+  // ── Terms ─────────────────────────────────────────────────────────────────────
   termsText: {
-    textAlign: 'center',
-    fontSize: '11@ms',
-    color: '#94A3B8',
+    fontSize: '12@ms',
+    color: '#6B7280',
     fontFamily: fonts.MontRegular,
-    lineHeight: '17@vs',
+    lineHeight: '18@vs',
   },
   termsLink: {
     color: color.primary,
     fontFamily: fonts.MontBold,
+  },
+
+  // ── Bottom Bar / Continue Button ──────────────────────────────────────────────
+  bottomBar: {
+    paddingHorizontal: '20@s',
+    paddingBottom: '16@vs',
+    paddingTop: '8@vs',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  button: {
+    borderRadius: '6@ms',
+    backgroundColor: color.primary,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+    elevation: 0,
+  },
+  buttonContent: {
+    height: '52@vs',
   },
 })

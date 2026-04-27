@@ -38,7 +38,7 @@ export default function OrderPendingApprovalScreen() {
 
   const goToOrders = () => {
     try {
-      navigation.navigate('OrdersScreen')
+     navigation.navigate('Tabs', { screen: 'Orders' })
     } catch (error) {
       ToastAndroid.show('Unable to navigate to orders', ToastAndroid.SHORT)
     }
@@ -82,46 +82,6 @@ export default function OrderPendingApprovalScreen() {
           <Text style={styles.description}>
             You will receive an email and notification once it is approved. Please then return to make your payment.
           </Text>
-        </View>
-
-        {/* Order Info */}
-        <View style={styles.orderInfo}>
-          <View style={styles.orderInfoRow}>
-            <Icon name="receipt" size={ms(16)} color="#888" />
-            <Text style={styles.orderInfoLabel}>Order ID</Text>
-            <Text style={styles.orderInfoValue}>#{orderId?.slice(-16).toUpperCase()}</Text>
-          </View>
-          <View style={styles.orderInfoRow}>
-            <Icon name="information-outline" size={ms(16)} color="#888" />
-            <Text style={styles.orderInfoLabel}>Status</Text>
-            <View style={styles.statusPill}>
-              <Icon name="clock-outline" size={ms(12)} color={color.secondary} />
-              <Text style={styles.statusText}>Pending Approval</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* What's Next */}
-        <View style={styles.whatsNext}>
-          <Text style={styles.whatsNextTitle}>What's Next?</Text>
-          <View style={styles.stepItem}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>1</Text>
-            </View>
-            <Text style={styles.stepText}>Seller reviews your bulk order request</Text>
-          </View>
-          <View style={styles.stepItem}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>2</Text>
-            </View>
-            <Text style={styles.stepText}>You'll receive approval notification</Text>
-          </View>
-          <View style={styles.stepItem}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>3</Text>
-            </View>
-            <Text style={styles.stepText}>Return to complete payment</Text>
-          </View>
         </View>
 
         {/* Action Buttons */}

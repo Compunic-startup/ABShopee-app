@@ -21,7 +21,7 @@ import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import color from '../../../utils/color'
-import { openRazorpay } from '../../global/razorpaymodule'
+import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
 
 // ─── Step pipeline — keyed to real API events[].toStatus ─────────────────────
 const STEPS = [
@@ -169,8 +169,10 @@ export default function OrderDetailsScreen() {
   const [fadeAnim] = useState(new Animated.Value(0))
   const [userProfile, setUserProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(false)
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchOrder()
     fetchUserProfile()
   }, [])
@@ -185,19 +187,19 @@ export default function OrderDetailsScreen() {
       setProfileLoading(true)
       const token = await AsyncStorage.getItem('userToken')
       const bId = await AsyncStorage.getItem('businessId')
-      const res = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, { 
-        method: 'GET', 
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } 
+      const res = await fetch(`${BASE_URL}/customer/business/${bId}/customer-business-profile`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       })
       const json = await res.json()
       console.log('Fetched profile in order details:', json)
       setUserProfile(json?.success && json?.data ? json.data : null)
       console.log('Is profile empty?', !json?.data || !json?.data?.userProfile?.email)
-    } catch (err) { 
+    } catch (err) {
       console.log('Error fetching user profile in order details:', err)
-      setUserProfile(null) 
-    } finally { 
-      setProfileLoading(false) 
+      setUserProfile(null)
+    } finally {
+      setProfileLoading(false)
     }
   }
 
@@ -252,13 +254,14 @@ export default function OrderDetailsScreen() {
 
   const initiatePayment = async () => {
     try {
+      setPaymentLoading(true)
       console.log('=== PAYMENT INITIATION START ===')
-      
+
       const token = await AsyncStorage.getItem('userToken')
       const businessId = await AsyncStorage.getItem('businessId')
-      
+
       console.log('Auth check - Token:', token ? 'exists' : 'missing', 'BusinessId:', businessId ? 'exists' : 'missing')
-      
+
       // Validate authentication
       if (!token) {
         console.log('ERROR: No token found')
@@ -271,25 +274,25 @@ export default function OrderDetailsScreen() {
         ToastAndroid.show('Business ID missing. Please login again.', ToastAndroid.LONG)
         return
       }
-      
+
       console.log('Step 1: Auth validated, initiating payment for order:', orderId)
-      
+
       const apiUrl = `${BASE_URL}/customer/business/${businessId}/orders/${orderId}/initiate-payment`
       console.log('Step 2: Calling API:', apiUrl)
-      
+
       const res = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         }
       })
-      
+
       console.log('Step 3: API response status:', res.status, res.statusText)
-      
+
       const json = await res.json()
       console.log('Step 4: Payment initiation response:', JSON.stringify(json, null, 2))
-      
+
       if (!res.ok) {
         console.log('ERROR: Payment initiation failed:', json)
         throw json
@@ -302,19 +305,19 @@ export default function OrderDetailsScreen() {
 
       // Open Razorpay with the returned payment details
       if (json.paymentMethod === 'RAZORPAY' && json.razorpay) {
-        
+
         // Use profile email first, then order email, then fallback
         const email = userProfile?.email ||
-                     order?.addresses?.[0]?.contactSnapshot?.email || 
-                     order?.metadata?.email || 
-                     'pranay@example.com' // Final fallback
-        
-                     console.log(userProfile)
+          order?.addresses?.[0]?.contactSnapshot?.email ||
+          order?.metadata?.email ||
+          'pranay@example.com' // Final fallback
+
+        console.log(userProfile)
         // Use profile phone first, then order phone, then fallback
         const phone = userProfile?.userProfile?.phone ||
-                     order?.addresses?.[0]?.contactSnapshot?.phone || 
-                     '9999999999' // Final fallback
-        
+          order?.addresses?.[0]?.contactSnapshot?.phone ||
+          '9999999999' // Final fallback
+
         console.log('Order:', order);
         console.log('User Profile:', userProfile);
         console.log('Step 6: Opening Razorpay with email:', email, 'phone:', phone)
@@ -324,15 +327,16 @@ export default function OrderDetailsScreen() {
           email: email,
           phone: phone
         })
-        
-        openRazorpay({ 
-          razorpayOrder: json.razorpay, 
-          orderId: json.orderId, 
-          navigation, 
+
+        openRazorpay({
+          razorpayOrder: json.razorpay,
+          orderId: json.orderId,
+          navigation,
           email,
-          phone
+          phone,
+          setLoadingOverlay: setShowPaymentOverlay
         })
-        
+
         console.log('Step 8: openRazorpay called successfully')
       } else {
         console.log('ERROR: Invalid payment response - paymentMethod:', json.paymentMethod, 'hasRazorpay:', !!json.razorpay)
@@ -344,16 +348,18 @@ export default function OrderDetailsScreen() {
       console.log('Error details:', JSON.stringify(error, null, 2))
       console.log('Error message:', error?.message)
       console.log('Error stack:', error?.stack)
-      
+
       const errorMessage = error?.message || 'Failed to initiate payment'
       ToastAndroid.show(errorMessage, ToastAndroid.LONG)
-      
+
       // If it's an authentication error, redirect to login
       if (errorMessage.includes('unauthorized') || errorMessage.includes('token') || errorMessage.includes('profile')) {
         setTimeout(() => {
           navigation.navigate('LoginScreen')
         }, 2000)
       }
+    } finally {
+      setPaymentLoading(false)
     }
   }
 
@@ -461,9 +467,9 @@ export default function OrderDetailsScreen() {
   const canReturn = true
 
   // Check if order should show Pay Now button
-  const canPayNow = currentStatus === 'created' && 
-                   order.metadata?.approvalStatus === 'approved' &&
-                   !isPaid
+  const canPayNow = currentStatus === 'created' &&
+    order.metadata?.approvalStatus === 'approved' &&
+    !isPaid
 
   const goToReturn = () => {
     navigation.navigate('createreturn', {
@@ -694,7 +700,7 @@ export default function OrderDetailsScreen() {
             )}
           </Card>
 
-          {/* ── Order info ──────────────────────────────────────────────── */}
+          {/* ── Order info ──────────────────────────────────────────────────── */}
           <Card title="Order information" titleIcon="information-outline">
             {[
               { label: 'Order ID', value: order.orderId?.toUpperCase(), copy: true },
@@ -714,7 +720,21 @@ export default function OrderDetailsScreen() {
                 </TouchableOpacity>
               </View>
             ))}
+
+            {canReturn && (
+              <TouchableOpacity
+                style={styles.returnBtn}
+                onPress={goToReturn}
+                activeOpacity={0.8}
+              >
+                <Icon name="refresh" size={ms(17)} color="#fff" />
+                <Text style={styles.returnBtnTxt}>Replace</Text>
+              </TouchableOpacity>
+            )}
+
           </Card>
+
+
 
         </Animated.View>
       </ScrollView>
@@ -740,24 +760,23 @@ export default function OrderDetailsScreen() {
           <TouchableOpacity
             style={styles.payNowBtn}
             onPress={initiatePayment}
+            disabled={paymentLoading}
             activeOpacity={0.8}
           >
-            <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
-            <Text style={styles.payNowBtnTxt}>Pay Now</Text>
-          </TouchableOpacity>
-        )}
-
-        {canReturn && (
-          <TouchableOpacity
-            style={styles.returnBtn}
-            onPress={goToReturn}
-            activeOpacity={0.8}
-          >
-            <Icon name="refresh" size={ms(17)} color="#fff" />
-            <Text style={styles.returnBtnTxt}>Replace</Text>
+            {paymentLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
+            )}
+            <Text style={styles.payNowBtnTxt}>
+              {paymentLoading ? 'Processing…' : 'Pay Now'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Payment Verification Overlay */}
+      <PaymentVerificationOverlay visible={showPaymentOverlay} />
     </View>
   )
 }
@@ -774,8 +793,6 @@ const styles = ScaledSheet.create({
     backgroundColor: color.primary,
     paddingHorizontal: '14@s', paddingVertical: '13@vs',
     elevation: 4,
-    
-    paddingTop: '30@vs',
   },
   headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '17@ms', fontFamily: FONTS.Bold, color: '#fff' },

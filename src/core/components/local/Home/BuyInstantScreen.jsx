@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { StyleSheet } from 'react-native'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
-import { openRazorpay } from '../../global/razorpaymodule'
+import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 import color from '../../../utils/color'
@@ -151,6 +151,7 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
     try {
       setSaving(true)
       const token = await AsyncStorage.getItem('userToken')
+      console.log(token);
       const payload = {
         label: form.label.trim(),
         address: { addressLine1: form.line1.trim(), city: form.city.trim(), state: form.state.trim(), postalCode: form.postalCode.trim(), country: form.country.trim() || 'India' },
@@ -412,6 +413,7 @@ export default function BuyInstantScreen() {
   const [appliedCode, setAppliedCode] = useState(null)
   const [appliedCodeType, setAppliedCodeType] = useState(null)
   const [applyingCode, setApplyingCode] = useState(false)
+  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
 
   const toast = msg => ToastAndroid.show(msg, ToastAndroid.SHORT)
 
@@ -531,8 +533,9 @@ export default function BuyInstantScreen() {
         body: JSON.stringify(payload),
       })
       const json = await res.json()
+      console.log(json)
       if (!res.ok) throw json
-
+      
       // Handle bulk digital order approval workflow
       if (json.status === 'pending_approval') {
         if (!json.orderId) {
@@ -546,7 +549,7 @@ export default function BuyInstantScreen() {
       if (json.paymentMethod === 'RAZORPAY') {
         const razorpayEmail = finalEmail || 'customer@example.com'
         console.log('Passing email to Razorpay:', razorpayEmail)
-        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: razorpayEmail })
+        openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: razorpayEmail, setLoadingOverlay: setShowPaymentOverlay })
         return
       }
       toast('Order placed successfully 🎉')
@@ -586,7 +589,7 @@ export default function BuyInstantScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={S.headerBtn}>
           <Icon name="arrow-left" size={ms(22)} color="#fff" />
         </TouchableOpacity>
-        <Text style={S.headerTitle}>Checkout</Text>
+        <Text style={S.headerTitle}>Buy Now</Text>
         <View style={S.headerRight}>
           <Icon name="lock-outline" size={ms(18)} color="#fff" />
           <Text style={S.secureText}>Secure</Text>
@@ -902,7 +905,7 @@ export default function BuyInstantScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[S.payOption, paymentMethod === 'COD' && S.payOptionActive, isDigital && S.payOptionDis]}
               onPress={() => !isDigital && setPaymentMethod('COD')}
               disabled={isDigital}
@@ -918,7 +921,7 @@ export default function BuyInstantScreen() {
                   <Text style={S.paySub}>{isDigital ? 'Not available for digital items' : 'Pay when you receive'}</Text>
                 </View>
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Security banner */}
@@ -966,6 +969,9 @@ export default function BuyInstantScreen() {
           </View>
         </View>
       )}
+      
+      {/* Payment Verification Overlay */}
+      <PaymentVerificationOverlay visible={showPaymentOverlay} />
     </KeyboardAvoidingView>
   )
 }
@@ -1060,8 +1066,7 @@ const S = ScaledSheet.create({
   container: { flex: 1, backgroundColor: color.background },
 
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 , 
-    paddingTop: '30@vs',},
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: '14@s', paddingTop: Platform.OS === 'android' ? '14@vs' : '12@vs', paddingBottom: '13@vs', backgroundColor: color.primary, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 },
   headerBtn: { width: '36@s', height: '36@s', borderRadius: '18@ms', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: '#fff', flex: 1, textAlign: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: '4@s' },

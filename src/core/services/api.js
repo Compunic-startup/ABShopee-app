@@ -1,5 +1,5 @@
-// export const BASE_URL = 'https://abshopee.com'
-export const BASE_URL = 'http://192.168.0.111:9100'
+export const BASE_URL = 'https://abshopee.com'
+// export const BASE_URL = 'http://192.168.0.102:9100'
 
 // const request = async ({
 //   url,

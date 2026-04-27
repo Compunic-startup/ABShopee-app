@@ -409,7 +409,7 @@ const styles = ScaledSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: color.primary,
-    paddingTop: Platform.OS === 'android' ? '14@vs' : '52@vs',
+    paddingTop: Platform.OS === 'android' ? '14@vs' : '12@vs',
     paddingBottom: '13@vs',
     paddingHorizontal: '14@s',
     elevation: 4,
@@ -418,7 +418,6 @@ const styles = ScaledSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     gap: '10@s',
-    paddingTop: '30@vs',
   },
   headerBtn: {
     width: '36@s', height: '36@s', borderRadius: '18@ms',

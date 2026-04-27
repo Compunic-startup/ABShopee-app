@@ -314,7 +314,7 @@ export default function ReturnReplacementScreen() {
   }, [selectedFilter])
 
   const handleCreateTicket = () => {
-    navigation.navigate('CreateReturnScreen')
+    navigation.navigate('Tabs', { screen: 'Orders' })
   }
 
   return (
@@ -366,10 +366,10 @@ export default function ReturnReplacementScreen() {
                 <View style={styles.emptyIconBg}>
                   <Icon name="package-variant-closed" size={ms(48)} color={color.primary} />
                 </View>
-                <Text style={styles.emptyTitle}>No return or replacement requests</Text>
+                <Text style={styles.emptyTitle}>No Replacements Found</Text>
                 <Text style={styles.emptyHint}>
                   {selectedFilter === 'all'
-                    ? "You haven't created any return or replacement requests yet."
+                    ? "You can replace products by creating a replacement request from your orders"
                     : `No ${selectedFilter} requests found.`}
                 </Text>
                 {selectedFilter !== 'all' ? (
@@ -378,8 +378,8 @@ export default function ReturnReplacementScreen() {
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={handleCreateTicket} style={styles.createBtn}>
-                    <Icon name="plus-circle" size={ms(18)} color="#fff" />
-                    <Text style={styles.createBtnText}>Create Return/Replacement Ticket</Text>
+                    <Text style={styles.createBtnText}>View All Orders</Text>
+                    <Icon name="arrow-right-circle" size={ms(18)} color="#fff" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -580,7 +580,7 @@ const styles = ScaledSheet.create({
     backgroundColor: color.primary + '20',
     justifyContent: 'center', alignItems: 'center', marginBottom: '20@vs',
   },
-  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '8@vs' },
+  emptyTitle: { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '8@vs', textAlign: 'center' },
   emptyHint: { fontSize: '13@ms', color: '#999', fontFamily: FONTS.Medium, textAlign: 'center', lineHeight: '20@ms' },
   clearFilter: {
     marginTop: '20@vs', paddingHorizontal: '24@s', paddingVertical: '10@vs',

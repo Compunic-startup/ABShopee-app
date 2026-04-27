@@ -114,7 +114,7 @@
 //           JSON.stringify(data?.data?.user?.identifier)
 //         )
 //       }
-      
+
 //       const token = data?.data?.user?.accessToken
 //       const customerId = data?.data?.user?.id
 //       await AsyncStorage.setItem('userToken', token)
@@ -625,7 +625,6 @@
 //   },
 // })
 
-
 import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
@@ -635,8 +634,6 @@ import {
   ToastAndroid,
   Animated,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native'
 import { TextInput } from 'react-native-paper'
@@ -649,6 +646,7 @@ import fonts from '../../core/utils/fonts'
 import BASE_URL from '../../core/services/api'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
 import { Linking } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function NewRegistrationScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
@@ -755,10 +753,7 @@ export default function NewRegistrationScreen({ setIsLoggedIn }) {
       console.log('Signup verify response:', data)
 
       if (data?.data?.user?.identifier) {
-        await AsyncStorage.setItem(
-          'Identifier',
-          JSON.stringify(data?.data?.user?.identifier)
-        )
+        await AsyncStorage.setItem('Identifier', JSON.stringify(data?.data?.user?.identifier))
       }
 
       const token = data?.data?.user?.accessToken
@@ -781,6 +776,8 @@ export default function NewRegistrationScreen({ setIsLoggedIn }) {
               },
             }
           )
+          const businessId = 'ad1351af-4c82-4206-9dee-2db2545acd19'
+          await AsyncStorage.setItem('businessId', businessId)
           const profileJson = await profileRes.json()
           if (profileJson?.success && profileJson?.data) {
             await AsyncStorage.setItem('userProfile', JSON.stringify(profileJson.data))
@@ -800,318 +797,319 @@ export default function NewRegistrationScreen({ setIsLoggedIn }) {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View style={{flex:1}}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+      {/* Blue Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
       >
-        {/* Back Button */}
-        <Animated.View
-          style={[
-            styles.topBar,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={moderateScale(20)} color="#fff" />
+        </TouchableOpacity>
+        <Image
+          source={require('../../core/assets/images/constants/aseb2.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
+      {/* White Card Body */}
+      <View style={styles.card}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
+          {/* Heading Block */}
+          <Animated.View
+            style={[
+              styles.headingBlock,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
           >
-            <Icon name="arrow-left" size={moderateScale(20)} color={color.primary} />
-          </TouchableOpacity>
-        </Animated.View>
+            <Text style={styles.welcomeText}>Register Account</Text>
+            <Text style={styles.subHeading}>Hello there, register to continue</Text>
+          </Animated.View>
 
-        {/* Heading Block */}
-        <Animated.View
-          style={[
-            styles.headingBlock,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          <Image
-            source={require('../../core/assets/images/constants/logodark.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.welcomeText}>Register Account</Text>
-          <Text style={styles.appNameRow}>
-            to{' '}
-            <Text style={styles.appNameAccent}>Your App</Text>
-          </Text>
-          <Text style={styles.subHeading}>Hello there, register to continue</Text>
-        </Animated.View>
-
-        {/* Form Block */}
-        <Animated.View
-          style={[
-            styles.formBlock,
-            { opacity: cardFade, transform: [{ translateY: cardAnim }] },
-          ]}
-        >
-          {/* First Name */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="First Name"
-              value={firstName}
-              onChangeText={setFirstName}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="account-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                firstName.trim().length > 0 ? (
+          {/* Form Block */}
+          <Animated.View
+            style={[
+              styles.formBlock,
+              { opacity: cardFade, transform: [{ translateY: cardAnim }] },
+            ]}
+          >
+            {/* First Name */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
                   <TextInput.Icon
-                    icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    icon={() => <Icon name="account-outline" size={18} color="#9AA3B2" />}
                   />
-                ) : null
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-          </View>
-
-          {/* Last Name */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Last Name"
-              value={lastName}
-              onChangeText={setLastName}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="account-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                lastName.trim().length > 0 ? (
-                  <TextInput.Icon
-                    icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
-                  />
-                ) : null
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-          </View>
-
-          {/* Email — disabled / pre-filled */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Email Address"
-              value={identifier}
-              disabled
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="email-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                <TextInput.Icon
-                  icon={() => <Icon name="lock-outline" size={16} color="#C4CEDE" />}
-                />
-              }
-              theme={{ fonts: { bodyLarge: { fontFamily: fonts.MontRegular } } }}
-            />
-          </View>
-
-          {/* Password */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="lock-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                <TextInput.Icon
-                  icon={() => (
-                    <Icon
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={18}
-                      color="#9AA3B2"
-                      onPress={() => setShowPassword(!showPassword)}
+                }
+                right={
+                  firstName.trim().length > 0 ? (
+                    <TextInput.Icon
+                      icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
                     />
-                  )}
-                />
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-          </View>
-
-          {/* Password strength bar */}
-          {password.length > 0 && (
-            <View style={styles.strengthRow}>
-              <View style={styles.strengthBarTrack}>
-                {[1, 2, 3, 4, 5].map((seg) => (
-                  <View
-                    key={seg}
-                    style={[
-                      styles.strengthSeg,
-                      { backgroundColor: seg <= strength ? strengthColor : '#E8ECF4' },
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.strengthLabel, { color: strengthColor }]}>
-                {strengthLabel}
-              </Text>
+                  ) : null
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
             </View>
-          )}
 
-          {/* Confirm Password */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="shield-check-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                passwordsMatch ? (
+            {/* Last Name */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
                   <TextInput.Icon
-                    icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    icon={() => <Icon name="account-outline" size={18} color="#9AA3B2" />}
                   />
-                ) : (
+                }
+                right={
+                  lastName.trim().length > 0 ? (
+                    <TextInput.Icon
+                      icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    />
+                  ) : null
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
+            </View>
+
+            {/* Email — disabled / pre-filled */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Email Address"
+                value={identifier}
+                disabled
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
+                  <TextInput.Icon
+                    icon={() => <Icon name="email-outline" size={18} color="#9AA3B2" />}
+                  />
+                }
+                right={
+                  <TextInput.Icon
+                    icon={() => <Icon name="lock-outline" size={16} color="#C4CEDE" />}
+                  />
+                }
+                theme={{ fonts: { bodyLarge: { fontFamily: fonts.MontRegular } } }}
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
+                  <TextInput.Icon
+                    icon={() => <Icon name="lock-outline" size={18} color="#9AA3B2" />}
+                  />
+                }
+                right={
                   <TextInput.Icon
                     icon={() => (
                       <Icon
-                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                         size={18}
                         color="#9AA3B2"
-                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onPress={() => setShowPassword(!showPassword)}
                       />
                     )}
                   />
-                )
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-          </View>
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
+            </View>
 
-          {/* OTP */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="6-digit OTP"
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={(text) =>
-                setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))
-              }
-              maxLength={6}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => <Icon name="message-outline" size={18} color="#9AA3B2" />}
-                />
-              }
-              right={
-                isValidOtp ? (
+            {/* Password strength bar */}
+            {password.length > 0 && (
+              <View style={styles.strengthRow}>
+                <View style={styles.strengthBarTrack}>
+                  {[1, 2, 3, 4, 5].map((seg) => (
+                    <View
+                      key={seg}
+                      style={[
+                        styles.strengthSeg,
+                        { backgroundColor: seg <= strength ? strengthColor : '#E8ECF4' },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.strengthLabel, { color: strengthColor }]}>
+                  {strengthLabel}
+                </Text>
+              </View>
+            )}
+
+            {/* Confirm Password */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
                   <TextInput.Icon
-                    icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    icon={() => <Icon name="shield-check-outline" size={18} color="#9AA3B2" />}
                   />
-                ) : null
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-            <View style={styles.otpDotsRow}>
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <View
-                  key={i}
-                  style={[styles.otpDot, i < otp.length && styles.otpDotFilled]}
-                />
-              ))}
+                }
+                right={
+                  passwordsMatch ? (
+                    <TextInput.Icon
+                      icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    />
+                  ) : (
+                    <TextInput.Icon
+                      icon={() => (
+                        <Icon
+                          name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={18}
+                          color="#9AA3B2"
+                          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        />
+                      )}
+                    />
+                  )
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
             </View>
-          </View>
 
-          {/* Terms Checkbox */}
-          <TouchableOpacity
-            style={styles.termsRow}
-            onPress={() => setAgreedToTerms(!agreedToTerms)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, agreedToTerms && styles.checkboxActive]}>
-              {agreedToTerms && (
-                <Icon name="check" size={moderateScale(12)} color="#fff" />
-              )}
+            {/* OTP */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="6-digit OTP"
+                keyboardType="number-pad"
+                value={otp}
+                onChangeText={(text) =>
+                  setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))
+                }
+                maxLength={6}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
+                  <TextInput.Icon
+                    icon={() => <Icon name="message-outline" size={18} color="#9AA3B2" />}
+                  />
+                }
+                right={
+                  isValidOtp ? (
+                    <TextInput.Icon
+                      icon={() => <Icon name="check-circle" size={18} color="#22C55E" />}
+                    />
+                  ) : null
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
+              {/* <View style={styles.otpDotsRow}>
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <View
+                    key={i}
+                    style={[styles.otpDot, i < otp.length && styles.otpDotFilled]}
+                  />
+                ))}
+              </View> */}
             </View>
-            <Text style={styles.termsRowText}>
-              I agree to the{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => Linking.openURL('https://abshopee.com/terms')}
-              >
-                Terms & Conditions
-              </Text>
-              {' '}&{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => Linking.openURL('https://abshopee.com/privacy-policy')}
-              >
-                Privacy Policy
-              </Text>
-              {' '}set out by this site.
-            </Text>
-          </TouchableOpacity>
 
-          {/* Register Button */}
+            {/* Terms Checkbox */}
+            <TouchableOpacity
+              style={styles.termsRow}
+              onPress={() => setAgreedToTerms(!agreedToTerms)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, agreedToTerms && styles.checkboxActive]}>
+                {agreedToTerms && (
+                  <Icon name="check" size={moderateScale(12)} color="#fff" />
+                )}
+              </View>
+              <Text style={styles.termsRowText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://abshopee.com/terms')}
+                >
+                  Terms & Conditions
+                </Text>
+                {' '}&{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://abshopee.com/privacy-policy')}
+                >
+                  Privacy Policy
+                </Text>
+                {' '}set out by this site.
+              </Text>
+            </TouchableOpacity>
+
+            {/* Already have account */}
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.footerLink}>Login</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
+
+        {/* Register Button — pinned to bottom */}
+        <Animated.View style={[styles.bottomBar, { opacity: cardFade }]}>
           <AppButton
             mode="contained"
             disabled={!canSubmit}
@@ -1121,96 +1119,75 @@ export default function NewRegistrationScreen({ setIsLoggedIn }) {
           >
             Register
           </AppButton>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.orText}>Or continue with social account</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google Button */}
-          <TouchableOpacity
-            style={styles.googleBtn}
-            activeOpacity={0.75}
-            onPress={() => {}}
-          >
-            <Image
-              source={require('../../core/assets/images/constants/googleimg.png')}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleText}>Google</Text>
-          </TouchableOpacity>
         </Animated.View>
-
-        {/* Footer */}
-        <Animated.View style={[styles.footer, { opacity: cardFade }]}>
-          <Text style={styles.footerText}>
-            Already have an account?{' '}
-            <Text
-              style={styles.footerLink}
-              onPress={() => navigation.navigate('Login')}
-            >
-              Login
-            </Text>
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </View>
   )
 }
 
 const styles = ScaledSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: color.primary,
+  },
+
+  // ── Blue Header ──────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor: color.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: '18@vs',
+    paddingHorizontal: '16@s',
+  },
+  backBtn: {
+    width: '36@s',
+    height: '36@s',
+    borderRadius: '18@ms',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    height: '60@vs',
+    width: '260@s',
+     
+  },
+
+  // ── White Card ───────────────────────────────────────────────────────────────
+  card: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: '18@ms',
+    borderTopRightRadius: '18@ms',
+    overflow: 'hidden',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: '24@s',
-    paddingTop: '16@vs',
-    paddingBottom: '32@vs',
-  },
-
-  // ── Top Bar ─────────────────────────────────────────────────────────────────
-  topBar: {
-    marginBottom: '20@vs',
-    marginTop: '8@vs',
-    paddingTop: '30@vs',
-  },
-  backBtn: {
-    width: '40@s',
-    height: '40@s',
-    borderRadius: '12@ms',
-    backgroundColor: '#F0F4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: '20@s',
+    paddingTop: '28@vs',
+    paddingBottom: '16@vs',
   },
 
   // ── Heading Block ────────────────────────────────────────────────────────────
   headingBlock: {
     marginBottom: '24@vs',
   },
-  logo: {
-    height: '48@vs',
-    width: '48@s',
-    marginBottom: '16@vs',
-  },
   welcomeText: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '2@vs',
   },
   appNameRow: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '8@vs',
   },
   appNameAccent: {
     color: color.primary,
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
   },
   subHeading: {
@@ -1283,7 +1260,7 @@ const styles = ScaledSheet.create({
   termsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: '20@vs',
+    marginBottom: '16@vs',
     gap: '10@s',
   },
   checkbox: {
@@ -1313,87 +1290,42 @@ const styles = ScaledSheet.create({
     fontFamily: fonts.MontBold,
   },
 
-  // ── Button ───────────────────────────────────────────────────────────────────
-  button: {
-    borderRadius: '14@ms',
-    marginBottom: '24@vs',
-    backgroundColor: color.primary,
-    shadowColor: color.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  buttonContent: {
-    height: '52@vs',
-  },
-
-  // ── Divider ──────────────────────────────────────────────────────────────────
-  dividerRow: {
+  // ── Footer row ────────────────────────────────────────────────────────────────
+  footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: '20@vs',
-    gap: '10@s',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E8ECF4',
-  },
-  orText: {
-    fontSize: '11@ms',
-    color: '#9AA3B2',
-    fontFamily: fonts.MontRegular,
-    textAlign: 'center',
-  },
-
-  // ── Google Button ─────────────────────────────────────────────────────────────
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: '14@ms',
-    paddingVertical: '14@vs',
-    backgroundColor: '#fff',
-    marginBottom: '24@vs',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-    gap: '10@s',
-  },
-  googleIcon: {
-    width: '22@ms',
-    height: '22@ms',
-  },
-  googleText: {
-    fontSize: '14@ms',
-    fontFamily: fonts.MontBold,
-    color: '#1E293B',
-  },
-  
-  // ── Footer ───────────────────────────────────────────────────────────────────
-  footer: {
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: '8@vs',
+    paddingBottom: '8@vs',
   },
   footerText: {
-    textAlign: 'center',
     fontSize: '12@ms',
     color: '#94A3B8',
     fontFamily: fonts.MontRegular,
   },
   footerLink: {
+    fontSize: '12@ms',
     color: color.primary,
     fontFamily: fonts.MontBold,
+  },
+
+  // ── Bottom Bar / Register Button ──────────────────────────────────────────────
+  bottomBar: {
+    paddingHorizontal: '20@s',
+    paddingBottom: '16@vs',
+    paddingTop: '8@vs',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  button: {
+    borderRadius: '6@ms',
+    backgroundColor: color.primary,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+    elevation: 0,
+  },
+  buttonContent: {
+    height: '52@vs',
   },
 })

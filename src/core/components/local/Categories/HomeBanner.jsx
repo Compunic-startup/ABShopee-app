@@ -537,7 +537,7 @@ export default function HomeBanner({ onShopNow }) {
 
         <Image
           source={{
-            uri: 'https://i.ibb.co/VY2kHC9t/acdf275a-891f-4187-90e0-c3cc4086864a.png'
+            uri: "https://cdn3d.iconscout.com/3d/premium/thumb/economic-crisis-3d-icon-download-in-png-blend-fbx-gltf-file-formats--profit-economy-financial-investment-money-graph-business-and-finance-pack-icons-5307282.png"
           }}
           style={styles.bannerImage}
         />

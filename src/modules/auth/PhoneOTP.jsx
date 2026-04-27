@@ -432,17 +432,15 @@
 //     fontFamily: fonts.MontBold,
 //   },
 // })
-
 import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   ToastAndroid,
   Animated,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
 } from 'react-native'
 import { TextInput } from 'react-native-paper'
@@ -454,6 +452,7 @@ import color from '../../core/utils/color'
 import fonts from '../../core/utils/fonts'
 import BASE_URL from '../../core/services/api'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function OTPScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
@@ -501,6 +500,9 @@ export default function OTPScreen({ setIsLoggedIn }) {
         }),
       })
 
+      const businessId = 'ad1351af-4c82-4206-9dee-2db2545acd19'
+      await AsyncStorage.setItem('businessId', businessId)
+
       if (!res.ok) {
         const errorData = await res.json()
         console.log('OTP verification failed:', errorData)
@@ -514,10 +516,7 @@ export default function OTPScreen({ setIsLoggedIn }) {
       const customerId = data?.data?.user?.id
 
       if (data?.data?.user?.identifier) {
-        await AsyncStorage.setItem(
-          'Identifier',
-          JSON.stringify(data?.data?.user?.identifier)
-        )
+        await AsyncStorage.setItem('Identifier', JSON.stringify(data?.data?.user?.identifier))
       }
 
       if (!token) {
@@ -537,15 +536,10 @@ export default function OTPScreen({ setIsLoggedIn }) {
               },
             }
           )
-
           const profileJson = await profileRes.json()
           console.log(profileJson, 'Fetched profile during splash')
-
           if (profileJson?.success && profileJson?.data) {
-            await AsyncStorage.setItem(
-              'userProfile',
-              JSON.stringify(profileJson.data)
-            )
+            await AsyncStorage.setItem('userProfile', JSON.stringify(profileJson.data))
           }
         } catch (err) {
           console.log('Profile fetch failed during splash')
@@ -571,117 +565,109 @@ export default function OTPScreen({ setIsLoggedIn }) {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <View style={{flex:1}}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+      {/* Blue Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
       >
-        {/* Back Button */}
-        <Animated.View
-          style={[
-            styles.topBar,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={moderateScale(20)} color="#fff" />
+        </TouchableOpacity>
+        <Image
+          source={require('../../core/assets/images/constants/aseb2.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
+      {/* White Card Body */}
+      <View style={styles.card}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
+          {/* Heading Block */}
+          <Animated.View
+            style={[
+              styles.headingBlock,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
           >
-            <Icon name="arrow-left" size={moderateScale(20)} color={color.primary} />
-          </TouchableOpacity>
-        </Animated.View>
+            <Text style={styles.welcomeText}>OTP Verification</Text>
+            <Text style={styles.appNameRow}>
+              Enter your{' '}
+              <Text style={styles.appNameAccent}>6-digit code</Text>
+            </Text>
+            <Text style={styles.subHeading}>
+              We've sent a code to{' '}
+              <Text style={styles.identifierHighlight}>{identifier}</Text>
+            </Text>
+          </Animated.View>
 
-        {/* Heading Block */}
-        <Animated.View
-          style={[
-            styles.headingBlock,
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
-        >
-          {/* OTP Icon Badge */}
-          <View style={styles.iconBadge}>
-            <Icon name="message-lock-outline" size={moderateScale(28)} color={color.primary} />
-          </View>
-
-          <Text style={styles.welcomeText}>OTP Verification 🔐</Text>
-          <Text style={styles.appNameRow}>
-            Enter your{' '}
-            <Text style={styles.appNameAccent}>6-digit code</Text>
-          </Text>
-          <Text style={styles.subHeading}>
-            We've sent a code to{' '}
-            <Text style={styles.identifierHighlight}>{identifier}</Text>
-          </Text>
-        </Animated.View>
-
-        {/* Form Block */}
-        <Animated.View
-          style={[
-            styles.formBlock,
-            { opacity: cardFade, transform: [{ translateY: cardAnim }] },
-          ]}
-        >
-          {/* OTP Input */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="6-digit OTP"
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={(text) =>
-                setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))
-              }
-              maxLength={6}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={
-                <TextInput.Icon
-                  icon={() => (
-                    <Icon name="message-outline" size={18} color="#9AA3B2" />
-                  )}
-                />
-              }
-              right={
-                isValidOtp ? (
+          {/* Form Block */}
+          <Animated.View
+            style={[
+              styles.formBlock,
+              { opacity: cardFade, transform: [{ translateY: cardAnim }] },
+            ]}
+          >
+            {/* OTP Input */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="6-digit OTP"
+                keyboardType="number-pad"
+                value={otp}
+                onChangeText={(text) =>
+                  setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))
+                }
+                maxLength={6}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
                   <TextInput.Icon
                     icon={() => (
-                      <Icon name="check-circle" size={18} color="#22C55E" />
+                      <Icon name="message-outline" size={18} color="#9AA3B2" />
                     )}
                   />
-                ) : null
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-
-            {/* OTP dot progress */}
-            <View style={styles.otpDotsRow}>
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.otpDot,
-                    i < otp.length && styles.otpDotFilled,
-                  ]}
-                />
-              ))}
+                }
+                right={
+                  isValidOtp ? (
+                    <TextInput.Icon
+                      icon={() => (
+                        <Icon name="check-circle" size={18} color="#22C55E" />
+                      )}
+                    />
+                  ) : null
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
             </View>
-          </View>
 
-          {/* Verify Button */}
+            {/* Resend Row */}
+            <View style={styles.resendRow}>
+              <Text style={styles.resendLabel}>Didn't receive the code? </Text>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={styles.resendLink}>Resend OTP</Text>
+              </TouchableOpacity>
+            </View>
+
+          </Animated.View>
+        </ScrollView>
+
+        {/* Verify Button — pinned to bottom */}
+        <Animated.View style={[styles.bottomBar, { opacity: cardFade }]}>
           <AppButton
             mode="contained"
             disabled={!isValidOtp}
@@ -691,84 +677,75 @@ export default function OTPScreen({ setIsLoggedIn }) {
           >
             Verify & Continue
           </AppButton>
-
-          {/* Resend Row */}
-          <View style={styles.resendRow}>
-            <Text style={styles.resendLabel}>Didn't receive the code? </Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.resendLink}>Resend OTP</Text>
-            </TouchableOpacity>
-          </View>
         </Animated.View>
-
-        {/* Footer */}
-        <Animated.View style={[styles.footer, { opacity: cardFade }]}>
-          <Text style={styles.footerText}>
-            Having trouble?{' '}
-            <Text style={styles.footerLink}>Contact Support</Text>
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </View>
   )
 }
 
 const styles = ScaledSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: color.primary,
+  },
+
+  // ── Blue Header ──────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor: color.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: '18@vs',
+    paddingHorizontal: '16@s',
+  },
+  backBtn: {
+    width: '36@s',
+    height: '36@s',
+    borderRadius: '18@ms',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    height: '60@vs',
+    width: '260@s',
+     
+  },
+
+  // ── White Card ───────────────────────────────────────────────────────────────
+  card: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: '18@ms',
+    borderTopRightRadius: '18@ms',
+    overflow: 'hidden',
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: '24@s',
-    paddingTop: '16@vs',
-    paddingBottom: '32@vs',
-  },
-
-  // ── Top Bar ─────────────────────────────────────────────────────────────────
-  topBar: {
-    marginBottom: '28@vs',
-    marginTop: '8@vs',
-    
-    paddingTop: '30@vs',
-  },
-  backBtn: {
-    width: '40@s',
-    height: '40@s',
-    borderRadius: '12@ms',
-    backgroundColor: '#F0F4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: '20@s',
+    paddingTop: '28@vs',
+    paddingBottom: '16@vs',
   },
 
   // ── Heading Block ────────────────────────────────────────────────────────────
   headingBlock: {
-    marginBottom: '36@vs',
-  },
-  iconBadge: {
-    width: '60@s',
-    height: '60@s',
-    borderRadius: '18@ms',
-    backgroundColor: '#F0F4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: '20@vs',
+    marginBottom: '28@vs',
   },
   welcomeText: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '2@vs',
   },
   appNameRow: {
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
     color: '#1A1A2E',
     marginBottom: '10@vs',
   },
   appNameAccent: {
     color: color.primary,
-    fontSize: '26@ms',
+    fontSize: '22@ms',
     fontFamily: fonts.MontBold,
   },
   subHeading: {
@@ -798,7 +775,7 @@ const styles = ScaledSheet.create({
     letterSpacing: '4@ms',
   },
 
-  // OTP dots
+  // ── OTP dots ─────────────────────────────────────────────────────────────────
   otpDotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -816,31 +793,12 @@ const styles = ScaledSheet.create({
     transform: [{ scale: 1.15 }],
   },
 
-  // ── Button ───────────────────────────────────────────────────────────────────
-  button: {
-    borderRadius: '14@ms',
-    marginBottom: '24@vs',
-    backgroundColor: color.primary,
-    shadowColor: color.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  buttonContent: {
-    height: '52@vs',
-  },
-
   // ── Resend ───────────────────────────────────────────────────────────────────
   resendRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: '12@vs',
   },
   resendLabel: {
     fontSize: '12@ms',
@@ -853,20 +811,41 @@ const styles = ScaledSheet.create({
     fontFamily: fonts.MontBold,
   },
 
-  // ── Footer ───────────────────────────────────────────────────────────────────
-  footer: {
+  // ── Footer row ────────────────────────────────────────────────────────────────
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: '24@vs',
   },
   footerText: {
-    textAlign: 'center',
-    fontSize: '11@ms',
+    fontSize: '12@ms',
     color: '#94A3B8',
     fontFamily: fonts.MontRegular,
   },
   footerLink: {
+    fontSize: '12@ms',
     color: color.primary,
     fontFamily: fonts.MontBold,
+  },
+
+  // ── Bottom Bar / Verify Button ────────────────────────────────────────────────
+  bottomBar: {
+    paddingHorizontal: '20@s',
+    paddingBottom: '16@vs',
+    paddingTop: '8@vs',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  button: {
+    borderRadius: '6@ms',
+    backgroundColor: color.primary,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+    elevation: 0,
+  },
+  buttonContent: {
+    height: '52@vs',
   },
 })

@@ -6,12 +6,10 @@ import {
   TouchableOpacity,
   ToastAndroid,
   Animated,
-  Dimensions,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
 } from 'react-native'
-import { TextInput, Divider } from 'react-native-paper'
+import { TextInput } from 'react-native-paper'
 import { ScaledSheet, moderateScale } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -20,8 +18,7 @@ import color from '../../core/utils/color'
 import fonts from '../../core/utils/fonts'
 import BASE_URL from '../../core/services/api'
 import AppButton from '../../core/components/global/gloabloadingcomponent'
-
-const { height } = Dimensions.get('window')
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function PasswordLoginScreen({ setIsLoggedIn }) {
   const navigation = useNavigation()
@@ -33,29 +30,21 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
 
   // ── Animations ──────────────────────────────────────────────────────────────
   const fadeAnim = useRef(new Animated.Value(0)).current
-  const slideAnim = useRef(new Animated.Value(60)).current
-  const cardAnim = useRef(new Animated.Value(80)).current
+  const slideAnim = useRef(new Animated.Value(40)).current
+  const cardAnim = useRef(new Animated.Value(40)).current
   const cardFade = useRef(new Animated.Value(0)).current
-  const pulse = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
-    Animated.stagger(120, [
+    Animated.stagger(100, [
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 550, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 550, useNativeDriver: true }),
       ]),
       Animated.parallel([
         Animated.timing(cardFade, { toValue: 1, duration: 500, useNativeDriver: true }),
         Animated.timing(cardAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
       ]),
     ]).start()
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: 2200, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 2200, useNativeDriver: true }),
-      ])
-    ).start()
   }, [])
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -78,17 +67,16 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
       console.log(data)
 
       if (data?.data?.user?.identifier) {
-        await AsyncStorage.setItem(
-          'Identifier',
-          JSON.stringify(data?.data?.user?.identifier)
-        )
+        await AsyncStorage.setItem('Identifier', JSON.stringify(data?.data?.user?.identifier))
       }
-
 
       if (!res.ok) {
         ToastAndroid.show(data?.message || 'Login failed', ToastAndroid.SHORT)
         return
       }
+
+      const businessId = 'ad1351af-4c82-4206-9dee-2db2545acd19'
+      await AsyncStorage.setItem('businessId', businessId)
 
       const token = data?.data?.user?.accessToken
       const customerId = data?.data?.user?.id
@@ -98,11 +86,8 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
         return
       }
 
-      /* ---------- FETCH PROFILE HERE ---------- */
-
       if (token) {
         try {
-
           const profileRes = await fetch(
             `${BASE_URL}/customer/business/ad1351af-4c82-4206-9dee-2db2545acd19/customer-business-profile`,
             {
@@ -113,17 +98,11 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
               },
             }
           )
-
           const profileJson = await profileRes.json()
           console.log(profileJson, 'Fetched profile during splash')
-
           if (profileJson?.success && profileJson?.data) {
-            await AsyncStorage.setItem(
-              'userProfile',
-              JSON.stringify(profileJson.data)
-            )
+            await AsyncStorage.setItem('userProfile', JSON.stringify(profileJson.data))
           }
-
         } catch (err) {
           console.log('Profile fetch failed during splash')
         }
@@ -140,106 +119,137 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={color.primary} />
+    <View style={{flex:1}}>
+      <StatusBar barStyle="light-content" backgroundColor={color.primary} />
 
-        {/* Decorative blobs */}
-        <Animated.View style={[styles.blobTopRight, { transform: [{ scale: pulse }] }]} />
-        <View style={styles.blobBottomLeft} />
+      {/* Blue Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={moderateScale(20)} color="#fff" />
+        </TouchableOpacity>
+        <Image
+          source={require('../../core/assets/images/constants/aseb2.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
 
-        {/* Top Bar */}
-        <Animated.View
-          style={[styles.topBar, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+      {/* White Card Body */}
+      <View style={styles.card}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Icon name="arrow-left" size={moderateScale(20)} color="#fff" />
-          </TouchableOpacity>
-        </Animated.View>
+          {/* Heading Block */}
+          <Animated.View
+            style={[
+              styles.headingBlock,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <Text style={styles.welcomeText}>Welcome Back,</Text>
+            <Text style={styles.appNameRow}>
+              Good to{' '}
+              <Text style={styles.appNameAccent}>see you!</Text>
+            </Text>
+            <Text style={styles.subHeading}>
+              Signing in as{' '}
+              <Text style={styles.identifierHighlight}>{identifier}</Text>
+            </Text>
+          </Animated.View>
 
-        {/* Hero */}
-        <Animated.View
-          style={[styles.hero, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        >
-          <Text style={styles.title}>
-            Welcome Back,{'\n'}
-            <Text style={styles.titleAccent}>Good To See You! 👋</Text>
-          </Text>
-        </Animated.View>
-
-        {/* Card */}
-        <Animated.View
-          style={[styles.card, { opacity: cardFade, transform: [{ translateY: cardAnim }] }]}
-        >
-          {/* Card handle */}
-          <View style={styles.cardHandle} />
-
-          <Text style={styles.heading}>Login to Continue</Text>
-          <Text style={styles.subHeading}>
-            Signing in as <Text style={styles.identifierHighlight}>{identifier}</Text>
-          </Text>
-
-          {/* Email (disabled) */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Email"
-              value={identifier}
-              disabled
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={<TextInput.Icon icon={() => <Icon name="email-outline" size={18} color="#9AA3B2" />} />}
-              theme={{ fonts: { bodyLarge: { fontFamily: fonts.MontRegular } } }}
-            />
-            <View style={styles.lockBadge}>
-              <Icon name="lock-outline" size={moderateScale(11)} color="#9AA3B2" />
+          {/* Form Block */}
+          <Animated.View
+            style={[
+              styles.formBlock,
+              { opacity: cardFade, transform: [{ translateY: cardAnim }] },
+            ]}
+          >
+            {/* Email (disabled) */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Email"
+                value={identifier}
+                disabled
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
+                  <TextInput.Icon
+                    icon={() => <Icon name="email-outline" size={18} color="#9AA3B2" />}
+                  />
+                }
+                theme={{ fonts: { bodyLarge: { fontFamily: fonts.MontRegular } } }}
+              />
             </View>
-          </View>
 
-          {/* Password */}
-          <View style={styles.inputWrapper}>
-            <TextInput
-              mode="outlined"
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              outlineColor="#E8ECF4"
-              activeOutlineColor={color.primary}
-              outlineStyle={{ borderRadius: moderateScale(14) }}
-              style={styles.input}
-              left={<TextInput.Icon icon={() => <Icon name="lock-outline" size={18} color="#9AA3B2" />} />}
-              right={
-                <TextInput.Icon
-                  icon={() => (
-                    <Icon
-                      name={
-                        password.length === 0
-                          ? showPassword ? 'eye-off-outline' : 'eye-outline'
-                          : isValid
+            {/* Password */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                mode="outlined"
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                outlineColor="#E8ECF4"
+                activeOutlineColor={color.primary}
+                outlineStyle={{ borderRadius: moderateScale(6) }}
+                style={styles.input}
+                left={
+                  <TextInput.Icon
+                    icon={() => <Icon name="lock-outline" size={18} color="#9AA3B2" />}
+                  />
+                }
+                right={
+                  <TextInput.Icon
+                    icon={() => (
+                      <Icon
+                        name={
+                          password.length === 0
+                            ? showPassword
+                              ? 'eye-off-outline'
+                              : 'eye-outline'
+                            : isValid
                             ? 'check-circle'
-                            : showPassword ? 'eye-off-outline' : 'eye-outline'
-                      }
-                      size={18}
-                      color={isValid ? '#22C55E' : '#9AA3B2'}
-                      onPress={() => setShowPassword(!showPassword)}
-                    />
-                  )}
-                />
-              }
-              theme={{
-                fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
-                colors: { onSurfaceVariant: '#9AA3B2' },
-              }}
-            />
-          </View>
+                            : showPassword
+                            ? 'eye-off-outline'
+                            : 'eye-outline'
+                        }
+                        size={18}
+                        color={isValid ? '#22C55E' : '#9AA3B2'}
+                        onPress={() => setShowPassword(!showPassword)}
+                      />
+                    )}
+                  />
+                }
+                theme={{
+                  fonts: { bodyLarge: { fontFamily: fonts.MontRegular } },
+                  colors: { onSurfaceVariant: '#9AA3B2' },
+                }}
+              />
+            </View>
 
-          {/* Login Button */}
+            {/* Forgot password */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ForgotPassword')}
+              style={styles.forgotRow}
+            >
+              <Text style={styles.forgot}>Forgot password?</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+
+        {/* Continue Button — pinned to bottom */}
+        <Animated.View style={[styles.bottomBar, { opacity: cardFade }]}>
           <AppButton
             mode="contained"
             disabled={!isValid}
@@ -249,68 +259,26 @@ export default function PasswordLoginScreen({ setIsLoggedIn }) {
           >
             Login →
           </AppButton>
-
-          {/* Forgot password */}
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          {/* Divider
-          <View style={styles.dividerRow}>
-            <Divider style={styles.divider} />
-            <Text style={styles.or}>or login with</Text>
-            <Divider style={styles.divider} />
-          </View> */}
-
-          {/* Google Button
-          <TouchableOpacity style={styles.googleBtn} activeOpacity={0.75} onPress={() => {}}>
-            <Image
-              source={require('../../core/assets/images/constants/googleimg.png')}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleText}>Continue with Google</Text>
-          </TouchableOpacity> */}
-
         </Animated.View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
 const styles = ScaledSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: color.primary,
-    overflow: 'hidden',
   },
 
-  // ── Blobs ───────────────────────────────────────────────────────────────────
-  blobTopRight: {
-    position: 'absolute',
-    top: '-60@vs',
-    right: '-60@s',
-    width: '200@s',
-    height: '200@s',
-    borderRadius: '100@s',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  blobBottomLeft: {
-    position: 'absolute',
-    bottom: '180@vs',
-    left: '-80@s',
-    width: '180@s',
-    height: '180@s',
-    borderRadius: '90@s',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-
-  // ── Top bar ─────────────────────────────────────────────────────────────────
-  topBar: {
+  // ── Blue Header ──────────────────────────────────────────────────────────────
+  header: {
+    backgroundColor: color.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: '20@s',
-    paddingTop: '16@vs',
-    paddingTop: '30@vs',
+    justifyContent: 'space-between',
+    paddingVertical: '18@vs',
+    paddingHorizontal: '16@s',
   },
   backBtn: {
     width: '36@s',
@@ -320,159 +288,103 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // ── Hero ────────────────────────────────────────────────────────────────────
-  hero: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: '12@s',
-  },
-  title: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: '21@ms',
-    lineHeight: '31@vs',
-    fontFamily: fonts.MontBold,
-    textAlign: 'center',
-  },
-  titleAccent: {
-    color: '#fff',
-    fontSize: '23@ms',
-    fontWeight: '800',
+  logo: {
+    height: '60@vs',
+    width: '260@s',
+     
   },
 
-  // ── Card ────────────────────────────────────────────────────────────────────
+  // ── White Card ───────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: '#FAFBFF',
-    borderTopLeftRadius: '32@ms',
-    borderTopRightRadius: '32@ms',
-    paddingHorizontal: '24@s',
-    paddingTop: '10@vs',
-    paddingBottom: '28@vs',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 16,
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: '18@ms',
+    borderTopRightRadius: '18@ms',
+    overflow: 'hidden',
   },
-  cardHandle: {
-    alignSelf: 'center',
-    width: '36@s',
-    height: '4@vs',
-    borderRadius: '2@ms',
-    backgroundColor: '#DDE2EF',
-    marginBottom: '16@vs',
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: '20@s',
+    paddingTop: '28@vs',
+    paddingBottom: '16@vs',
   },
-  heading: {
+
+  // ── Heading Block ────────────────────────────────────────────────────────────
+  headingBlock: {
+    marginBottom: '28@vs',
+  },
+  welcomeText: {
     fontSize: '22@ms',
-    fontWeight: '800',
-    color: color.primary,
     fontFamily: fonts.MontBold,
-    marginBottom: '4@vs',
+    color: '#1A1A2E',
+    marginBottom: '2@vs',
+  },
+  appNameRow: {
+    fontSize: '22@ms',
+    fontFamily: fonts.MontBold,
+    color: '#1A1A2E',
+    marginBottom: '10@vs',
+  },
+  appNameAccent: {
+    color: color.primary,
+    fontSize: '22@ms',
+    fontFamily: fonts.MontBold,
   },
   subHeading: {
-    color: '#002456',
-    fontSize: '12@ms',
+    color: '#9AA3B2',
+    fontSize: '13@ms',
     fontFamily: fonts.MontRegular,
-    lineHeight: '18@vs',
-    marginBottom: '14@vs',
+    lineHeight: '20@vs',
   },
   identifierHighlight: {
     color: color.primary,
     fontFamily: fonts.MontBold,
   },
 
-  // ── Inputs ──────────────────────────────────────────────────────────────────
+  // ── Form Block ───────────────────────────────────────────────────────────────
+  formBlock: {
+    flex: 1,
+  },
+
+  // ── Inputs ───────────────────────────────────────────────────────────────────
   inputWrapper: {
     position: 'relative',
-    marginBottom: '10@vs',
+    marginBottom: '14@vs',
   },
   input: {
     backgroundColor: '#fff',
-    fontSize: '13@ms',
+    fontSize: '14@ms',
     fontFamily: fonts.MontRegular,
   },
-  lockBadge: {
-    position: 'absolute',
-    right: '14@s',
-    top: '50%',
-    marginTop: '-8@vs',
+
+  // ── Forgot ────────────────────────────────────────────────────────────────────
+  forgotRow: {
+    alignSelf: 'flex-end',
+  },
+  forgot: {
+    fontSize: '13@ms',
+    fontFamily: fonts.MontBold,
+    color: color.primary,
   },
 
-  // ── Button ──────────────────────────────────────────────────────────────────
+  // ── Bottom Bar / Login Button ─────────────────────────────────────────────────
+  bottomBar: {
+    paddingHorizontal: '20@s',
+    paddingBottom: '16@vs',
+    paddingTop: '8@vs',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
   button: {
-    borderRadius: '14@ms',
-    marginTop: '4@vs',
-    marginBottom: '12@vs',
+    borderRadius: '6@ms',
     backgroundColor: color.primary,
-    shadowColor: color.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.45,
-    shadowOpacity: 0,
     elevation: 0,
   },
   buttonContent: {
-    height: '50@vs',
-  },
-
-  // Forgot password
-  forgot: {
-    textAlign: 'center',
-    color: color.primary,
-    fontSize: '12@ms',
-    fontFamily: fonts.MontBold,
-    marginBottom: '16@vs',
-  },
-
-  // ── Divider ─────────────────────────────────────────────────────────────────
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: '14@vs',
-  },
-  divider: {
-    flex: 1,
-    backgroundColor: '#E8ECF4',
-    height: 1,
-  },
-  or: {
-    marginHorizontal: '10@s',
-    fontSize: '11@ms',
-    color: '#94A3B8',
-    fontFamily: fonts.MontRegular,
-    letterSpacing: 0.3,
-  },
-
-  // ── Google Button ───────────────────────────────────────────────────────────
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: '14@ms',
-    paddingVertical: '13@vs',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  googleIcon: {
-    width: '22@ms',
-    height: '22@ms',
-    marginRight: '10@s',
-  },
-  googleText: {
-    fontSize: '14@ms',
-    fontWeight: '600',
-    color: color.primary,
-    fontFamily: fonts.MontBold,
+    height: '52@vs',
   },
 })

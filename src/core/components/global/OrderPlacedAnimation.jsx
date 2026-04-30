@@ -29,7 +29,7 @@ export default function OrderSuccess() {
         }, 2000)
 
         const navigationTimer = setTimeout(() => {
-            navigation.navigate('Tabs', { screen: 'Orders' })
+            navigation.goBack()
         }, 5500)
 
         return () => {

@@ -277,14 +277,12 @@ export default function ExploreInventoryScreen() {
     else fetchProducts(false)
   }, [sortOption])
   useEffect(() => {
-    if (!loading && !contentLoading) {
+    if (!loading && !contentLoading && products.length > 0) {
       fadeAnim.setValue(0)
       Animated.parallel([
         Animated.timing(fadeAnim,   { toValue: 1, duration: 350, useNativeDriver: true }),
         Animated.timing(headerAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]).start()
-    } else if (!loading && !contentLoading && products.length === 0) {
-      headerAnim.setValue(1)
     }
   }, [loading, contentLoading, products])
   useEffect(() => {
@@ -567,14 +565,6 @@ export default function ExploreInventoryScreen() {
       <Text style={styles.emptySubtitle}>
         {searchQuery ? 'Try different keywords' : 'Check back later for new items'}
       </Text>
-      <TouchableOpacity 
-        style={styles.retryBtn}
-        onPress={() => fetchProducts(true)}
-        activeOpacity={0.8}
-      >
-        <Icon name="refresh" size={ms(18)} color="#fff" />
-        <Text style={styles.retryBtnText}>Retry</Text>
-      </TouchableOpacity>
     </View>
   )
 
@@ -865,9 +855,7 @@ const styles = ScaledSheet.create({
   emptyWrap:    { alignItems: 'center', paddingTop: '70@vs', paddingHorizontal: '40@s' },
   emptyIconBox: { width: '80@s', height: '80@s', borderRadius: '40@ms', backgroundColor: color.primary + 20, justifyContent: 'center', alignItems: 'center', marginBottom: '16@vs' },
   emptyTitle:   { fontSize: '18@ms', fontFamily: FONTS.Bold, color: color.text, marginBottom: '8@vs' },
-  emptySubtitle:{ fontSize: '13@ms', color: '#888', textAlign: 'center', marginBottom: '20@vs' },
-  retryBtn:     { flexDirection: 'row', alignItems: 'center', backgroundColor: color.primary, paddingHorizontal: '20@s', paddingVertical: '12@vs', borderRadius: '8@ms', gap: '8@s' },
-  retryBtnText: { fontSize: '14@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  emptySubtitle:{ fontSize: '13@ms', color: '#888', textAlign: 'center' },
 
   // ── Pagination ────────────────────────────────────────────────────────────
   paginationBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: '16@vs', gap: '6@s', flexWrap: 'wrap' },

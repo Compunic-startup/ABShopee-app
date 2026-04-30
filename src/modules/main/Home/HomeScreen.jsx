@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View, Modal, TouchableOpacity, Animated, Dimensions } from 'react-native'
+import { ScrollView, StyleSheet, Text, View, Modal, TouchableOpacity, Animated, Dimensions, RefreshControl } from 'react-native'
 import HomeHeader from '../../../core/components/local/Home/HomeHeader'
 import HomeCategories from '../../../core/components/local/Home/CategoryArray'
 import RecommendedScreen from '../../../core/components/local/Home/RecommendedScreen'
@@ -14,6 +14,7 @@ const { height } = Dimensions.get('window')
 const HomeScreen = () => {
 
   const [showModal, setShowModal] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const hasChecked = useRef(false)
   const slideAnim = useRef(new Animated.Value(height)).current
   const navigation = useNavigation()
@@ -68,9 +69,25 @@ const HomeScreen = () => {
     setShowModal(false)
   }
 
+  const onRefresh = () => {
+    setRefreshing(true)
+    setTimeout(() => {
+      setRefreshing(false)
+    }, 1000)
+  }
+
   return (
       <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-        <ScrollView>
+        <ScrollView
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[color.primary]}
+              tintColor={color.primary}
+            />
+          }
+        >
           <HomeHeader />
           <HomeCategories />
           <CouponsHeader />

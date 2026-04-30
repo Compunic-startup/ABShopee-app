@@ -19,6 +19,9 @@ import SellerDashboardScreen from '../../modules/main/SellerDashboardScreen'
 import ReturnsReplacemnet from '../components/local/payments/ReturnsReplacement'
 import ReturnReplaceDetails from '../components/local/payments/ReturnReplaceDetails'
 import CreateReturn from '../components/local/payments/CreateReturn'
+import Cancellations from '../components/local/payments/Cancellations'
+import CancellationDetails from '../components/local/payments/CancellationDetails'
+import CreateCancellation from '../components/local/payments/CreateCancellation'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const Stack = createNativeStackNavigator()
@@ -88,6 +91,18 @@ export default function MainStack({ setIsLoggedIn }) {
         <Stack.Screen
           name="createreturn"
           component={CreateReturn} options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="cancellations"
+          component={Cancellations} options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="cancellationdetails"
+          component={CancellationDetails} options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="createcancellation"
+          component={CreateCancellation} options={{ headerShown: false }}
         />
         <Stack.Screen
           name="NotificationsScreen"

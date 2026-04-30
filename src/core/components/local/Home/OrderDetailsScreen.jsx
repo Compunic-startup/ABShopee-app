@@ -21,7 +21,7 @@ import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import color from '../../../utils/color'
-import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
+import { openRazorpay } from '../../global/razorpaymodule'
 
 // ─── Step pipeline — keyed to real API events[].toStatus ─────────────────────
 const STEPS = [
@@ -169,8 +169,6 @@ export default function OrderDetailsScreen() {
   const [fadeAnim] = useState(new Animated.Value(0))
   const [userProfile, setUserProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
-  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
-  const [paymentLoading, setPaymentLoading] = useState(false)
 
   useEffect(() => {
     fetchOrder()
@@ -254,7 +252,6 @@ export default function OrderDetailsScreen() {
 
   const initiatePayment = async () => {
     try {
-      setPaymentLoading(true)
       console.log('=== PAYMENT INITIATION START ===')
 
       const token = await AsyncStorage.getItem('userToken')
@@ -333,8 +330,7 @@ export default function OrderDetailsScreen() {
           orderId: json.orderId,
           navigation,
           email,
-          phone,
-          setLoadingOverlay: setShowPaymentOverlay
+          phone
         })
 
         console.log('Step 8: openRazorpay called successfully')
@@ -358,8 +354,6 @@ export default function OrderDetailsScreen() {
           navigation.navigate('LoginScreen')
         }, 2000)
       }
-    } finally {
-      setPaymentLoading(false)
     }
   }
 
@@ -389,8 +383,10 @@ export default function OrderDetailsScreen() {
   // events[] → [{ fromStatus, toStatus, createdAt, ... }]
   const events = order.events ?? []
   const latestEvent = events[events.length - 1]
-  const currentStatus = latestEvent?.toStatus ?? order.status ?? 'created'
+  // Prioritize order.status over latest event for accurate status detection
+  const currentStatus = order.status ?? latestEvent?.toStatus ?? 'created'
   const isCancelled = currentStatus === 'cancelled'
+
 
   // items[] — deduplicate same itemId (your data has itemId 854df... twice)
   const allItems = (order.items ?? []).map(i => i.dataValues || i)
@@ -464,12 +460,16 @@ export default function OrderDetailsScreen() {
   //   !isDigital &&
   //   !(order?.returnRequestExists)
 
-  const canReturn = true
+  // Return/replace is only available for completed/delivered orders
+  const canReturn = (currentStatus === 'completed') && !isCancelled
 
   // Check if order should show Pay Now button
   const canPayNow = currentStatus === 'created' &&
     order.metadata?.approvalStatus === 'approved' &&
     !isPaid
+
+  // Check if cancellation is allowed (only for created/confirmed physical items that aren't shipped or cancelled)
+  const canCancel = (currentStatus === 'created' || currentStatus === 'confirmed') && !isCancelled
 
   const goToReturn = () => {
     navigation.navigate('createreturn', {
@@ -477,6 +477,25 @@ export default function OrderDetailsScreen() {
       items: deduped,
     })
   }
+
+  const goToCancellation = () => {
+    navigation.navigate('createcancellation', {
+      orderId: order.orderId,
+      items: deduped,
+    })
+  }
+
+  // Debug logging
+  console.log('Order Status Debug:', {
+    currentStatus,
+    isCancelled,
+    events: events.length,
+    latestEvent: latestEvent?.toStatus,
+    orderStatus: order.status,
+    canCancel,
+    canReturn,
+    statusLabel
+  })
 
   return (
     <View style={styles.container}>
@@ -496,73 +515,6 @@ export default function OrderDetailsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: vs(110) }}>
         <Animated.View style={{ opacity: fadeAnim }}>
 
-          {/* ── Hero product ────────────────────────────────────────────── */}
-          <View style={styles.heroCard}>
-            <Image
-              source={heroSnap.image ? { uri: heroSnap.image } : noimage}
-              style={styles.heroImg}
-            />
-            <View style={styles.heroInfo}>
-              <Text style={styles.heroName} numberOfLines={2}>
-                {heroSnap.title || 'Product'}
-              </Text>
-              {!!heroAttrs && <Text style={styles.heroAttrs} numberOfLines={1}>{heroAttrs}</Text>}
-              <View style={styles.heroMeta}>
-                <View style={styles.qtyPill}>
-                  <Text style={styles.qtyPillTxt}>Qty: {heroItem?.quantity}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* ── Order ID bar ────────────────────────────────────────────── */}
-          <TouchableOpacity style={styles.orderIdBar} onPress={copyOrderId} activeOpacity={0.7}>
-            <Icon name="receipt" size={ms(13)} color="#999" />
-            <Text style={styles.orderIdBarTxt} numberOfLines={1}>
-              Order #{order.orderId?.slice(-16).toUpperCase()}
-            </Text>
-            <Icon name="content-copy" size={ms(13)} color={color.primary} />
-          </TouchableOpacity>
-
-
-          {/* ── Status + Vertical Stepper ───────────────────────────────── */}
-          <Card>
-            <View style={styles.statusRow}>
-              <View>
-                <Text style={[styles.statusLabel, isCancelled && { color: '#D32F2F' }]}>
-                  {statusLabel}
-                </Text>
-                <Text style={styles.statusDate}>{createdDate} · {createdTime}</Text>
-              </View>
-              {isCancelled && (
-                <View style={styles.cancelPill}>
-                  <Icon name="close-circle" size={ms(12)} color="#D32F2F" />
-                  <Text style={styles.cancelPillTxt}>Cancelled</Text>
-                </View>
-              )}
-            </View>
-            <VerticalStepper currentStatus={currentStatus} events={events} />
-          </Card>
-
-          {/* ── Shipments ───────────────────────────────────────────────── */}
-          {shipments?.map((sh, i) => (
-            <Card key={i} title="Shipment Info" titleIcon="truck-fast-outline">
-              <View style={styles.shipRow}>
-                <View style={styles.shipIconWrap}>
-                  <Icon name="truck-outline" size={ms(18)} color={color.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.shipCarrier}>{sh.carrier || 'Courier Partner'}</Text>
-                  {sh.trackingId && <Text style={styles.shipTrack}>ID: {sh.trackingId}</Text>}
-                </View>
-                <View style={styles.shipPill}>
-                  <Text style={styles.shipPillTxt}>
-                    {sh.status?.charAt(0).toUpperCase() + sh.status?.slice(1)}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ))}
 
           {/* ── Items list ──────────────────────────────────────────────── */}
           <Card title={`Items (${deduped.length})`} titleIcon="package-variant">
@@ -610,6 +562,74 @@ export default function OrderDetailsScreen() {
               )
             })}
           </Card>
+
+          {/* ── Hero product ──────────────────────────────────────────────
+          <View style={styles.heroCard}>
+            <Image
+              source={heroSnap.image ? { uri: heroSnap.image } : noimage}
+              style={styles.heroImg}
+            />
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroName} numberOfLines={2}>
+                {heroSnap.title || 'Product'}
+              </Text>
+              {!!heroAttrs && <Text style={styles.heroAttrs} numberOfLines={1}>{heroAttrs}</Text>}
+              <View style={styles.heroMeta}>
+                <View style={styles.qtyPill}>
+                  <Text style={styles.qtyPillTxt}>Qty: {heroItem?.quantity}</Text>
+                </View>
+              </View>
+            </View>
+          </View> */}
+
+          {/* ── Order ID bar ────────────────────────────────────────────── */}
+          <TouchableOpacity style={styles.orderIdBar} onPress={copyOrderId} activeOpacity={0.7}>
+            <Icon name="receipt" size={ms(13)} color="#999" />
+            <Text style={styles.orderIdBarTxt} numberOfLines={1}>
+              Order #{order.orderId?.slice(-16).toUpperCase()}
+            </Text>
+            <Icon name="content-copy" size={ms(13)} color={color.primary} />
+          </TouchableOpacity>
+
+
+          {/* ── Status + Vertical Stepper ───────────────────────────────── */}
+          <Card>
+            <View style={styles.statusRow}>
+              <View>
+                <Text style={[styles.statusLabel, isCancelled && { color: '#E65100' }]}>
+                  {statusLabel}
+                </Text>
+                <Text style={styles.statusDate}>{createdDate} · {createdTime}</Text>
+              </View>
+              {isCancelled && (
+                <View style={styles.cancelPill}>
+                  <Icon name="close-circle" size={ms(12)} color="#D32F2F" />
+                  <Text style={styles.cancelPillTxt}>Cancelled</Text>
+                </View>
+              )}
+            </View>
+            <VerticalStepper currentStatus={currentStatus} events={events} />
+          </Card>
+
+          {/* ── Shipments ───────────────────────────────────────────────── */}
+          {shipments?.map((sh, i) => (
+            <Card key={i} title="Shipment Info" titleIcon="truck-fast-outline">
+              <View style={styles.shipRow}>
+                <View style={styles.shipIconWrap}>
+                  <Icon name="truck-outline" size={ms(18)} color={color.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.shipCarrier}>{sh.carrier || 'Courier Partner'}</Text>
+                  {sh.trackingId && <Text style={styles.shipTrack}>ID: {sh.trackingId}</Text>}
+                </View>
+                <View style={styles.shipPill}>
+                  <Text style={styles.shipPillTxt}>
+                    {sh.status?.charAt(0).toUpperCase() + sh.status?.slice(1)}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          ))}
 
           {/* ── Delivery address ────────────────────────────────────────── */}
           {!isDigital && (addrSnap || contSnap) && (
@@ -687,9 +707,11 @@ export default function OrderDetailsScreen() {
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.payMethod}>
-                      {payment.method === 'cod'
-                        ? 'Cash on\nDelivery'
-                        : payment.method?.charAt(0).toUpperCase() + payment.method?.slice(1)}
+                      {payment.method === 'cod' || payment.method === 'COD'
+                        ? 'Cash on Delivery'
+                        : payment.method === 'razorpay' || payment.method === 'RAZORPAY'
+                          ? 'Online Payment'
+                          : payment.method?.charAt(0).toUpperCase() + payment.method?.slice(1)}
                     </Text>
                     <Text style={[styles.payStatus, { color: isPaid ? '#388E3C' : '#E65100' }]}>
                       {isPaid ? 'Paid' : payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1)}
@@ -700,7 +722,7 @@ export default function OrderDetailsScreen() {
             )}
           </Card>
 
-          {/* ── Order info ──────────────────────────────────────────────────── */}
+          {/* ── Order info ──────────────────────────────────────────────── */}
           <Card title="Order information" titleIcon="information-outline">
             {[
               { label: 'Order ID', value: order.orderId?.toUpperCase(), copy: true },
@@ -721,19 +743,29 @@ export default function OrderDetailsScreen() {
               </View>
             ))}
 
-            {canReturn && (
-              <TouchableOpacity
-                style={styles.returnBtn}
-                onPress={goToReturn}
-                activeOpacity={0.8}
-              >
-                <Icon name="refresh" size={ms(17)} color="#fff" />
-                <Text style={styles.returnBtnTxt}>Replace</Text>
-              </TouchableOpacity>
-            )}
 
           </Card>
 
+          {canCancel && (
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={goToCancellation}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cancelBtnTxt}>Cancel Item</Text>
+            </TouchableOpacity>
+          )}
+
+          {canReturn && (
+            <TouchableOpacity
+              style={styles.returnBtn}
+              onPress={goToReturn}
+              activeOpacity={0.8}
+            >
+              <Icon name="refresh" size={ms(17)} color="#fff" />
+              <Text style={styles.returnBtnTxt}>Replace</Text>
+            </TouchableOpacity>
+          )}
 
 
         </Animated.View>
@@ -760,23 +792,13 @@ export default function OrderDetailsScreen() {
           <TouchableOpacity
             style={styles.payNowBtn}
             onPress={initiatePayment}
-            disabled={paymentLoading}
             activeOpacity={0.8}
           >
-            {paymentLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
-            )}
-            <Text style={styles.payNowBtnTxt}>
-              {paymentLoading ? 'Processing…' : 'Pay Now'}
-            </Text>
+            <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
+            <Text style={styles.payNowBtnTxt}>Pay Now</Text>
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Payment Verification Overlay */}
-      <PaymentVerificationOverlay visible={showPaymentOverlay} />
     </View>
   )
 }
@@ -841,10 +863,10 @@ const styles = ScaledSheet.create({
   statusDate: { fontSize: '12@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '3@vs' },
   cancelPill: {
     flexDirection: 'row', alignItems: 'center', gap: '4@s',
-    borderWidth: 1, borderColor: '#D32F2F',
+    borderWidth: 1, borderColor: '#E65100',
     paddingHorizontal: '8@s', paddingVertical: '3@vs', borderRadius: '20@ms',
   },
-  cancelPillTxt: { fontSize: '11@ms', color: '#D32F2F', fontFamily: FONTS.Bold },
+  cancelPillTxt: { fontSize: '11@ms', color: '#E65100', fontFamily: FONTS.Bold },
 
   // ── Vertical stepper ──────────────────────────────────────────────────────
   vWrap: { paddingLeft: '2@s' },
@@ -976,17 +998,38 @@ const styles = ScaledSheet.create({
     backgroundColor: color.primary,
   },
   shopMoreTxt: { fontSize: '13@ms', fontFamily: FONTS.Bold, color: '#fff' },
+  cancelBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6@s',
+    paddingVertical: '12@vs',
+    borderRadius: '6@ms',
+    backgroundColor: '#fff',
+    paddingHorizontal: '16@s',
+    marginHorizontal: '10@s',
+    borderColor: '#E65100',
+    borderWidth: 2 
+  },
+  cancelBtnTxt: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Bold,
+    color: '#E65100',
+  },
   returnBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '6@s',
-    paddingVertical: '11@vs',
-    borderRadius: '8@ms',
+    paddingVertical: '12@vs',
+    borderRadius: '6@ms',
     backgroundColor: color.primary,
+    paddingHorizontal: '16@s',
+    paddingHorizontal: '16@s',
+    marginHorizontal: '10@s',
   },
-
   returnBtnTxt: {
     fontSize: '13@ms',
     fontFamily: FONTS.Bold,

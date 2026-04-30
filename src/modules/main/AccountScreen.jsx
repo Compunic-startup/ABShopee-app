@@ -30,6 +30,7 @@ const MENU_SECTIONS = [
       { key: 'wishlist', icon: 'heart-outline', label: 'Wishlist', route: 'WishlistScreen' },
       { key: 'transactions', icon: 'cash-multiple', label: 'Transactions', route: 'usertransactions' },
       { key: 'refunds', icon: 'cash-refund', label: 'Returns & Replacements', route: 'returnreplacement' },
+      { key: 'cancellations', icon: 'cancel', label: 'Cancellations', route: 'cancellations' },
     ],
   },
   {

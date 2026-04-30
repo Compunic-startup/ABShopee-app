@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { launchImageLibrary } from 'react-native-image-picker'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import FONTS from '../../../utils/fonts'
 import color from '../../../utils/color'
 import BASE_URL from '../../../services/api'
@@ -41,12 +42,12 @@ const REQUEST_TYPES = [
 ]
 
 const OFFICE_ADDRESS = {
-  name: 'Ab Shopee',
-  line1: '123, Industrial Area, Phase 2',
+  name: 'AB COMPUTERS',
+  line1: 'LG-17A, Block A, Silver Mall, 8, RNT Marg, South Tukoganj, South Tukoganj',
   city: 'Indore',
   state: 'Madhya Pradesh',
   pincode: '452012',
-  phone: '+91 98765 00000',
+  phone: '+91 73140 70699',
   hours: 'Mon–Sat, 10 AM – 6 PM',
 }
 
@@ -159,6 +160,7 @@ export default function CreateReturnScreen() {
   const [courierName, setCourierName] = useState('')
   const [trackingId, setTrackingId] = useState('')
   const [courierDate, setCourierDate] = useState('')
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [agreedToPolicy, setAgreedToPolicy] = useState(false)
 
   const fadeAnim = useRef(new Animated.Value(1)).current
@@ -675,13 +677,29 @@ export default function CreateReturnScreen() {
           <Text style={styles.formLabel}>
             Date of Dispatch <Text style={styles.required}>*</Text>
           </Text>
-          <TextInput
-            style={styles.formInput}
-            placeholder="e.g. 01 Apr 2025"
-            placeholderTextColor="#BDBDBD"
-            value={courierDate}
-            onChangeText={setCourierDate}
-          />
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.datePickerText}>
+              {courierDate || 'Select dispatch date'}
+            </Text>
+            <Icon name="calendar" size={ms(20)} color={color.primary} />
+          </TouchableOpacity>
+          
+          {showDatePicker && (
+            <DateTimePicker
+              mode="date"
+              value={courierDate ? new Date(courierDate) : new Date()}
+              maximumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  setCourierDate(selectedDate.toISOString().split('T')[0]);
+                }
+              }}
+            />
+          )}
         </View>
       </Section>
 
@@ -1040,7 +1058,13 @@ const styles = ScaledSheet.create({
     fontSize: '13@ms', fontFamily: FONTS.Medium, color: color.text,
     backgroundColor: color.background,
   },
-  formHint: { fontSize: '11@ms', color: '#BBB', fontFamily: FONTS.Medium, marginTop: '5@vs' },
+  formHint: { fontSize: '11@ms', color: '#999', fontFamily: FONTS.Medium, marginTop: '4@vs' },
+  datePickerButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#E0E0E0',
+    borderRadius: '6@ms', paddingHorizontal: '12@s', paddingVertical: '12@vs',
+  },
+  datePickerText: { fontSize: '13@ms', fontFamily: FONTS.Medium, color: color.text, flex: 1 },
 
   // Checkbox
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: '10@s' },

@@ -22,11 +22,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 const getStatusConfig = status => {
   const map = {
     pending: { color: color.secondary, bg: color.secondarylight, icon: 'clock-outline', label: 'Pending' },
-    confirmed: { color: color.primary, bg: '#E8EDFF', icon: 'check-circle-outline', label: 'Confirmed' },
+    confirmed: { color: color.primary, bg: '#E8EDFF', icon: 'check-circle-outline', label: 'Order Confirmed' },
     processing: { color: color.primary, bg: '#E8EDFF', icon: 'package-variant', label: 'Processing' },
-    shipped: { color: color.primary, bg: '#E8EDFF', icon: 'truck-delivery', label: 'Shipped' },
+    shipped: { color: color.primary, bg: '#E8EDFF', icon: 'truck-delivery', label: 'On the way' },
     delivered: { color: '#2E7D32', bg: '#E8F5E9', icon: 'check-all', label: 'Delivered' },
-    cancelled: { color: '#C62828', bg: '#FFEBEE', icon: 'close-circle-outline', label: 'Cancelled' },
+    cancelled: { color: '#E65100', bg: '#FFF3E0', icon: 'close-circle-outline', label: 'Cancelled' },
     refunded: { color: color.text, bg: color.background, icon: 'cash-refund', label: 'Refunded' },
   }
   return map[status?.toLowerCase()] || {
@@ -151,12 +151,16 @@ function OrderCard({ item, navigation, fadeAnim }) {
       {/* ── Payment row ── */}
       <View style={styles.payRow}>
         <Icon name={payment?.method === 'COD' ? 'cash' : 'credit-card-outline'} size={ms(13)} color={color.text} />
-        <Text style={styles.payText}>{payment?.method || 'Payment'}</Text>
+        <Text style={styles.payText}>
+          {payment?.method === 'COD' ? 'Cash on Delivery' : 
+           payment?.method === 'RAZORPAY' ? 'Online Payment' : 
+           payment?.method || 'Payment'}
+        </Text>
         <View style={styles.payDot} />
         <Text style={[styles.payStatus, {
           color: payment?.status === 'success' ? '#2E7D32' : '#E65100',
         }]}>
-          {payment?.status || 'Pending'}
+          {payment?.status === 'success' ? 'Paid' : payment?.status?.charAt(0).toUpperCase() + payment?.status?.slice(1) || 'Pending'}
         </Text>
       </View>
 
@@ -242,7 +246,7 @@ export default function OrdersScreen() {
       </View>
 
       {/* ── Filter tabs ── */}
-      <View style={styles.filterBar}>
+      {/* <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {FILTERS.map(f => {
             const active = selectedFilter === f.key
@@ -261,16 +265,16 @@ export default function OrdersScreen() {
             )
           })}
         </ScrollView>
-      </View>
+      </View> */}
 
       {/* ── Order count summary ── */}
-      {!loading && orders.length > 0 && (
+      {/* {!loading && orders.length > 0 && (
         <View style={styles.summaryBar}>
           <Text style={styles.summaryText}>
             {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} found
           </Text>
         </View>
-      )}
+      )} */}
 
       {/* ── List ── */}
       {loading && !refreshing ? (

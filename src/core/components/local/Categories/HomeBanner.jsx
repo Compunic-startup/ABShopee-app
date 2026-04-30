@@ -15,6 +15,7 @@ import color from '../../../utils/color'
 
 const { width: SCREEN_W } = Dimensions.get('window')
 
+
 // ─── Sparkle Particle ────────────────────────────────────────────────────────
 function Sparkle({ x, y, size, color: col, delay }) {
   const anim = useRef(new Animated.Value(0)).current
@@ -347,6 +348,7 @@ export default function HomeBanner({ onShopNow }) {
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
   const scaleAnim = useRef(new Animated.Value(0.85)).current
+
 
   // Badge scale bounce
   const badgeBounce = useRef(new Animated.Value(1)).current

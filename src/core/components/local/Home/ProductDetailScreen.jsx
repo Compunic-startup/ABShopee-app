@@ -10,6 +10,7 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  Modal,
 } from 'react-native'
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation, useRoute } from '@react-navigation/native'
@@ -39,13 +40,18 @@ export default function ProductDetailScreen() {
   const [pulsAnim] = useState(new Animated.Value(1))
   const [cartLoading, setCartLoading] = useState(false)
   const [buyLoading, setBuyLoading] = useState(false)
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false)
 
   const galleryRef = useRef(null)
   const scrollViewRef = useRef(null)
+  const mainImageScrollRef = useRef(null)
 
+  // Get all images including primary and gallery
+  const primaryImageObj = product?.media?.find(m => m.role === 'primary')
   const galleryImages = product?.media?.filter(m => m.role === 'gallery') || []
+  const allImages = primaryImageObj ? [primaryImageObj, ...galleryImages] : galleryImages
 
-  useEffect(() => { fetchProduct() }, [])
+  useEffect(() => { fetchProduct() }, [itemId])
 
   // Pulse animation — logic unchanged
   useEffect(() => {
@@ -91,16 +97,17 @@ export default function ProductDetailScreen() {
   }
 
   useEffect(() => {
-    if (!galleryImages.length) return
+    if (!allImages.length) return
     let index = 0
     const interval = setInterval(() => {
-      index = (index + 1) % galleryImages.length
-      setActiveImage(galleryImages[index].url)
+      index = (index + 1) % allImages.length
+      setActiveImage(allImages[index].url)
       setImageIndex(index)
       galleryRef.current?.scrollTo({ x: index * 76, animated: true })
+      mainImageScrollRef.current?.scrollTo({ x: index * width, animated: true })
     }, 3500)
     return () => clearInterval(interval)
-  }, [galleryImages])
+  }, [allImages])
 
   if (loading) {
     return (
@@ -137,7 +144,18 @@ export default function ProductDetailScreen() {
   const currency = priceObj?.currency === 'INR' ? '₹' : ''
   const discountPercent = basePrice > 0 ? Math.round((discountTotal / basePrice) * 100) : 0
   const discountSummary = product.discountPricing?.discountSummary ?? product.discountSummary ?? []
-  const primaryImage = activeImage || product.media?.find(m => m.role === 'primary')?.url || null
+  const primaryImage = activeImage || primaryImageObj?.url || null
+
+  // Handle main image scroll
+  const handleMainImageScroll = (event) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x
+    const index = Math.round(contentOffsetX / width)
+    if (index !== imageIndex && index >= 0 && index < allImages.length) {
+      setImageIndex(index)
+      setActiveImage(allImages[index]?.url)
+      galleryRef.current?.scrollTo({ x: index * 76, animated: true })
+    }
+  }
 
   const getDiscountIcon = cat => ({ promotion: 'tag-multiple', coupon: 'ticket-confirmation', dealer: 'star-circle' }[cat] ?? 'percent-circle')
   const getDiscountColor = cat => ({ promotion: '#E65100', coupon: '#6A1B9A', dealer: '#1B5E20' }[cat] ?? color.primary)
@@ -270,7 +288,7 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
           <Text style={S.headerTitle} numberOfLines={1}>Product Details</Text>
           <TouchableOpacity style={S.headerBtn}>
-            <Icon name="share-variant-outline" size={ms(20)} color="#fff" />
+            <Icon name="share-variant-outline" size={ms(20)} color={color.primary} />
           </TouchableOpacity>
         </View>
 
@@ -287,10 +305,41 @@ export default function ProductDetailScreen() {
                 </View>
               )}
 
-              <Image
-                source={primaryImage ? { uri: primaryImage } : noimage}
-                style={S.productImg}
-              />
+              {/* Scrollable Image Carousel */}
+              <View style={S.imageCarouselContainer}>
+                <ScrollView
+                  ref={mainImageScrollRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={handleMainImageScroll}
+                  scrollEventThrottle={200}
+                  contentContainerStyle={S.imageCarouselContent}
+                >
+                  {allImages.length > 0 ? (
+                    allImages.map((img, i) => (
+                      <TouchableOpacity
+                        key={img.id || i}
+                        activeOpacity={1}
+                        onPress={() => setImagePreviewVisible(true)}
+                        style={S.carouselImageContainer}
+                      >
+                        <Image
+                          source={{ uri: img.url }}
+                          style={S.productImg}
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Image
+                      source={noimage}
+                      style={S.productImg}
+                      resizeMode="contain"
+                    />
+                  )}
+                </ScrollView>
+              </View>
 
               {/* Wishlist */}
               <TouchableOpacity onPress={toggleWishlist} style={S.wishBtn} activeOpacity={0.8}>
@@ -302,9 +351,9 @@ export default function ProductDetailScreen() {
               </TouchableOpacity>
 
               {/* Dot indicators */}
-              {galleryImages.length > 0 && (
+              {allImages.length > 0 && (
                 <View style={S.dotRow}>
-                  {galleryImages.map((_, i) => (
+                  {allImages.map((_, i) => (
                     <View key={i} style={[S.dot, imageIndex === i && S.dotActive]} />
                   ))}
                 </View>
@@ -312,17 +361,21 @@ export default function ProductDetailScreen() {
             </View>
 
             {/* ── Gallery thumbnails ── */}
-            {galleryImages.length > 0 && (
+            {allImages.length > 0 && (
               <ScrollView
                 ref={galleryRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={S.galleryRow}
               >
-                {galleryImages.map((img, i) => (
+                {allImages.map((img, i) => (
                   <TouchableOpacity
-                    key={img.id}
-                    onPress={() => { setActiveImage(img.url); setImageIndex(i) }}
+                    key={img.id || i}
+                    onPress={() => {
+                      setActiveImage(img.url)
+                      setImageIndex(i)
+                      mainImageScrollRef.current?.scrollTo({ x: i * width, animated: true })
+                    }}
                     activeOpacity={0.75}
                   >
                     <Image
@@ -624,6 +677,53 @@ export default function ProductDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* ── Image Preview Modal ── */}
+        <Modal
+          visible={imagePreviewVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setImagePreviewVisible(false)}
+        >
+          <View style={S.modalContainer}>
+            <TouchableOpacity
+              style={S.modalCloseBtn}
+              onPress={() => setImagePreviewVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Icon name="close" size={ms(28)} color="#fff" />
+            </TouchableOpacity>
+
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: imageIndex * width, y: 0 }}
+              onScroll={handleMainImageScroll}
+              scrollEventThrottle={200}
+              style={S.modalScrollView}
+            >
+              {allImages.map((img, i) => (
+                <View key={img.id || i} style={S.modalImageContainer}>
+                  <Image
+                    source={{ uri: img.url }}
+                    style={S.modalImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Dot indicators in modal */}
+            {allImages.length > 0 && (
+              <View style={S.modalDotRow}>
+                {allImages.map((_, i) => (
+                  <View key={i} style={[S.dot, imageIndex === i && S.dotActive]} />
+                ))}
+              </View>
+            )}
+          </View>
+        </Modal>
       </View>
   )
 }
@@ -655,7 +755,7 @@ const S = ScaledSheet.create({
     paddingHorizontal: '20@s',
     alignItems: 'center',
   },
-  productImg: { width: '100%', height: '280@vs', resizeMode: 'contain' },
+  productImg: { width: width, height: '280@vs', resizeMode: 'contain' },
   discRibbon: {
     position: 'absolute', top: '16@vs', left: 0, zIndex: 10,
     backgroundColor: '#2E7D32',
@@ -679,6 +779,11 @@ const S = ScaledSheet.create({
   galleryRow: { paddingHorizontal: '14@s', paddingVertical: '12@vs', backgroundColor: '#fff', gap: '8@s', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   thumb: { width: '60@s', height: '60@s', borderRadius: '6@ms', backgroundColor: color.background, borderWidth: 1.5, borderColor: '#E0E0E0' },
   thumbActive: { borderColor: color.primary, borderWidth: 2 },
+
+  // Image Carousel
+  imageCarouselContainer: { width: '100%', height: '280@vs' },
+  imageCarouselContent: { alignItems: 'center' },
+  carouselImageContainer: { width: width, height: '280@vs', justifyContent: 'center', alignItems: 'center' },
 
   // ── Info card ─────────────────────────────────────────────────────────────
   infoCard: { backgroundColor: '#fff', padding: '14@s', marginTop: '8@vs' },
@@ -825,4 +930,40 @@ const S = ScaledSheet.create({
     backgroundColor: color.background, paddingVertical: '14@vs', gap: '8@s',
   },
   outOfStockText: { fontSize: '15@ms', fontFamily: FONTS.Bold, color: '#BDBDBD' },
+
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? '20@vs' : '50@vs',
+    right: '20@s',
+    zIndex: 10,
+    padding: '8@s',
+  },
+  modalScrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  modalImageContainer: {
+    width: width,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: width,
+    height: '80%',
+  },
+  modalDotRow: {
+    position: 'absolute',
+    bottom: '30@vs',
+    flexDirection: 'row',
+    gap: '5@s',
+    alignSelf: 'center',
+  },
 })

@@ -92,7 +92,7 @@ export default function SplashScreen({ setIsLoggedIn }) {
 
       <Animated.View style={[styles.logoWrapper, { opacity: fadeAnim }]}>
         <Image
-          source={require('../core/assets/images/constants/logoreflective.png')}
+          source={require('../core/assets/images/constants/splashlogo2.png')}
           style={styles.logo}
         />
       </Animated.View>
@@ -103,7 +103,7 @@ export default function SplashScreen({ setIsLoggedIn }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: color.secondary,
+    backgroundColor: color.primary,
   },
   lottie: {
     position: 'absolute',

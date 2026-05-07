@@ -542,7 +542,15 @@ export default function EditProfileScreen() {
               subtitle="Your name and contact info"
             />
 
-            <View style={styles.row2}>
+
+            <View style={{ flex: 1 }}>
+              <FieldInput
+                label="Full Name" value={firstName} onChangeText={setFirstName}
+                placeholder="Rahul" icon="account-outline"
+              />
+            </View>
+
+            {/* <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <FieldInput
                   label="First Name" value={firstName} onChangeText={setFirstName}
@@ -555,13 +563,13 @@ export default function EditProfileScreen() {
                   placeholder="Sharma" icon="account-outline"
                 />
               </View>
-            </View>
+            </View> */}
 
-            <FieldInput
+            {/* <FieldInput
               label="Display Name" value={displayName} onChangeText={setDisplayName}
               placeholder="Rahul S" icon="badge-account-horizontal-outline"
               hint="This is the name shown on your account"
-            />
+            /> */}
 
             <FieldInput
               label="Phone Number" value={userPhone} onChangeText={setUserPhone}
@@ -610,13 +618,13 @@ export default function EditProfileScreen() {
               hint="15-character GSTIN"
             />
 
-            <FieldInput
+            {/* <FieldInput
               label="PAN Number" value={panNumber}
               onChangeText={t => setPanNumber(t.toUpperCase())}
               placeholder="ABCDE1234F" icon="card-account-details-outline"
               autoCapitalize="characters"
               error={errors.panNumber} hint="10-character PAN"
-            />
+            /> */}
           </View>
 
           {/* ════════════════════════════════
@@ -640,12 +648,12 @@ export default function EditProfileScreen() {
               placeholder="+91 98765 43210" icon="phone-outline"
               keyboardType="phone-pad" autoCapitalize="none"
             />
-            <FieldInput
+            {/* <FieldInput
               label="Website" value={website} onChangeText={setWebsite}
               placeholder="https://yourstore.com" icon="web"
               keyboardType="url" autoCapitalize="none"
               error={errors.website}
-            />
+            /> */}
           </View>
 
           {/* ── Save button ── */}

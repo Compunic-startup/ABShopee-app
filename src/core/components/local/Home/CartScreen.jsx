@@ -23,6 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { Image } from 'react-native'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
+import { getCustomerLoyaltyInfo, calculateLoyaltyPoints } from '../../../services/loyaltyapi'
 import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
 import { TextInput } from 'react-native-paper'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -369,15 +370,23 @@ export default function CartScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState(null)
   const [addressesCache, setAddressesCache] = useState([])
 
-  // ── Coupon / Dealer ───────────────────────────────────────────────────────
+  // ── Coupon / Dealer / Loyalty ───────────────────────────────────────────────
   const [showCouponInput, setShowCouponInput] = useState(false)
   const [showDealerInput, setShowDealerInput] = useState(false)
+  const [showLoyaltyInput, setShowLoyaltyInput] = useState(false)
   const [couponInput, setCouponInput] = useState('')
   const [dealerInput, setDealerInput] = useState('')
   const [appliedCode, setAppliedCode] = useState(null)
   const [appliedCodeType, setAppliedCodeType] = useState(null)
   const [applyingCode, setApplyingCode] = useState(false)
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
+
+  // ── Loyalty Points ─────────────────────────────────────────────────────────
+  const [loyaltyInfo, setLoyaltyInfo] = useState(null)
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
+  const [selectedPoints, setSelectedPoints] = useState(0)
+  const [pointsEarning, setPointsEarning] = useState(null)
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0)
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const hasOnlyDigital = cart?.items?.length > 0 && cart.items.every(i => i.itemSnapshot?.itemType === 'digital')
@@ -391,24 +400,107 @@ export default function CartScreen() {
     AsyncStorage.getItem('businessId').then(id => setBusinessId(id))
   }, [])
 
-  useEffect(() => { if (businessId) fetchCart() }, [businessId])
+  useEffect(() => { if (businessId) { fetchCart(); fetchLoyaltyInfo() } }, [businessId])
 
   useEffect(() => {
     if (!loading) Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
   }, [loading])
 
+  useEffect(() => {
+    if (businessId && cart) {
+      fetchCart(appliedCode, selectedPoints)
+    }
+  }, [selectedPoints])
+
+  useEffect(() => {
+    if (cart && selectedPoints === 0) {
+      calculatePointsEarning()
+    }
+  }, [cart, appliedCode])
+
+  // ── Fetch loyalty info ───────────────────────────────────────────────────────
+  const fetchLoyaltyInfo = async () => {
+    try {
+      setLoyaltyLoading(true)
+      const data = await getCustomerLoyaltyInfo()
+      setLoyaltyInfo(data.data)
+    } catch (error) {
+      console.log('Loyalty info fetch error:', error)
+      setLoyaltyInfo(null)
+    } finally {
+      setLoyaltyLoading(false)
+    }
+  }
+
+  // ── Calculate points earning ───────────────────────────────────────────────────
+  const calculatePointsEarning = async () => {
+    if (!cart || !cart.items) return
+    
+    try {
+      // Calculate totals from cart items
+      const regularItems = cart.items.filter(i => !i.isFreeGift)
+      const subtotal = regularItems.reduce((sum, item) => {
+        const itemTotal = item.pricing?.itemTotal || 0
+        return sum + (itemTotal * item.quantity)
+      }, 0)
+      
+      const taxTotal = regularItems.reduce((sum, item) => {
+        const itemTax = item.pricing?.taxAmount || 0
+        return sum + (itemTax * item.quantity)
+      }, 0)
+
+      const orderDetails = {
+        subtotal,
+        taxTotal,
+        items: regularItems.map(item => ({
+          quantity: item.quantity,
+          pricing: { 
+            baseSubtotal: (item.pricing?.itemTotal || 0) * item.quantity 
+          },
+          discountPricing: { 
+            finalSubtotal: (item.discountPricing?.finalItemTotal || item.pricing?.itemTotal || 0) * item.quantity
+          },
+          taxBreakdown: { 
+            taxTotal: (item.pricing?.taxAmount || 0) * item.quantity 
+          }
+        }))
+      }
+
+      console.log('Sending orderDetails:', JSON.stringify(orderDetails, null, 2))
+      const response = await calculateLoyaltyPoints(orderDetails)
+      if (response.success) {
+        setPointsEarning(response.data)
+      }
+    } catch (error) {
+      console.log('Points earning calculation error:', error)
+      console.log('Error response:', error.response || error)
+      setPointsEarning(null)
+    }
+  }
+
   // ── Fetch cart ────────────────────────────────────────────────────────────
-  const fetchCart = async (code = appliedCode) => {
+  const fetchCart = async (code = appliedCode, pointsToRedeem = 0) => {
     try {
       const token = await AsyncStorage.getItem('userToken')
       const bId = await AsyncStorage.getItem('businessId')
-      const url = code
-        ? `${BASE_URL}/customer/business/${bId}/cart?code=${encodeURIComponent(code)}`
-        : `${BASE_URL}/customer/business/${bId}/cart`
+      const params = new URLSearchParams()
+      if (code) params.append('code', code)
+      if (pointsToRedeem > 0) {
+        params.append('redeemPoints', 'true')
+        params.append('pointsAmount', pointsToRedeem.toString())
+      }
+      const url = `${BASE_URL}/customer/business/${bId}/cart${params.toString() ? '?' + params.toString() : ''}`
+      console.log('Cart fetch URL:', url)
+      console.log('Redeeming points:', pointsToRedeem)
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       const json = await res.json()
+      console.log('Cart response:', json)
       if (json?.data) {
         setCart(json.data)
+        // Update loyalty discount from response
+        if (json.data.breakdown?.loyaltyDiscount) {
+          setLoyaltyDiscount(json.data.breakdown.loyaltyDiscount)
+        }
       }
       return json
     } catch (err) {
@@ -424,7 +516,7 @@ export default function CartScreen() {
     if (!code) { ToastAndroid.show('Please enter a code', ToastAndroid.SHORT); return }
     try {
       setApplyingCode(true)
-      const json = await fetchCart(code)
+      const json = await fetchCart(code, selectedPoints)
       if (json?.data) {
         setAppliedCode(code); setAppliedCodeType(type)
         setShowCouponInput(false); setShowDealerInput(false)
@@ -436,7 +528,7 @@ export default function CartScreen() {
 
   const removeCode = async () => {
     setAppliedCode(null); setAppliedCodeType(null); setCouponInput(''); setDealerInput('')
-    await fetchCart(null)
+    await fetchCart(null, selectedPoints)
     ToastAndroid.show('Code removed', ToastAndroid.SHORT)
   }
 
@@ -555,7 +647,7 @@ export default function CartScreen() {
   }, [userProfile])
 
   // ── Build order payload ────────────────────────────────────────────────────
-  const buildOrderPayload = ({ cartId, cartItems, paymentMethod, selectedAddr, email, code }) => {
+  const buildOrderPayload = ({ cartId, cartItems, paymentMethod, selectedAddr, email, code, pointsToRedeem = 0 }) => {
     const hasPhysical = cartItems.some(i => i.itemSnapshot?.itemType !== 'digital')
     const hasDigital = cartItems.some(i => i.itemSnapshot?.itemType === 'digital')
     const payload = {
@@ -563,6 +655,7 @@ export default function CartScreen() {
       payment: { method: paymentMethod },
       itemType: hasPhysical ? 'physical' : 'digital',
       ...(code ? { code } : {}),
+      ...(pointsToRedeem > 0 ? { redeemPoints: true, pointsAmount: pointsToRedeem } : {}),
     }
     if (hasPhysical && selectedAddr) {
       payload.addresses = [{
@@ -576,7 +669,7 @@ export default function CartScreen() {
   }
 
   // ── Place order ────────────────────────────────────────────────────────────
-  const placeOrder = async ({ cartId, cartItems, paymentMethod }) => {
+  const placeOrder = async ({ cartId, cartItems, paymentMethod, pointsToRedeem = 0 }) => {
     if (placing) return
     if (isProfileEmpty(userProfile)) {
       ToastAndroid.show('Please complete your profile first', ToastAndroid.SHORT)
@@ -604,7 +697,7 @@ export default function CartScreen() {
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
       const token = await AsyncStorage.getItem('userToken')
       const bId = businessId ?? await AsyncStorage.getItem('businessId')
-      const body = buildOrderPayload({ cartId, cartItems, paymentMethod, selectedAddr, email: finalEmail, code: appliedCode })
+      const body = buildOrderPayload({ cartId, cartItems, paymentMethod, selectedAddr, email: finalEmail, code: appliedCode, pointsToRedeem })
       console.log('ORDER PAYLOAD →', JSON.stringify(body, null, 2))
 
       const res = await fetch(`${BASE_URL}/customer/business/${bId}/order/place`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
@@ -870,6 +963,139 @@ export default function CartScreen() {
                 )}
               </>
             )}
+
+            {/* ── Loyalty Points ── */}
+            {loyaltyInfo && (
+              <>
+                <View style={styles.divider} />
+                <TouchableOpacity 
+                  style={styles.offerItem} 
+                  onPress={() => { 
+                    setShowLoyaltyInput(p => !p)
+                    setShowCouponInput(false)
+                    setShowDealerInput(false)
+                  }} 
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.offerLeft}>
+                    <Icon name="star-circle-outline" size={ms(20)} color={color.primary} />
+                    <View>
+                      <Text style={styles.offerText}>
+                        {selectedPoints > 0 
+                          ? `${selectedPoints} Points Applied ✓` 
+                          : `Use Points (Balance: ${loyaltyInfo.loyaltyPointsBalance?.toFixed(0) || 0})`
+                        }
+                      </Text>
+                      {selectedPoints > 0 && (
+                        <Text style={{ fontSize: ms(11), color: '#4CAF50', fontFamily: FONTS.Medium }}>
+                          Save ₹{(selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10)).toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <Icon name={showLoyaltyInput ? 'chevron-up' : 'chevron-right'} size={ms(20)} color="#BDBDBD" />
+                </TouchableOpacity>
+                
+                {showLoyaltyInput && (
+                  <View style={styles.loyaltyExpandSection}>
+                    {/* Available Balance Card */}
+                    <View style={styles.loyaltyBalanceCardSmall}>
+                      <Text style={styles.loyaltyBalanceLabelSmall}>Available</Text>
+                      <Text style={styles.loyaltyBalanceValueSmall}>
+                        {loyaltyInfo.loyaltyPointsBalance?.toFixed(0) || 0} pts
+                      </Text>
+                      <Text style={styles.loyaltyBalanceValueSmall}>
+                        = ₹{((loyaltyInfo.loyaltyPointsBalance || 0) * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10)).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    {/* Input Row */}
+                    <View style={styles.loyaltyInputRowExpand}>
+                      <TextInput
+                        style={styles.loyaltyInputExpand}
+                        value={selectedPoints > 0 ? selectedPoints.toString() : ''}
+                        onChangeText={(text) => {
+                          const points = parseInt(text) || 0
+                          const maxPoints = Math.min(
+                            loyaltyInfo.loyaltyPointsBalance,
+                            loyaltyInfo.loyaltyRule?.maxRedeemCappedValue || Infinity,
+                            Math.floor((grandTotal * (loyaltyInfo.loyaltyRule?.maxRedeemPercentage || 100) / 100) / (loyaltyInfo.loyaltyRule?.conversionRate || 0.10))
+                          )
+                          const minPoints = loyaltyInfo.loyaltyRule?.minPointsToRedeem || 0
+                          
+                          if (points > maxPoints) {
+                            ToastAndroid.show(`Max ${maxPoints.toFixed(0)} points`, ToastAndroid.SHORT)
+                            setSelectedPoints(Math.floor(maxPoints))
+                          } else if (points < minPoints && points > 0) {
+                            ToastAndroid.show(`Min ${minPoints} points required`, ToastAndroid.SHORT)
+                            setSelectedPoints(0)
+                          } else {
+                            setSelectedPoints(points)
+                          }
+                        }}
+                        placeholder="Enter points"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                      <TouchableOpacity
+                        style={styles.loyaltyMaxBtnExpand}
+                        onPress={() => {
+                          const maxPoints = Math.min(
+                            loyaltyInfo.loyaltyPointsBalance,
+                            loyaltyInfo.loyaltyRule?.maxRedeemCappedValue || Infinity,
+                            Math.floor((grandTotal * (loyaltyInfo.loyaltyRule?.maxRedeemPercentage || 100) / 100) / (loyaltyInfo.loyaltyRule?.conversionRate || 0.10))
+                          )
+                          setSelectedPoints(Math.floor(maxPoints))
+                        }}
+                      >
+                        <Text style={styles.loyaltyMaxBtnText}>MAX</Text>
+                      </TouchableOpacity>
+                    </View>
+                    
+                    {loyaltyInfo.loyaltyRule?.minPointsToRedeem > 0 && (
+                      <Text style={styles.loyaltyMinHint}>
+                        Minimum {loyaltyInfo.loyaltyRule.minPointsToRedeem} points to redeem
+                      </Text>
+                    )}
+
+                    {/* Use Points Button */}
+                    {selectedPoints > 0 && (
+                      <TouchableOpacity
+                        style={styles.usePointsBtn}
+                        onPress={() => {
+                          fetchCart(appliedCode, selectedPoints)
+                          ToastAndroid.show(`${selectedPoints} points applied!`, ToastAndroid.SHORT)
+                        }}
+                        disabled={loyaltyLoading}
+                      >
+                        <Icon name="check-circle" size={ms(18)} color="#fff" />
+                        <Text style={styles.usePointsBtnText}>Use {selectedPoints} Points</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Earning Preview - Always show */}
+                    {pointsEarning && pointsEarning.pointsToEarn > 0 && selectedPoints === 0 && (
+                      <View style={styles.earningPreviewCard}>
+                        <Icon name="star-circle" size={ms(16)} color={color.primary} />
+                        <Text style={styles.earningPreviewText}>
+                          You'll earn {pointsEarning.pointsToEarn.toFixed(0)} points from this order
+                          {loyaltyInfo?.loyaltyRule?.conversionRate && 
+                            ` (₹${(pointsEarning.pointsToEarn * loyaltyInfo.loyaltyRule.conversionRate).toFixed(2)} value)`
+                          }
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Zero Balance Message */}
+                    {loyaltyInfo.loyaltyPointsBalance === 0 && (
+                      <Text style={styles.loyaltyZeroMessage}>
+                        No points available. Complete this order to earn!
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
           </View>
 
           {/* ── Discount Summary ── */}
@@ -1027,17 +1253,54 @@ export default function CartScreen() {
             {sgst > 0 && <View style={styles.billRow}><Text style={styles.billLabel}>SGST</Text><Text style={styles.billValue}>₹{sgst.toFixed(2)}</Text></View>}
             {igst > 0 && <View style={styles.billRow}><Text style={styles.billLabel}>IGST</Text><Text style={styles.billValue}>₹{igst.toFixed(2)}</Text></View>}
             <View style={styles.billRow}><Text style={styles.billLabel}>Total Tax</Text><Text style={styles.billValue}>₹{taxTotal.toFixed(2)}</Text></View>
+            {/* Loyalty Points Discount */}
+            {selectedPoints > 0 && (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, { color: color.primary }]}>
+                  <Icon name="star-circle" size={ms(14)} color={color.primary} /> Points Discount ({selectedPoints} pts)
+                </Text>
+                <Text style={[styles.billValue, { color: color.primary }]}>
+                  - ₹{(selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10)).toFixed(2)}
+                </Text>
+              </View>
+            )}
+            
             <View style={styles.billRow}><Text style={styles.billLabel}>Delivery Charges</Text><Text style={styles.billValueFree}>FREE</Text></View>
             <View style={styles.divider} />
             <View style={styles.billRow}>
               <Text style={styles.billTotalLabel}>Total (incl. tax)</Text>
-              <Text style={styles.billTotalValue}>₹{grandTotal.toFixed(2)}</Text>
+              <Text style={styles.billTotalValue}>
+                ₹{selectedPoints > 0 
+                  ? Math.max(0, grandTotal - (selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10))).toFixed(2)
+                  : grandTotal.toFixed(2)
+                }
+              </Text>
             </View>
 
-            {(totalSavings > 0 || totalDiscount > 0) && (
+            {(totalSavings > 0 || totalDiscount > 0 || selectedPoints > 0) && (
               <View style={styles.savingsCard}>
                 <Icon name="check-circle" size={ms(17)} color="#4CAF50" />
-                <Text style={styles.savingsText}>You're saving ₹{Math.round(Math.max(totalSavings, totalDiscount))} on this order</Text>
+                <Text style={styles.savingsText}>
+                  You're saving ₹{Math.round(
+                    Math.max(totalSavings, totalDiscount) + 
+                    (selectedPoints > 0 ? selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10) : 0)
+                  )} on this order
+                </Text>
+              </View>
+            )}
+
+            {/* Points earning preview */}
+            {pointsEarning && selectedPoints === 0 && pointsEarning.pointsToEarn > 0 && (
+              <View style={styles.pointsEarningCard}>
+                <Icon name="star-circle" size={ms(17)} color={color.primary} />
+                <View style={styles.pointsEarningContent}>
+                  <Text style={styles.pointsEarningText}>
+                    You'll earn {pointsEarning.pointsToEarn.toFixed(2)} points from this order!
+                  </Text>
+                  <Text style={styles.pointsEarningSubtext}>
+                    ≈ ₹{(pointsEarning.pointsToEarn * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10)).toFixed(2)} value
+                  </Text>
+                </View>
               </View>
             )}
           </View>
@@ -1103,17 +1366,25 @@ export default function CartScreen() {
       {/* ── Bottom Bar ── */}
       <View style={styles.bottomBar}>
         <View style={styles.bottomLeft}>
-          <Text style={styles.bottomTotal}>₹{grandTotal.toFixed(2)}</Text>
+          <Text style={styles.bottomTotal}>
+            ₹{selectedPoints > 0 
+              ? Math.max(0, grandTotal - (selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10))).toFixed(2)
+              : grandTotal.toFixed(2)
+            }
+          </Text>
           <Text style={styles.bottomSubtext}>
-            {(totalSavings > 0 || totalDiscount > 0)
-              ? `₹${Math.round(Math.max(totalSavings, totalDiscount))} Saved`
+            {(totalSavings > 0 || totalDiscount > 0 || selectedPoints > 0)
+              ? `₹${Math.round(
+                  Math.max(totalSavings, totalDiscount) + 
+                  (selectedPoints > 0 ? selectedPoints * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10) : 0)
+                )} Saved`
               : 'Incl. all taxes'}
           </Text>
         </View>
         <TouchableOpacity
           style={[styles.checkoutBtn, placing && styles.checkoutBtnDisabled]}
           disabled={placing}
-          onPress={() => placeOrder({ cartId: cart.cartId, cartItems: cart.items, paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD' })}
+          onPress={() => placeOrder({ cartId: cart.cartId, cartItems: cart.items, paymentMethod: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD', pointsToRedeem: selectedPoints })}
           activeOpacity={0.9}
         >
           {placing ? (
@@ -1383,5 +1654,355 @@ const styles = ScaledSheet.create({
     fontFamily: FONTS.Medium,
     flex: 1,
     lineHeight: '17@ms',
+  },
+  loyaltyBalanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: '8@vs',
+  },
+  loyaltyBalanceInfo: {
+    flex: 1,
+  },
+  loyaltyBalanceText: {
+    fontSize: '16@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+    marginBottom: '4@vs',
+  },
+  loyaltyConversionText: {
+    fontSize: '12@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+    marginBottom: '2@vs',
+  },
+  loyaltyMinText: {
+    fontSize: '11@ms',
+    color: '#888',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltyToggle: {
+    width: '32@ms',
+    height: '32@ms',
+    borderRadius: '16@ms',
+    borderWidth: 2,
+    borderColor: color.primary,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loyaltyToggleActive: {
+    backgroundColor: color.primary,
+    borderColor: color.primary,
+  },
+  loyaltyBreakdown: {
+    marginTop: '12@vs',
+    paddingTop: '12@vs',
+    borderTopWidth: 1,
+    borderTopColor: color.border,
+  },
+  loyaltyBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '6@vs',
+  },
+  loyaltyBreakdownLabel: {
+    fontSize: '13@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltyBreakdownValue: {
+    fontSize: '13@ms',
+    color: color.text,
+    fontFamily: FONTS.Medium,
+  },
+  pointsEarningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: color.primary + '10',
+    padding: '12@s',
+    borderRadius: '8@ms',
+    borderWidth: 1,
+    borderColor: color.primary + '30',
+    marginTop: '12@vs',
+    gap: '12@s',
+  },
+  pointsEarningContent: {
+    flex: 1,
+  },
+  pointsEarningText: {
+    fontSize: '14@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+    marginBottom: '2@vs',
+  },
+  pointsEarningSubtext: {
+    fontSize: '12@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  noPointsContainer: {
+    alignItems: 'center',
+    paddingVertical: '16@vs',
+    paddingHorizontal: '12@s',
+  },
+  noPointsText: {
+    fontSize: '14@ms',
+    color: '#666',
+    fontFamily: FONTS.Medium,
+    marginBottom: '4@vs',
+  },
+  noPointsSubtext: {
+    fontSize: '12@ms',
+    color: '#999',
+    fontFamily: FONTS.Regular,
+  },
+  // Simplified Loyalty UI Styles
+  loyaltyBalanceCard: {
+    backgroundColor: color.primary + '10',
+    borderRadius: '12@ms',
+    padding: '16@s',
+    alignItems: 'center',
+    marginBottom: '16@vs',
+    borderWidth: 1,
+    borderColor: color.primary + '30',
+  },
+  loyaltyBalanceLabel: {
+    fontSize: '12@ms',
+    color: '#666',
+    fontFamily: FONTS.Medium,
+    marginBottom: '4@vs',
+  },
+  loyaltyBalanceValue: {
+    fontSize: '32@ms',
+    color: color.primary,
+    fontFamily: FONTS.Bold,
+    marginBottom: '4@vs',
+  },
+  loyaltyConversionRate: {
+    fontSize: '13@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltyInputContainer: {
+    marginBottom: '16@vs',
+  },
+  loyaltyInputLabel: {
+    fontSize: '14@ms',
+    color: color.text,
+    fontFamily: FONTS.Medium,
+    marginBottom: '8@vs',
+  },
+  loyaltyInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '10@s',
+  },
+  loyaltyInput: {
+    flex: 1,
+    height: '48@vs',
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: '10@ms',
+    paddingHorizontal: '16@s',
+    fontSize: '18@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+    backgroundColor: '#fff',
+  },
+  loyaltyMaxButton: {
+    height: '48@vs',
+    paddingHorizontal: '20@s',
+    backgroundColor: color.primary,
+    borderRadius: '10@ms',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loyaltyMaxButtonText: {
+    fontSize: '14@ms',
+    color: '#fff',
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltyMinText: {
+    fontSize: '11@ms',
+    color: '#999',
+    fontFamily: FONTS.Regular,
+    marginTop: '6@vs',
+  },
+  loyaltyDiscountPreview: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: '10@ms',
+    padding: '14@s',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  loyaltyPreviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '6@vs',
+  },
+  loyaltyPreviewLabel: {
+    fontSize: '13@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltyPreviewValue: {
+    fontSize: '14@ms',
+    color: '#4CAF50',
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltyPreviewTotal: {
+    fontSize: '16@ms',
+    color: color.primary,
+    fontFamily: FONTS.Bold,
+  },
+  loyaltyNoPointsMessage: {
+    alignItems: 'center',
+    paddingVertical: '20@vs',
+  },
+  loyaltyNoPointsText: {
+    fontSize: '14@ms',
+    color: '#666',
+    fontFamily: FONTS.Medium,
+    textAlign: 'center',
+    lineHeight: '20@ms',
+  },
+  // Expandable Loyalty Section Styles (in Offers card)
+  loyaltyExpandSection: {
+    backgroundColor: color.background,
+    padding: '14@s',
+    borderRadius: '10@ms',
+    marginTop: '8@vs',
+  },
+  loyaltyBalanceCardSmall: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: color.primary + '10',
+    borderRadius: '8@ms',
+    padding: '12@s',
+    marginBottom: '12@vs',
+  },
+  loyaltyBalanceLabelSmall: {
+    fontSize: '12@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltyBalanceValueSmall: {
+    fontSize: '14@ms',
+    color: color.primary,
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltyInputRowExpand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+    marginBottom: '8@vs',
+  },
+  loyaltyInputExpand: {
+    flex: 1,
+    height: '44@vs',
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: '8@ms',
+    paddingHorizontal: '12@s',
+    fontSize: '16@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+    backgroundColor: '#fff',
+  },
+  loyaltyMaxBtnExpand: {
+    height: '44@vs',
+    paddingHorizontal: '16@s',
+    backgroundColor: color.primary,
+    borderRadius: '8@ms',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loyaltyMaxBtnText: {
+    fontSize: '13@ms',
+    color: '#fff',
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltyMinHint: {
+    fontSize: '11@ms',
+    color: '#888',
+    fontFamily: FONTS.Regular,
+    marginBottom: '12@vs',
+  },
+  loyaltySimCard: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: '10@ms',
+    padding: '14@s',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  loyaltySimRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  loyaltySimLabel: {
+    fontSize: '13@ms',
+    color: '#666',
+    fontFamily: FONTS.Regular,
+  },
+  loyaltySimValue: {
+    fontSize: '14@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltySimTotalLabel: {
+    fontSize: '14@ms',
+    color: color.text,
+    fontFamily: FONTS.SemiBold,
+  },
+  loyaltySimTotalValue: {
+    fontSize: '18@ms',
+    color: color.primary,
+    fontFamily: FONTS.Bold,
+  },
+  loyaltyZeroMessage: {
+    fontSize: '13@ms',
+    color: '#888',
+    fontFamily: FONTS.Regular,
+    textAlign: 'center',
+    paddingVertical: '12@vs',
+  },
+  usePointsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8@s',
+    backgroundColor: color.primary,
+    borderRadius: '10@ms',
+    paddingVertical: '14@vs',
+    marginTop: '12@vs',
+    marginBottom: '12@vs',
+  },
+  usePointsBtnText: {
+    fontSize: '15@ms',
+    color: '#fff',
+    fontFamily: FONTS.SemiBold,
+  },
+  earningPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '10@s',
+    backgroundColor: color.primary + '10',
+    borderRadius: '8@ms',
+    padding: '12@s',
+    borderWidth: 1,
+    borderColor: color.primary + '30',
+    marginTop: '8@vs',
+  },
+  earningPreviewText: {
+    flex: 1,
+    fontSize: '13@ms',
+    color: color.text,
+    fontFamily: FONTS.Medium,
+    lineHeight: '18@ms',
   },
 })

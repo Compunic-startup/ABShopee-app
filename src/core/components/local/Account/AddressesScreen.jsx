@@ -57,29 +57,33 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
 
   // Populate form when editing
   useEffect(() => {
+    console.log('AddressBottomSheet useEffect - editData:', editData)
     if (editData) {
-      setForm({ 
-        label: editData.label ?? '', 
-        name: editData.contactInfo?.name ?? '', 
-        phone: editData.contactInfo?.phone ?? '', 
-        line1: editData.address?.line1 ?? '', 
-        city: editData.address?.city ?? '', 
-        state: editData.address?.state ?? '', 
-        postalCode: editData.address?.postalCode ?? '', 
-        country: editData.address?.country ?? 'India', 
-        isDefault: editData.isDefault ?? false 
-      })
+      console.log('Populating form from editData.address:', editData.address)
+      const newForm = {
+        label: editData.label ?? '',
+        name: editData.contactInfo?.name ?? '',
+        phone: editData.contactInfo?.phone ?? '',
+        line1: editData.address?.addressLine1 ?? '',
+        city: editData.address?.city ?? '',
+        state: editData.address?.state ?? '',
+        postalCode: editData.address?.postalCode ?? '',
+        country: editData.address?.country ?? 'India',
+        isDefault: editData.isDefault ?? false
+      }
+      console.log('Setting form to:', newForm)
+      setForm(newForm)
     } else {
-      setForm({ 
-        label: '', 
-        name: '', 
-        phone: '', 
-        line1: '', 
-        city: '', 
-        state: '', 
-        postalCode: '', 
-        country: 'India', 
-        isDefault: false 
+      setForm({
+        label: '',
+        name: '',
+        phone: '',
+        line1: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: 'India',
+        isDefault: false
       })
     }
   }, [editData, visible])
@@ -319,20 +323,20 @@ function AddressBottomSheet({ visible, onClose, onSaved, editData }) {
             <Text style={sh.fieldLabel}>
               Address <Text style={sh.required}>*</Text>
             </Text>
-            <TextInput 
-              mode="outlined" 
-              label="Address Line 1 *" 
-              placeholder="House/Flat No., Street" 
-              placeholderTextColor="#bbb" 
-              value={form.line1} 
-              onChangeText={v => setField('line1', v)} 
-              outlineColor="#E0E0E0" 
-              activeOutlineColor={color.primary} 
-              left={<TextInput.Icon icon="home-outline" color="#aaa" />} 
-              style={sh.input} 
-              dense 
+            <TextInput
+              mode="outlined"
+              label="Address Line 1 *"
+              placeholder="House/Flat No., Street"
+              placeholderTextColor="#bbb"
+              value={form.line1}
+              onChangeText={v => setField('line1', v)}
+              outlineColor="#E0E0E0"
+              activeOutlineColor={color.primary}
+              left={<TextInput.Icon icon="home-outline" color="#aaa" />}
+              style={sh.input}
+              dense
             />
-
+  
             <View style={sh.rowDouble}>
               <View style={{ flex: 1 }}>
                 <Text style={sh.fieldLabel}>
@@ -505,6 +509,7 @@ export default function AddressesScreen() {
         headers: { Authorization: `Bearer ${token}` } 
       })
       const json = await res.json()
+      console.log(json);
       if (json.success) {
         setAddresses(json.data ?? [])
       }

@@ -26,6 +26,7 @@ const MENU_SECTIONS = [
     title: 'My Orders & Activity',
     items: [
       { key: 'orders', icon: 'package-variant', label: 'My Orders', route: 'OrdersScreen' },
+      { key: 'loyalty', icon: 'star-circle', label: 'Loyalty Points', route: 'LoyaltyPointsScreen' },
       { key: 'addresses', icon: 'map-marker-outline', label: 'My Addresses', route: 'AddressesScreen' },
       { key: 'wishlist', icon: 'heart-outline', label: 'Wishlist', route: 'WishlistScreen' },
       { key: 'transactions', icon: 'cash-multiple', label: 'Transactions', route: 'usertransactions' },

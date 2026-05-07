@@ -15,6 +15,7 @@ import NotificationsScreen from '../components/local/Home/NotificationsScreen'
 import EditProfileScreen from '../components/local/Account/EditProfileScreen'
 import ProfileInfoScreen from '../components/global/ProfileInfoScreen'
 import AddressesScreen from '../components/local/Account/AddressesScreen'
+import LoyaltyPointsScreen from '../components/local/Account/LoyaltyPointsScreen'
 import SellerDashboardScreen from '../../modules/main/SellerDashboardScreen'
 import ReturnsReplacemnet from '../components/local/payments/ReturnsReplacement'
 import ReturnReplaceDetails from '../components/local/payments/ReturnReplaceDetails'
@@ -123,6 +124,10 @@ export default function MainStack({ setIsLoggedIn }) {
         <Stack.Screen
           name="SellerDashboardScreen"
           component={SellerDashboardScreen} options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LoyaltyPointsScreen"
+          component={LoyaltyPointsScreen} options={{ headerShown: false }}
         />
     </Stack.Navigator>
 

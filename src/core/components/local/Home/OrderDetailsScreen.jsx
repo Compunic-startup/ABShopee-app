@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Clipboard,
 } from 'react-native'
 import { ScaledSheet, ms, s, vs } from 'react-native-size-matters'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import noimage from '../../../assets/images/Categories/preloader.gif'
 import RNFS from 'react-native-fs'
@@ -166,14 +166,17 @@ export default function OrderDetailsScreen() {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(false)
   const [fadeAnim] = useState(new Animated.Value(0))
   const [userProfile, setUserProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
 
-  useEffect(() => {
-    fetchOrder()
-    fetchUserProfile()
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrder()
+      fetchUserProfile()
+    }, [orderId])
+  )
 
   useEffect(() => {
     if (!loading && order)
@@ -251,7 +254,9 @@ export default function OrderDetailsScreen() {
   }
 
   const initiatePayment = async () => {
+    if (paymentLoading) return;
     try {
+      setPaymentLoading(true)
       console.log('=== PAYMENT INITIATION START ===')
 
       const token = await AsyncStorage.getItem('userToken')
@@ -354,6 +359,8 @@ export default function OrderDetailsScreen() {
           navigation.navigate('LoginScreen')
         }, 2000)
       }
+    } finally {
+      setPaymentLoading(false)
     }
   }
 
@@ -773,29 +780,38 @@ export default function OrderDetailsScreen() {
 
       {/* ── Bottom bar ──────────────────────────────────────────────────── */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.invoiceBtn}
-          onPress={downloadInvoice}
-          disabled={downloading}
-          activeOpacity={0.8}
-        >
-          {downloading
-            ? <ActivityIndicator size="small" color={color.primary} />
-            : <Icon name="file-download-outline" size={ms(17)} color={color.primary} />
-          }
-          <Text style={styles.invoiceBtnTxt}>
-            {downloading ? 'Downloading…' : 'Download Invoice'}
-          </Text>
-        </TouchableOpacity>
+        {currentStatus !== 'created' && (
+          <TouchableOpacity
+            style={styles.invoiceBtn}
+            onPress={downloadInvoice}
+            disabled={downloading}
+            activeOpacity={0.8}
+          >
+            {downloading
+              ? <ActivityIndicator size="small" color={color.primary} />
+              : <Icon name="file-download-outline" size={ms(17)} color={color.primary} />
+            }
+            <Text style={styles.invoiceBtnTxt}>
+              {downloading ? 'Downloading…' : 'Download Invoice'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {canPayNow && (
           <TouchableOpacity
             style={styles.payNowBtn}
             onPress={initiatePayment}
+            disabled={paymentLoading}
             activeOpacity={0.8}
           >
-            <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
-            <Text style={styles.payNowBtnTxt}>Pay Now</Text>
+            {paymentLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Icon name="credit-card-outline" size={ms(17)} color="#fff" />
+            )}
+            <Text style={styles.payNowBtnTxt}>
+              {paymentLoading ? 'Processing...' : 'Pay Now'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

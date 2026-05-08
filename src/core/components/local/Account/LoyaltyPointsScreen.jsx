@@ -26,7 +26,7 @@ const TransactionItem = ({ item }) => {
   
   return (
     <View style={styles.transactionItem}>
-      <View style={[styles.transactionIcon, { backgroundColor: isEarn ? '#E8F5E9' : '#FFEBEE' }]}>
+      <View style={[styles.transactionIcon, { backgroundColor: isEarn ? '#f2f2f2' : '#f2f2f2' }]}>
         <Icon 
           name={isEarn ? 'arrow-up-circle' : 'arrow-down-circle'} 
           size={ms(22)} 
@@ -39,7 +39,7 @@ const TransactionItem = ({ item }) => {
             {isEarn ? 'Points Earned' : 'Points Redeemed'}
             {isPending && <Text style={styles.pendingBadge}> (Pending)</Text>}
           </Text>
-          <Text style={[styles.transactionPoints, { color: color.primary }]}>
+          <Text style={[styles.transactionPoints, { color: isEarn ? color.GREEN : color.RED }]}>
             {isEarn ? '+' : ''}{item.points}
           </Text>
         </View>
@@ -385,6 +385,7 @@ const styles = ScaledSheet.create({
     paddingBottom: '12@vs',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+    paddingVertical: '10@vs',
   },
   tab: {
     flex: 1,

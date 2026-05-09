@@ -17,7 +17,7 @@ import BASE_URL from '../../../services/api'
 
 export default function OrderPendingApprovalScreen() {
   const navigation = useNavigation()
-  const { orderId } = useRoute().params
+  const { orderId, pointsEarned = 0 } = useRoute().params
   const [fadeAnim] = useState(new Animated.Value(0))
 
   // Validate orderId param
@@ -83,6 +83,16 @@ export default function OrderPendingApprovalScreen() {
             You will receive an email and notification once it is approved. Please then return to make your payment.
           </Text>
         </View>
+
+        {/* Points Earned */}
+        {pointsEarned > 0 && (
+          <View style={styles.pointsMinimal}>
+            <Icon name="star-circle" size={ms(20)} color="#FFD700" />
+            <Text style={styles.pointsTextMinimal}>
+              You will earn {pointsEarned} points upon payment
+            </Text>
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
@@ -338,5 +348,17 @@ const styles = ScaledSheet.create({
     fontFamily: FONTS.Regular,
     color: '#666',
     lineHeight: '18@vs',
+  },
+  pointsMinimal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '30@vs',
+    gap: '6@s',
+  },
+  pointsTextMinimal: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Bold,
+    color: '#FFD700',
   },
 })

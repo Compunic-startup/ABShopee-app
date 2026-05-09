@@ -134,7 +134,7 @@ export default function LoyaltyPointsScreen() {
           {loyaltyInfo?.loyaltyPointsBalance?.toFixed(0) || 0}
         </Text>
         <Text style={styles.balanceValueText}>
-          = ₹{((loyaltyInfo?.loyaltyPointsBalance || 0) * (loyaltyInfo?.loyaltyRule?.conversionRate || 0.10)).toFixed(2)} value
+          = ₹{((loyaltyInfo?.loyaltyPointsBalance || 0) * (loyaltyInfo?.loyaltyRules?.[0]?.conversionRate || 0.10)).toFixed(2)} value
         </Text>
         
         {expiryInfo?.totalExpiring > 0 && (
@@ -146,6 +146,82 @@ export default function LoyaltyPointsScreen() {
           </View>
         )}
       </View>
+
+      {/* Tier Milestone Progress */}
+      {loyaltyInfo?.loyaltyRules && Array.isArray(loyaltyInfo.loyaltyRules) && (
+        <View style={styles.tierCard}>
+          <View style={styles.tierHeader}>
+            <Icon name="trophy" size={ms(24)} color={color.primary} />
+            <Text style={styles.tierTitle}>Your Tier Progress</Text>
+          </View>
+          
+          {(() => {
+            const sortedRules = loyaltyInfo.loyaltyRules
+              .filter(rule => rule.status !== 'inactive')
+              .sort((a, b) => a.earnThresholdValue - b.earnThresholdValue)
+            
+            const lifetimeSpend = loyaltyInfo.lifetimeSpend || 0
+            let currentTierInfo = null
+            let nextTierInfo = null
+            let progress = 0
+
+            for (let i = 0; i < sortedRules.length; i++) {
+              const rule = sortedRules[i]
+              if (lifetimeSpend >= rule.earnThresholdValue) {
+                currentTierInfo = { ...rule, tierIndex: i }
+              } else {
+                nextTierInfo = { ...rule, tierIndex: i }
+                break
+              }
+            }
+
+            if (currentTierInfo && nextTierInfo) {
+              const prevThreshold = currentTierInfo.earnThresholdValue
+              const nextThreshold = nextTierInfo.earnThresholdValue
+              progress = ((lifetimeSpend - prevThreshold) / (nextThreshold - prevThreshold)) * 100
+            } else if (currentTierInfo) {
+              progress = 100
+            }
+
+            return (
+              <>
+                <View style={styles.currentTier}>
+                  <Text style={styles.currentTierLabel}>Current Tier</Text>
+                  <View style={styles.tierBadge}>
+                    <Text style={styles.tierBadgeText}>
+                      Tier {currentTierInfo ? currentTierInfo.tierIndex + 1 : 'None'}
+                    </Text>
+                  </View>
+                  {currentTierInfo && (
+                    <Text style={styles.tierBenefit}>
+                      Earn {currentTierInfo.earnPointsValue} points per ₹{currentTierInfo.earnThresholdValue}
+                    </Text>
+                  )}
+                </View>
+
+                {nextTierInfo && (
+                  <View style={styles.nextTier}>
+                    <Text style={styles.nextTierLabel}>Next Tier</Text>
+                    <View style={styles.progressContainer}>
+                      <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%` }]} />
+                      </View>
+                      <Text style={styles.progressText}>
+                        ₹{Math.max(0, nextTierInfo.earnThresholdValue - lifetimeSpend).toFixed(0)} to go
+                      </Text>
+                    </View>
+                    <View style={styles.nextTierBenefit}>
+                      <Text style={styles.nextTierBenefitText}>
+                        Unlock {nextTierInfo.earnPointsValue} points per ₹{nextTierInfo.earnThresholdValue}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )
+          })()}
+        </View>
+      )}
 
       {/* Quick Stats */}
       {analytics && (
@@ -199,70 +275,82 @@ export default function LoyaltyPointsScreen() {
   )
 
   const renderPolicy = () => (
-    <View style={styles.sectionCard}>
-      <Text style={styles.sectionTitle}>Loyalty Policy</Text>
-      
-      {loyaltyInfo?.loyaltyRule ? (
-        <>
-          <PolicyItem
-            icon="swap-horizontal"
-            title="Conversion Rate"
-            value={`1 Point = ₹${loyaltyInfo.loyaltyRule.conversionRate || 0.10}`}
-            description="Each point is worth this amount when redeeming"
-          />
-          
-          <PolicyItem
-            icon="numeric"
-            title="Minimum to Redeem"
-            value={`${loyaltyInfo.loyaltyRule.minPointsToRedeem || 0} Points`}
-            description="Minimum points required to start redeeming"
-          />
-          
-          {loyaltyInfo.loyaltyRule.maxRedeemCappedValue && (
-            <PolicyItem
-              icon="trending-up"
-              title="Max Per Order"
-              value={`${loyaltyInfo.loyaltyRule.maxRedeemCappedValue} Points`}
-              description="Maximum points you can use in a single order"
-            />
-          )}
-          
-          {loyaltyInfo.loyaltyRule.maxRedeemPercentage && (
-            <PolicyItem
-              icon="percent-circle"
-              title="Max Order Coverage"
-              value={`${loyaltyInfo.loyaltyRule.maxRedeemPercentage}% of order`}
-              description="Points can cover up to this percentage of your order"
-            />
-          )}
-          
-          <PolicyItem
-            icon="clock-outline"
-            title="Point Expiry"
-            value={`${loyaltyInfo.loyaltyRule.pointExpiryDays || 365} Days`}
-            description="Points expire after this many days from earning"
-          />
-          
-          <PolicyItem
-            icon="calculator"
-            title="Earning Method"
-            value={loyaltyInfo.loyaltyRule.earnPointsType === 'percentage' 
-              ? `${loyaltyInfo.loyaltyRule.earnPointsValue}% of order` 
-              : `${loyaltyInfo.loyaltyRule.earnPointsValue} pts per order`}
-            description={`Earn on ${loyaltyInfo.loyaltyRule.earnThresholdType} above ₹${loyaltyInfo.loyaltyRule.earnThresholdValue}`}
-          />
-          
-          <PolicyItem
-            icon="tag-multiple"
-            title="Earn on Discounted"
-            value={loyaltyInfo.loyaltyRule.earnOnDiscountedPrice ? 'Yes' : 'No'}
-            description={loyaltyInfo.loyaltyRule.earnOnDiscountedPrice 
-              ? "Points calculated after discounts applied" 
-              : "Points calculated on original price"}
-          />
-        </>
+    <View>
+      {loyaltyInfo?.loyaltyRules && loyaltyInfo.loyaltyRules.length > 0 ? (
+        loyaltyInfo.loyaltyRules
+          .slice()
+          .sort((a, b) => (a.earnThresholdValue || 0) - (b.earnThresholdValue || 0))
+          .map((rule, index) => (
+            <View key={rule.id || index} style={[styles.sectionCard, index > 0 && { marginTop: vs(8) }]}>
+              <View style={styles.ruleHeader}>
+                <Icon name="trophy" size={ms(20)} color={color.primary} />
+                <Text style={styles.sectionTitle}>
+                  Tier {index + 1} Policy
+                </Text>
+              </View>
+
+              <PolicyItem
+                icon="calculator"
+                title="Earning Rule"
+                value={rule.earnPointsType === 'percentage' 
+                  ? `${rule.earnPointsValue}% of order` 
+                  : `${rule.earnPointsValue} points`}
+                description={`Earn when you spend above ₹${rule.earnThresholdValue || 0}`}
+              />
+
+              <PolicyItem
+                icon="swap-horizontal"
+                title="Conversion Rate"
+                value={`1 Point = ₹${rule.conversionRate || 0.10}`}
+                description="Each point is worth this amount when redeeming"
+              />
+              
+              <PolicyItem
+                icon="numeric"
+                title="Minimum to Redeem"
+                value={`${rule.minPointsToRedeem || 0} Points`}
+                description="Minimum points required to start redeeming"
+              />
+              
+              {rule.maxRedeemCappedValue && (
+                <PolicyItem
+                  icon="trending-up"
+                  title="Max Per Order"
+                  value={`${rule.maxRedeemCappedValue} Points`}
+                  description="Maximum points you can use in a single order"
+                />
+              )}
+              
+              {rule.maxRedeemPercentage && (
+                <PolicyItem
+                  icon="percent-circle"
+                  title="Max Order Coverage"
+                  value={`${rule.maxRedeemPercentage}% of order`}
+                  description="Points can cover up to this percentage of your order"
+                />
+              )}
+              
+              <PolicyItem
+                icon="clock-outline"
+                title="Point Expiry"
+                value={`${rule.pointExpiryDays || 365} Days`}
+                description="Points expire after this many days from earning"
+              />
+              
+              <PolicyItem
+                icon="tag-multiple"
+                title="Earn on Discounted"
+                value={rule.earnOnDiscountedPrice ? 'Yes' : 'No'}
+                description={rule.earnOnDiscountedPrice 
+                  ? "Points calculated after discounts applied" 
+                  : "Points calculated on original price"}
+              />
+            </View>
+          ))
       ) : (
-        <Text style={styles.emptyText}>No loyalty policy configured</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.emptyText}>No loyalty policy configured</Text>
+        </View>
       )}
     </View>
   )
@@ -597,5 +685,117 @@ const styles = ScaledSheet.create({
     fontSize: '12@ms',
     fontFamily: FONTS.Regular,
     color: '#888',
+  },
+  // Tier Progress Styles
+  tierCard: {
+    backgroundColor: '#fff',
+    borderRadius: '12@ms',
+    padding: '16@s',
+    marginBottom: '16@vs',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  tierHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: '16@vs',
+  },
+  tierTitle: {
+    fontSize: '16@ms',
+    fontFamily: FONTS.SemiBold,
+    color: color.text,
+    marginLeft: '8@s',
+  },
+  currentTier: {
+    marginBottom: '16@vs',
+  },
+  currentTierLabel: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Medium,
+    color: '#666',
+    marginBottom: '8@vs',
+  },
+  tierBadge: {
+    backgroundColor: color.primary,
+    paddingHorizontal: '12@s',
+    paddingVertical: '6@vs',
+    borderRadius: '20@s',
+    alignSelf: 'flex-start',
+    marginBottom: '8@vs',
+  },
+  tierBadgeText: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+  },
+  tierBenefit: {
+    fontSize: '12@ms',
+    fontFamily: FONTS.Regular,
+    color: '#666',
+  },
+  nextTier: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: '16@vs',
+  },
+  nextTierLabel: {
+    fontSize: '14@ms',
+    fontFamily: FONTS.Medium,
+    color: '#666',
+    marginBottom: '8@vs',
+  },
+  progressContainer: {
+    marginBottom: '8@vs',
+  },
+  progressBar: {
+    height: '8@vs',
+    backgroundColor: '#F0F0F0',
+    borderRadius: '4@vs',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: color.primary,
+    borderRadius: '4@vs',
+  },
+  progressText: {
+    fontSize: '12@ms',
+    fontFamily: FONTS.Medium,
+    color: '#666',
+    marginTop: '4@vs',
+  },
+  nextTierBenefit: {
+    backgroundColor: color.primary + '10',
+    padding: '8@s',
+    borderRadius: '8@ms',
+  },
+  nextTierBenefitText: {
+    fontSize: '12@ms',
+    fontFamily: FONTS.Medium,
+    color: color.primary,
+  },
+  ruleCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: '12@ms',
+    padding: '16@s',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  ruleCardMargin: {
+    marginTop: '12@vs',
+  },
+  ruleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '8@s',
+    marginBottom: '12@vs',
+    paddingBottom: '8@vs',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  ruleTitle: {
+    fontSize: '16@ms',
+    fontFamily: FONTS.SemiBold,
+    color: color.text,
   },
 })

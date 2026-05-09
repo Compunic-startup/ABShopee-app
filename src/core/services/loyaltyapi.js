@@ -108,14 +108,14 @@ export const getCustomerLoyaltyInfo = async () => {
       throw new Error('Authentication required')
     }
 
-    const response = await fetch(`${BASE_URL}/customer/business/${businessId}/customer/loyalty-info`, {
+    const response = await fetch(`${BASE_URL}/customer/business/${businessId}/loyalty-info`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
     })
-
+    console.log(response)
 
     const data = await response.json()
     console.log("data is",data)
@@ -244,6 +244,7 @@ export const getLoyaltyAnalytics = async (period = 90) => {
     })
 
     const data = await response.json()
+    console.log("data x",data)
     
     if (!response.ok) {
       throw data

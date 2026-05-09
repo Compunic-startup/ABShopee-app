@@ -65,7 +65,8 @@ export const openRazorpay = async ({
   orderId,
   navigation,
   email,
-  setLoadingOverlay
+  setLoadingOverlay,
+  pointsEarned = 0
 }) => {
   try {
     console.log('Opening Razorpay with:', { razorpayOrder, orderId, email })
@@ -189,7 +190,7 @@ export const openRazorpay = async ({
     }
 
     ToastAndroid.show('Payment Successful \ud83c\udf89', ToastAndroid.SHORT)
-    navigation.replace('OrderPlacedAnimation')
+    navigation.replace('OrderPlacedAnimation', { pointsEarned })
     
   } catch (err) {
     // Hide loading overlay on error

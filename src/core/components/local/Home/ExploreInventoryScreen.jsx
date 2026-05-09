@@ -277,7 +277,7 @@ export default function ExploreInventoryScreen() {
     else fetchProducts(false)
   }, [sortOption])
   useEffect(() => {
-    if (!loading && !contentLoading && products.length > 0) {
+    if (!loading && !contentLoading) {
       fadeAnim.setValue(0)
       Animated.parallel([
         Animated.timing(fadeAnim,   { toValue: 1, duration: 350, useNativeDriver: true }),

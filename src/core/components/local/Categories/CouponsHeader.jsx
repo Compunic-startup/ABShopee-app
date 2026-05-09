@@ -43,7 +43,7 @@ const formatValue = (type, value) => {
 }
 
 // ─── Single coupon pill card ──────────────────────────────────────────────────
-function CouponPill({ item, onPress }) {
+function CouponPill({ item, onPress, style }) {
   const typeConf = TYPE_CONFIG[item.discountType] ?? TYPE_CONFIG.percentage
   const accent   = CATEGORY_ACCENT[item.discountCategory] ?? '#2894c6'
   const value    = formatValue(item.discountType, item.value)
@@ -54,7 +54,7 @@ function CouponPill({ item, onPress }) {
   const pressOut = () => Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true }).start()
 
   return (
-    <Animated.View style={[styles.pill, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.pill, style, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
         onPressIn={pressIn}
@@ -114,11 +114,12 @@ export default function CouponsHeader() {
     load()
   }, [])
 
-  const items = discounts.length > 0 ? [...discounts, ...discounts] : []
+  const shouldLoop = discounts.length > 2
+  const items = shouldLoop ? [...discounts, ...discounts] : discounts
   const totalWidth = items.length * (CARD_WIDTH + CARD_GAP)
 
   const startScroll = useCallback((fromValue) => {
-    if (items.length === 0) return
+    if (!shouldLoop || items.length === 0) return
     const halfWidth  = totalWidth / 2      
     const remaining  = halfWidth - (fromValue % halfWidth)
     const duration   = (remaining / SCROLL_SPEED) * 1000
@@ -136,14 +137,14 @@ export default function CouponsHeader() {
         startScroll(0)
       }
     })
-  }, [items.length, totalWidth, scrollX])
+  }, [items.length, totalWidth, scrollX, shouldLoop])
 
   useEffect(() => {
-    if (!loading && items.length > 0) {
+    if (!loading && items.length > 0 && shouldLoop) {
       startScroll(pausedAt.current)
     }
     return () => animRef.current?.stop()
-  }, [loading, startScroll])
+  }, [loading, startScroll, shouldLoop])
 
   const handlePress = () => navigation.navigate('coupondiscounts')
 
@@ -158,15 +159,28 @@ export default function CouponsHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.strip}>
-        <Animated.View style={[styles.scrollRow, { transform: [{ translateX }] }]}>
-          {items.map((item, idx) => (
-            <CouponPill
-              key={`${item.discountId}-${idx}`}
-              item={item}
-              onPress={handlePress}
-            />
-          ))}
-        </Animated.View>
+        {shouldLoop ? (
+          <Animated.View style={[styles.scrollRow, { transform: [{ translateX }] }]}>
+            {items.map((item, idx) => (
+              <CouponPill
+                key={`${item.discountId}-${idx}`}
+                item={item}
+                onPress={handlePress}
+              />
+            ))}
+          </Animated.View>
+        ) : (
+          <View style={[styles.scrollRow, { paddingRight: s(16), gap: s(10) }]}>
+            {items.map((item, idx) => (
+              <CouponPill
+                key={`${item.discountId}-${idx}`}
+                item={item}
+                onPress={handlePress}
+                style={{ flex: 1, marginRight: 0, width: 'auto' }}
+              />
+            ))}
+          </View>
+        )}
       </View>
     </View>
   )

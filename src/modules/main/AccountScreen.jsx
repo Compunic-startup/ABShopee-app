@@ -133,7 +133,12 @@ export default function AccountScreen({ setIsLoggedIn }) {
   const userProfile = profile?.userProfile ?? {}
   const firstName = userProfile.firstName || null
   const lastName = userProfile.lastName || null
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Customer'
+  let displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Customer'
+  if (displayName.toLowerCase().endsWith(' user')) {
+    displayName = displayName.substring(0, displayName.length - 5)
+  } else if (displayName.toLowerCase() === 'user') {
+    displayName = 'Customer'
+  }
   const email = profile?.email || null
   const phone = userProfile.phone || profile?.phone || null
   const avatarUrl = userProfile.avatarUrl || null

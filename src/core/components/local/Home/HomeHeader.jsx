@@ -58,7 +58,14 @@ export default function HomeHeader() {
             userProfile.displayName ||
             [userProfile.firstName, userProfile.lastName].filter(Boolean).join(' ')
 
-          setName(displayName || 'Customer')
+          let finalName = displayName || 'Customer'
+          if (finalName.toLowerCase().endsWith(' user')) {
+            finalName = finalName.substring(0, finalName.length - 5)
+          } else if (finalName.toLowerCase() === 'user') {
+            finalName = 'Customer'
+          }
+
+          setName(finalName)
 
         } catch (err) {
           console.log('Profile read error', err)

@@ -1,13 +1,16 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native'
 import LottieView from 'lottie-react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import FONTS from '../../utils/fonts'
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 
 const { height } = Dimensions.get('window')
 
 export default function OrderSuccess() {
     const navigation = useNavigation()
+    const route = useRoute()
+    const pointsEarned = route.params?.pointsEarned || 0
 
     const translateY = useRef(new Animated.Value(height)).current
     const opacity = useRef(new Animated.Value(0)).current
@@ -64,6 +67,15 @@ export default function OrderSuccess() {
                 <Text style={styles.subHeading}>
                     Thank you for shopping with AB Shopee!
                 </Text>
+                
+                {pointsEarned > 0 && (
+                    <View style={styles.pointsMinimal}>
+                        <Icon name="star-circle" size={20} color="#FFD700" />
+                        <Text style={styles.pointsTextMinimal}>
+                            You earned {pointsEarned} points (₹{(pointsEarned * 0.10).toFixed(2)})
+                        </Text>
+                    </View>
+                )}
             </Animated.View>
         </View>
     )
@@ -93,5 +105,16 @@ const styles = StyleSheet.create({
         color: '#E0E0E0',
         marginTop: 6,
         fontWeight: '900',
+    },
+    pointsMinimal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 16,
+        gap: 6,
+    },
+    pointsTextMinimal: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#FFD700',
     },
 })

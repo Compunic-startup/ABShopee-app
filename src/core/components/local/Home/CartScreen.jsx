@@ -1142,8 +1142,9 @@ export default function CartScreen() {
                           const points = parseInt(inputPoints) || 0
                           const minPoints = loyaltyInfo.loyaltyRules?.[0]?.minPointsToRedeem || 0
 
-                          if (points > 0 && loyaltyInfo?.loyaltyRules?.[0] && loyaltyInfo.loyaltyRules[0].earnOnDiscountedPrice === false && appliedCode) {
-                            ToastAndroid.show('Coupons and Loyalty Points cannot be used together', ToastAndroid.LONG)
+                          const hasDiscounts = (cart?.discountSummary?.length > 0) || !!appliedCode
+                          if (points > 0 && loyaltyInfo?.loyaltyRules?.[0] && loyaltyInfo.loyaltyRules[0].earnOnDiscountedPrice === false && hasDiscounts) {
+                            ToastAndroid.show('Loyalty Points cannot be used with other discounts/coupons', ToastAndroid.LONG)
                             return
                           }
 

@@ -7,30 +7,33 @@ import {
   ActivityIndicator,
   RefreshControl,
   ToastAndroid,
-  Dimensions,
+  SafeAreaView,
 } from 'react-native'
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import LinearGradient from 'react-native-linear-gradient'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import FONTS from '../../../utils/fonts'
 import color from '../../../utils/color'
-import { getCustomerLoyaltyInfo, getLoyaltyHistory, getLoyaltyAnalytics, getPointsExpiry } from '../../../services/loyaltyapi'
+import {
+  getLoyaltyRewards,
+  getLoyaltyAnalytics,
+  getPointsExpiry
+} from '../../../services/loyaltyapi'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Transaction Item Component
 const TransactionItem = ({ item }) => {
   const isEarn = item.points > 0
   const isPending = item.status === 'pending'
-  
+
   return (
     <View style={styles.transactionItem}>
-      <View style={[styles.transactionIcon, { backgroundColor: isEarn ? '#f2f2f2' : '#f2f2f2' }]}>
-        <Icon 
-          name={isEarn ? 'arrow-up-circle' : 'arrow-down-circle'} 
-          size={ms(22)} 
-          color={color.primary} 
+      <View style={[styles.transactionIcon, { backgroundColor: color.primary + '14' }]}>
+        <Icon
+          name={isEarn ? 'arrow-up' : 'arrow-down'}
+          size={ms(18)}
+          color={color.primary}
         />
       </View>
       <View style={styles.transactionContent}>
@@ -39,20 +42,22 @@ const TransactionItem = ({ item }) => {
             {isEarn ? 'Points Earned' : 'Points Redeemed'}
             {isPending && <Text style={styles.pendingBadge}> (Pending)</Text>}
           </Text>
-          <Text style={[styles.transactionPoints, { color: isEarn ? color.GREEN : color.RED }]}>
+          <Text style={[styles.transactionPoints, { color: color.primary }]}>
             {isEarn ? '+' : ''}{item.points}
           </Text>
         </View>
-        <Text style={styles.transactionDate}>
-          {new Date(item.createdAt).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-          })}
-        </Text>
-        {item.orderId && (
-          <Text style={styles.transactionOrder}>Order: {item.orderId.slice(-8)}</Text>
-        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: ms(4) }}>
+          <Text style={styles.transactionDate}>
+            {new Date(item.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            })}
+          </Text>
+          {item.orderId && (
+            <Text style={styles.transactionOrder}>Order: #{item.orderId.slice(-8)}</Text>
+          )}
+        </View>
       </View>
     </View>
   )
@@ -65,8 +70,10 @@ const PolicyItem = ({ icon, title, value, description }) => (
       <Icon name={icon} size={ms(20)} color={color.primary} />
     </View>
     <View style={styles.policyContent}>
-      <Text style={styles.policyTitle}>{title}</Text>
-      <Text style={styles.policyValue}>{value}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.policyTitle}>{title}</Text>
+        <Text style={styles.policyValue}>{value}</Text>
+      </View>
       {description && <Text style={styles.policyDescription}>{description}</Text>}
     </View>
   </View>
@@ -76,26 +83,34 @@ export default function LoyaltyPointsScreen() {
   const navigation = useNavigation()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [loyaltyInfo, setLoyaltyInfo] = useState(null)
-  const [transactions, setTransactions] = useState([])
+  const [rewardsData, setRewardsData] = useState(null)  // from GET /rewards
+  const [milestones, setMilestones] = useState([])
   const [analytics, setAnalytics] = useState(null)
   const [expiryInfo, setExpiryInfo] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'policy'
+  const [rewardClaims, setRewardClaims] = useState([])
+  const [nextMilestone, setNextMilestone] = useState(null)
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'history' | 'milestones' | 'policy'
+
+
 
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      
-      // Fetch all data in parallel
-      const [infoRes, historyRes, analyticsRes, expiryRes] = await Promise.all([
-        getCustomerLoyaltyInfo(),
-        getLoyaltyHistory(1, 20),
+
+      // Fetch all data in parallel using only spec-compliant endpoints
+      const [rewardsRes, analyticsRes, expiryRes] = await Promise.all([
+        getLoyaltyRewards(),
         getLoyaltyAnalytics(90),
-        getPointsExpiry(30)
+        getPointsExpiry(30),
       ])
-      
-      if (infoRes.success) setLoyaltyInfo(infoRes.data)
-      if (historyRes.success) setTransactions(historyRes.data.transactions || [])
+
+      if (rewardsRes.success) {
+        const data = rewardsRes.data
+        setRewardsData(data)
+        setMilestones(data.milestones || [])
+        setRewardClaims(data.rewardClaims || [])
+        setNextMilestone(data.nextMilestone)
+      }
       if (analyticsRes.success) setAnalytics(analyticsRes.data)
       if (expiryRes.success) setExpiryInfo(expiryRes.data)
     } catch (error) {
@@ -111,6 +126,7 @@ export default function LoyaltyPointsScreen() {
     fetchAllData()
   }, [])
 
+
   useFocusEffect(
     useCallback(() => {
       fetchAllData()
@@ -124,102 +140,98 @@ export default function LoyaltyPointsScreen() {
 
   const renderOverview = () => (
     <>
-      {/* Points Balance Card */}
-      <View style={styles.balanceCard}>
-        <View style={styles.balanceHeader}>
-          <Icon name="star-circle" size={ms(28)} color="#fff" />
-          <Text style={styles.balanceTitle}>Available Points</Text>
+      {/* Premium Multi-Balance Card */}
+      <View style={styles.premiumBalanceCard}>
+        <View style={styles.premiumBalanceHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.premiumBalanceLabel}>Available Points</Text>
+            <Text style={styles.premiumBalanceValue}>
+              {rewardsData?.availablePoints || 0}
+            </Text>
+          </View>
+          <View style={styles.premiumBalanceIcon}>
+            <Icon name="star-face" size={ms(32)} color={color.primary} />
+          </View>
         </View>
-        <Text style={styles.balanceValue}>
-          {loyaltyInfo?.loyaltyPointsBalance?.toFixed(0) || 0}
-        </Text>
-        <Text style={styles.balanceValueText}>
-          = ₹{((loyaltyInfo?.loyaltyPointsBalance || 0) * (loyaltyInfo?.loyaltyRules?.[0]?.conversionRate || 0.10)).toFixed(2)} value
-        </Text>
-        
+
+        <View style={styles.balanceDivider} />
+
+        <View style={styles.subBalancesRow}>
+          <View style={styles.subBalanceItem}>
+            <Text style={styles.subBalanceLabel}>Next Milestone</Text>
+            <Text style={styles.subBalanceValue}>
+              {rewardsData?.nextMilestone ? `${rewardsData.nextMilestone.pointsNeeded} pts away` : '—'}
+            </Text>
+            <Text style={styles.subBalanceDesc}>{rewardsData?.nextMilestone?.rewardTitle || 'No upcoming reward'}</Text>
+          </View>
+          <View style={[styles.subBalanceItem, styles.subBalanceBorder]}>
+            <Text style={styles.subBalanceLabel}>Unlocked</Text>
+            <Text style={styles.subBalanceValue}>{rewardsData?.totalUnlockedMilestones || 0}</Text>
+            <Text style={styles.subBalanceDesc}>Total milestones</Text>
+          </View>
+        </View>
+
         {expiryInfo?.totalExpiring > 0 && (
-          <View style={styles.expiryAlert}>
-            <Icon name="alert-circle" size={ms(16)} color={color.primary} />
-            <Text style={styles.expiryText}>
-              {expiryInfo.totalExpiring} points expiring soon!
+          <View style={styles.premiumExpiryAlert}>
+            <Icon name="clock-alert-outline" size={ms(14)} color="#FFD54F" />
+            <Text style={styles.premiumExpiryText}>
+              {expiryInfo.totalExpiring} points expiring in {expiryInfo.days || 30} days
             </Text>
           </View>
         )}
       </View>
 
-      {/* Tier Milestone Progress */}
-      {loyaltyInfo?.loyaltyRules && Array.isArray(loyaltyInfo.loyaltyRules) && (
-        <View style={styles.tierCard}>
-          <View style={styles.tierHeader}>
-            <Icon name="trophy" size={ms(24)} color={color.primary} />
-            <Text style={styles.tierTitle}>Your Tier Progress</Text>
+      {/* Milestone Progress Section */}
+      {milestones.length > 0 && (
+        <View style={styles.milestoneSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Milestone Rewards</Text>
+            <TouchableOpacity onPress={() => setActiveTab('milestones')}>
+              <Text style={styles.seeAllText}>View All</Text>
+            </TouchableOpacity>
           </View>
-          
-          {(() => {
-            const sortedRules = loyaltyInfo.loyaltyRules
-              .filter(rule => rule.status !== 'inactive')
-              .sort((a, b) => a.earnThresholdValue - b.earnThresholdValue)
-            
-            const lifetimeSpend = loyaltyInfo.lifetimeSpend || 0
-            let currentTierInfo = null
-            let nextTierInfo = null
-            let progress = 0
-
-            for (let i = 0; i < sortedRules.length; i++) {
-              const rule = sortedRules[i]
-              if (lifetimeSpend >= rule.earnThresholdValue) {
-                currentTierInfo = { ...rule, tierIndex: i }
-              } else {
-                nextTierInfo = { ...rule, tierIndex: i }
-                break
-              }
-            }
-
-            if (currentTierInfo && nextTierInfo) {
-              const prevThreshold = currentTierInfo.earnThresholdValue
-              const nextThreshold = nextTierInfo.earnThresholdValue
-              progress = ((lifetimeSpend - prevThreshold) / (nextThreshold - prevThreshold)) * 100
-            } else if (currentTierInfo) {
-              progress = 100
-            }
+          {milestones.slice(0, 1).map((milestone, idx) => {
+            const isRedeemed = milestone.redeemed;
+            const isUnlocked = milestone.unlocked || milestone.redeemable || milestone.pointsRemaining === 0;
+            const progress = milestone.progressPercentage ?? milestone.percentComplete ?? (milestone.milestonePoints ? Math.min(100, Math.max(0, Math.round(((milestone.milestonePoints - (milestone.pointsRemaining || 0)) / milestone.milestonePoints) * 100))) : 0);
 
             return (
-              <>
-                <View style={styles.currentTier}>
-                  <Text style={styles.currentTierLabel}>Current Tier</Text>
-                  <View style={styles.tierBadge}>
-                    <Text style={styles.tierBadgeText}>
-                      Tier {currentTierInfo ? currentTierInfo.tierIndex + 1 : 'None'}
+              <View key={idx} style={[styles.milestoneCard, isRedeemed ? styles.milestoneClaimedBorder : isUnlocked ? styles.milestoneUnlockedBorder : styles.milestoneProgressBorder]}>
+                <View style={styles.milestoneInfo}>
+                  <View style={styles.milestoneTextContent}>
+                    <Text style={styles.milestoneName} numberOfLines={1}>{milestone.rewardTitle || milestone.policyName}</Text>
+                    <Text style={styles.milestoneReward}>Target: {milestone.milestonePoints || milestone.targetPoints} pts</Text>
+                    {milestone.maxClaimsPerUser !== undefined && (
+                      <Text style={styles.milestoneLimit}>
+                        Limit: {milestone.maxClaimsPerUser} {milestone.maxClaimsPerUser === 1 ? 'claim' : 'claims'} per user
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[styles.statusBadge, isRedeemed ? styles.badgeClaimed : isUnlocked ? styles.badgeUnlocked : styles.badgeProgress]}>
+                    <Icon
+                      name={isRedeemed ? 'check-circle' : isUnlocked ? 'gift' : 'clock-outline'}
+                      size={ms(13)}
+                      color={isRedeemed ? color.primary : isUnlocked ? color.primary : '#475569'}
+                    />
+                    <Text style={[styles.statusBadgeText, isRedeemed ? styles.textClaimed : isUnlocked ? styles.textUnlocked : styles.textProgress]}>
+                      {isRedeemed ? 'Claimed' : isUnlocked ? 'Unlocked' : `${progress}%`}
                     </Text>
                   </View>
-                  {currentTierInfo && (
-                    <Text style={styles.tierBenefit}>
-                      Earn {currentTierInfo.earnPointsValue} points per ₹{currentTierInfo.earnThresholdValue}
-                    </Text>
-                  )}
                 </View>
 
-                {nextTierInfo && (
-                  <View style={styles.nextTier}>
-                    <Text style={styles.nextTierLabel}>Next Tier</Text>
-                    <View style={styles.progressContainer}>
-                      <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%` }]} />
-                      </View>
-                      <Text style={styles.progressText}>
-                        ₹{Math.max(0, nextTierInfo.earnThresholdValue - lifetimeSpend).toFixed(0)} to go
-                      </Text>
-                    </View>
-                    <View style={styles.nextTierBenefit}>
-                      <Text style={styles.nextTierBenefitText}>
-                        Unlock {nextTierInfo.earnPointsValue} points per ₹{nextTierInfo.earnThresholdValue}
-                      </Text>
-                    </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.milestoneProgressBar}>
+                    <View style={[styles.milestoneProgressFill, { width: `${progress}%`, backgroundColor: color.primary }]} />
                   </View>
-                )}
-              </>
-            )
-          })()}
+                  <View style={styles.milestoneFooterRow}>
+                    <Text style={styles.milestoneFooter}>
+                      {isRedeemed ? 'Claimed ✓' : isUnlocked ? 'Available in Cart! 🎉' : `${milestone.pointsRemaining || 0} pts remaining`}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -244,7 +256,7 @@ export default function LoyaltyPointsScreen() {
         </View>
       )}
 
-      {/* Recent Transactions Preview */}
+      {/* Recent Activity from Analytics */}
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -252,23 +264,82 @@ export default function LoyaltyPointsScreen() {
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
-        {transactions.slice(0, 3).map((item, index) => (
+        {(analytics?.recentTransactions || []).slice(0, 3).map((item, index) => (
           <TransactionItem key={item.id || index} item={item} />
         ))}
-        {transactions.length === 0 && (
-          <Text style={styles.emptyText}>No transactions yet</Text>
+        {(!analytics?.recentTransactions || analytics.recentTransactions.length === 0) && (
+          <Text style={styles.emptyText}>No activity recorded yet</Text>
         )}
       </View>
     </>
   )
 
+  const renderMilestones = () => (
+    <View style={styles.milestoneList}>
+      <Text style={styles.sectionTitle}>Active Milestones</Text>
+      <Text style={styles.milestoneSubTitle}>Complete these goals to unlock exclusive rewards</Text>
+
+      {milestones.length > 0 ? (
+        milestones.map((milestone, idx) => {
+          const isRedeemed = milestone.redeemed;
+          const isUnlocked = milestone.unlocked || milestone.redeemable || milestone.pointsRemaining === 0;
+          const progress = milestone.progressPercentage ?? milestone.percentComplete ?? (milestone.milestonePoints ? Math.min(100, Math.max(0, Math.round(((milestone.milestonePoints - (milestone.pointsRemaining || 0)) / milestone.milestonePoints) * 100))) : 0);
+
+          return (
+            <View key={idx} style={[styles.milestoneCard, { marginBottom: vs(12) }, isRedeemed ? styles.milestoneClaimedBorder : isUnlocked ? styles.milestoneUnlockedBorder : styles.milestoneProgressBorder]}>
+              <View style={styles.milestoneInfo}>
+                <View style={styles.milestoneTextContent}>
+                  <Text style={styles.milestoneName} numberOfLines={1}>{milestone.rewardTitle || milestone.policyName}</Text>
+                  <Text style={styles.milestoneReward}>
+                    <Icon name="gift-outline" size={ms(14)} color={isRedeemed ? color.primary : isUnlocked ? color.primary : color.primary} /> {milestone.milestonePoints || milestone.targetPoints} Points
+                  </Text>
+                  {milestone.maxClaimsPerUser !== undefined && (
+                    <Text style={styles.milestoneLimit}>
+                      Limit: {milestone.maxClaimsPerUser} {milestone.maxClaimsPerUser === 1 ? 'claim' : 'claims'} per user
+                    </Text>
+                  )}
+                </View>
+                <View style={[styles.statusBadge, isRedeemed ? styles.badgeClaimed : isUnlocked ? styles.badgeUnlocked : styles.badgeProgress]}>
+                  <Icon
+                    name={isRedeemed ? 'check-circle' : isUnlocked ? 'gift' : 'clock-outline'}
+                    size={ms(13)}
+                    color={isRedeemed ? color.primary : isUnlocked ? color.primary : '#475569'}
+                  />
+                  <Text style={[styles.statusBadgeText, isRedeemed ? styles.textClaimed : isUnlocked ? styles.textUnlocked : styles.textProgress]}>
+                    {isRedeemed ? 'Claimed' : isUnlocked ? 'Unlocked' : `${progress}%`}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.progressBarContainer}>
+                <View style={styles.milestoneProgressBar}>
+                  <View style={[styles.milestoneProgressFill, { width: `${progress}%`, backgroundColor: color.primary }]} />
+                </View>
+                <View style={styles.milestoneDetailsRow}>
+                  <Text style={styles.milestoneFooter}>
+                    {isRedeemed ? 'Claimed ✓' : isUnlocked ? 'Add to cart to claim as free gift!' : `${milestone.pointsRemaining || 0} pts remaining`}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          );
+        })
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Icon name="trophy-outline" size={ms(48)} color="#DDD" />
+          <Text style={styles.emptyText}>No active milestones at the moment</Text>
+        </View>
+      )}
+    </View>
+  )
+
   const renderHistory = () => (
     <View style={styles.sectionCard}>
-      <Text style={styles.sectionTitle}>Transaction History</Text>
-      {transactions.map((item, index) => (
+      <Text style={styles.sectionTitle}>Points Activity (Last 90 Days)</Text>
+      {(analytics?.recentTransactions || []).map((item, index) => (
         <TransactionItem key={item.id || index} item={item} />
       ))}
-      {transactions.length === 0 && (
+      {(!analytics?.recentTransactions || analytics.recentTransactions.length === 0) && (
         <Text style={styles.emptyText}>No transactions yet</Text>
       )}
     </View>
@@ -276,82 +347,47 @@ export default function LoyaltyPointsScreen() {
 
   const renderPolicy = () => (
     <View>
-      {loyaltyInfo?.loyaltyRules && loyaltyInfo.loyaltyRules.length > 0 ? (
-        loyaltyInfo.loyaltyRules
-          .slice()
-          .sort((a, b) => (a.earnThresholdValue || 0) - (b.earnThresholdValue || 0))
-          .map((rule, index) => (
-            <View key={rule.id || index} style={[styles.sectionCard, index > 0 && { marginTop: vs(8) }]}>
-              <View style={styles.ruleHeader}>
-                <Icon name="trophy" size={ms(20)} color={color.primary} />
-                <Text style={styles.sectionTitle}>
-                  Tier {index + 1} Policy
-                </Text>
-              </View>
-
-              <PolicyItem
-                icon="calculator"
-                title="Earning Rule"
-                value={rule.earnPointsType === 'percentage' 
-                  ? `${rule.earnPointsValue}% of order` 
-                  : `${rule.earnPointsValue} points`}
-                description={`Earn when you spend above ₹${rule.earnThresholdValue || 0}`}
-              />
-
-              <PolicyItem
-                icon="swap-horizontal"
-                title="Conversion Rate"
-                value={`1 Point = ₹${rule.conversionRate || 0.10}`}
-                description="Each point is worth this amount when redeeming"
-              />
-              
-              <PolicyItem
-                icon="numeric"
-                title="Minimum to Redeem"
-                value={`${rule.minPointsToRedeem || 0} Points`}
-                description="Minimum points required to start redeeming"
-              />
-              
-              {rule.maxRedeemCappedValue && (
-                <PolicyItem
-                  icon="trending-up"
-                  title="Max Per Order"
-                  value={`${rule.maxRedeemCappedValue} Points`}
-                  description="Maximum points you can use in a single order"
-                />
-              )}
-              
-              {rule.maxRedeemPercentage && (
-                <PolicyItem
-                  icon="percent-circle"
-                  title="Max Order Coverage"
-                  value={`${rule.maxRedeemPercentage}% of order`}
-                  description="Points can cover up to this percentage of your order"
-                />
-              )}
-              
-              <PolicyItem
-                icon="clock-outline"
-                title="Point Expiry"
-                value={`${rule.pointExpiryDays || 365} Days`}
-                description="Points expire after this many days from earning"
-              />
-              
-              <PolicyItem
-                icon="tag-multiple"
-                title="Earn on Discounted"
-                value={rule.earnOnDiscountedPrice ? 'Yes' : 'No'}
-                description={rule.earnOnDiscountedPrice 
-                  ? "Points calculated after discounts applied" 
-                  : "Points calculated on original price"}
-              />
-            </View>
-          ))
-      ) : (
-        <View style={styles.sectionCard}>
-          <Text style={styles.emptyText}>No loyalty policy configured</Text>
+      <View style={styles.sectionCard}>
+        <View style={styles.ruleHeader}>
+          <Icon name="information-outline" size={ms(20)} color={color.primary} />
+          <Text style={styles.sectionTitle}>Redemption Policy</Text>
         </View>
-      )}
+
+        <PolicyItem
+          icon="star-circle-outline"
+          title="Points Balance"
+          value={`${rewardsData?.availablePoints || 0} pts`}
+          description="Your current redeemable points balance"
+        />
+
+        <PolicyItem
+          icon="gift-outline"
+          title="Milestone Rewards"
+          value={`${rewardsData?.totalUnlockedMilestones || 0} Unlocked`}
+          description="Claim unlocked milestones to get free gifts on your orders"
+        />
+
+        <PolicyItem
+          icon="swap-horizontal"
+          title="Conversion Rate"
+          value="1 Point = ₹0.10"
+          description="Each point is worth this amount when redeeming at checkout"
+        />
+
+        <PolicyItem
+          icon="clock-outline"
+          title="Point Expiry"
+          value="365 Days"
+          description="Points expire 365 days from the date they were earned"
+        />
+
+        <PolicyItem
+          icon="shield-check-outline"
+          title="Redemption Limits"
+          value="Applied at Checkout"
+          description="Minimum points, max per order, and order coverage limits are shown live at checkout"
+        />
+      </View>
     </View>
   )
 
@@ -386,7 +422,7 @@ export default function LoyaltyPointsScreen() {
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
           onPress={() => setActiveTab('overview')}
         >
@@ -394,7 +430,7 @@ export default function LoyaltyPointsScreen() {
             Overview
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'history' && styles.tabActive]}
           onPress={() => setActiveTab('history')}
         >
@@ -402,7 +438,15 @@ export default function LoyaltyPointsScreen() {
             History
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'milestones' && styles.tabActive]}
+          onPress={() => setActiveTab('milestones')}
+        >
+          <Text style={[styles.tabText, activeTab === 'milestones' && styles.tabTextActive]}>
+            Milestones
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'policy' && styles.tabActive]}
           onPress={() => setActiveTab('policy')}
         >
@@ -413,7 +457,7 @@ export default function LoyaltyPointsScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -421,13 +465,17 @@ export default function LoyaltyPointsScreen() {
       >
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'history' && renderHistory()}
+        {activeTab === 'milestones' && renderMilestones()}
         {activeTab === 'policy' && renderPolicy()}
-        
+
         <View style={{ height: vs(30) }} />
       </ScrollView>
     </SafeAreaView>
   )
 }
+
+
+
 
 const styles = ScaledSheet.create({
   container: {
@@ -441,7 +489,7 @@ const styles = ScaledSheet.create({
     paddingHorizontal: '16@s',
     paddingVertical: '12@vs',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#F1F5F9',
     backgroundColor: '#fff',
   },
   backBtn: {
@@ -469,80 +517,32 @@ const styles = ScaledSheet.create({
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    paddingHorizontal: '16@s',
-    paddingBottom: '12@vs',
+    paddingHorizontal: '12@s',
+    paddingVertical: '8@vs',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    paddingVertical: '10@vs',
+    borderBottomColor: '#F1F5F9',
   },
   tab: {
     flex: 1,
-    paddingVertical: '10@vs',
+    paddingVertical: '8@vs',
     alignItems: 'center',
-    borderRadius: '8@ms',
+    borderRadius: '4@ms',
     marginHorizontal: '4@s',
   },
   tabActive: {
-    backgroundColor: color.primary + '15',
+    backgroundColor: color.primary,
   },
   tabText: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Medium,
-    color: '#666',
+    fontSize: '13@ms',
+    fontFamily: FONTS.SemiBold,
+    color: '#64748B',
   },
   tabTextActive: {
-    color: color.primary,
-    fontFamily: FONTS.SemiBold,
+    color: '#fff',
   },
   content: {
     flex: 1,
     padding: '16@s',
-  },
-  balanceCard: {
-    backgroundColor: color.primary,
-    borderRadius: '16@ms',
-    padding: '24@s',
-    marginBottom: '16@vs',
-    alignItems: 'center',
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '8@s',
-    marginBottom: '12@vs',
-  },
-  balanceTitle: {
-    fontSize: '16@ms',
-    fontFamily: FONTS.Medium,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  balanceValue: {
-    fontSize: '48@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-  },
-  balanceValueText: {
-    fontSize: '16@ms',
-    fontFamily: FONTS.Medium,
-    color: '#fff',
-    opacity: 0.8,
-    marginTop: '4@vs',
-  },
-  expiryAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '6@s',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: '12@s',
-    paddingVertical: '8@vs',
-    borderRadius: '8@ms',
-    marginTop: '16@vs',
-  },
-  expiryText: {
-    fontSize: '13@ms',
-    fontFamily: FONTS.Medium,
-    color: color.primary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -552,11 +552,11 @@ const styles = ScaledSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: '12@ms',
+    borderRadius: '4@ms',
     padding: '16@s',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
   },
   statValue: {
     fontSize: '20@ms',
@@ -568,16 +568,16 @@ const styles = ScaledSheet.create({
   statLabel: {
     fontSize: '11@ms',
     fontFamily: FONTS.Medium,
-    color: '#888',
+    color: '#64748B',
     textAlign: 'center',
   },
   sectionCard: {
     backgroundColor: '#fff',
-    borderRadius: '12@ms',
+    borderRadius: '4@ms',
     padding: '16@s',
     marginBottom: '16@vs',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -600,12 +600,12 @@ const styles = ScaledSheet.create({
     alignItems: 'center',
     paddingVertical: '12@vs',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   transactionIcon: {
-    width: '44@s',
-    height: '44@s',
-    borderRadius: '22@s',
+    width: '40@s',
+    height: '40@s',
+    borderRadius: '4@ms',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: '12@s',
@@ -626,7 +626,7 @@ const styles = ScaledSheet.create({
   pendingBadge: {
     fontSize: '12@ms',
     fontFamily: FONTS.Regular,
-    color:color.primary,
+    color: color.primary,
   },
   transactionPoints: {
     fontSize: '16@ms',
@@ -635,19 +635,17 @@ const styles = ScaledSheet.create({
   transactionDate: {
     fontSize: '12@ms',
     fontFamily: FONTS.Regular,
-    color: '#888',
-    marginTop: '4@vs',
+    color: '#64748B',
   },
   transactionOrder: {
     fontSize: '11@ms',
-    fontFamily: FONTS.Regular,
-    color: '#AAA',
-    marginTop: '2@vs',
+    fontFamily: FONTS.Medium,
+    color: '#94A3B8',
   },
   emptyText: {
     fontSize: '14@ms',
     fontFamily: FONTS.Medium,
-    color: '#888',
+    color: '#64748B',
     textAlign: 'center',
     paddingVertical: '24@vs',
   },
@@ -655,12 +653,12 @@ const styles = ScaledSheet.create({
     flexDirection: 'row',
     paddingVertical: '16@vs',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F1F5F9',
   },
   policyIcon: {
-    width: '44@s',
-    height: '44@s',
-    borderRadius: '22@s',
+    width: '40@s',
+    height: '40@s',
+    borderRadius: '4@ms',
     backgroundColor: color.primary + '10',
     justifyContent: 'center',
     alignItems: 'center',
@@ -672,117 +670,18 @@ const styles = ScaledSheet.create({
   policyTitle: {
     fontSize: '14@ms',
     fontFamily: FONTS.Medium,
-    color: '#666',
-    marginBottom: '4@vs',
+    color: '#64748B',
   },
   policyValue: {
-    fontSize: '16@ms',
+    fontSize: '15@ms',
     fontFamily: FONTS.SemiBold,
     color: color.text,
-    marginBottom: '4@vs',
   },
   policyDescription: {
     fontSize: '12@ms',
     fontFamily: FONTS.Regular,
-    color: '#888',
-  },
-  // Tier Progress Styles
-  tierCard: {
-    backgroundColor: '#fff',
-    borderRadius: '12@ms',
-    padding: '16@s',
-    marginBottom: '16@vs',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  tierHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: '16@vs',
-  },
-  tierTitle: {
-    fontSize: '16@ms',
-    fontFamily: FONTS.SemiBold,
-    color: color.text,
-    marginLeft: '8@s',
-  },
-  currentTier: {
-    marginBottom: '16@vs',
-  },
-  currentTierLabel: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Medium,
-    color: '#666',
-    marginBottom: '8@vs',
-  },
-  tierBadge: {
-    backgroundColor: color.primary,
-    paddingHorizontal: '12@s',
-    paddingVertical: '6@vs',
-    borderRadius: '20@s',
-    alignSelf: 'flex-start',
-    marginBottom: '8@vs',
-  },
-  tierBadgeText: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Bold,
-    color: '#fff',
-  },
-  tierBenefit: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Regular,
-    color: '#666',
-  },
-  nextTier: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: '16@vs',
-  },
-  nextTierLabel: {
-    fontSize: '14@ms',
-    fontFamily: FONTS.Medium,
-    color: '#666',
-    marginBottom: '8@vs',
-  },
-  progressContainer: {
-    marginBottom: '8@vs',
-  },
-  progressBar: {
-    height: '8@vs',
-    backgroundColor: '#F0F0F0',
-    borderRadius: '4@vs',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: color.primary,
-    borderRadius: '4@vs',
-  },
-  progressText: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Medium,
-    color: '#666',
+    color: '#94A3B8',
     marginTop: '4@vs',
-  },
-  nextTierBenefit: {
-    backgroundColor: color.primary + '10',
-    padding: '8@s',
-    borderRadius: '8@ms',
-  },
-  nextTierBenefitText: {
-    fontSize: '12@ms',
-    fontFamily: FONTS.Medium,
-    color: color.primary,
-  },
-  ruleCard: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: '12@ms',
-    padding: '16@s',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  ruleCardMargin: {
-    marginTop: '12@vs',
   },
   ruleHeader: {
     flexDirection: 'row',
@@ -791,11 +690,247 @@ const styles = ScaledSheet.create({
     marginBottom: '12@vs',
     paddingBottom: '8@vs',
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#F1F5F9',
   },
-  ruleTitle: {
+  // Premium Balance Card
+  premiumBalanceCard: {
+    backgroundColor: color.primary + '14',
+    borderWidth: 1.5,
+    borderColor: color.primary,
+    borderRadius: '4@ms',
+    padding: '16@s',
+    marginBottom: '20@vs',
+  },
+  premiumBalanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16@vs',
+  },
+  premiumBalanceLabel: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Medium,
+    color: '#64748B',
+    marginBottom: '4@vs',
+  },
+  premiumBalanceValue: {
+    fontSize: '36@ms',
+    fontFamily: FONTS.Bold,
+    color: color.primary,
+  },
+  premiumBalanceIcon: {
+    width: '56@s',
+    height: '56@s',
+    borderRadius: '4@ms',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  balanceDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginBottom: '16@vs',
+  },
+  subBalancesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subBalanceItem: {
+    flex: 1,
+  },
+  subBalanceBorder: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#E2E8F0',
+    paddingLeft: '16@s',
+  },
+  subBalanceLabel: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Medium,
+    color: '#64748B',
+    marginBottom: '2@vs',
+  },
+  subBalanceValue: {
     fontSize: '16@ms',
-    fontFamily: FONTS.SemiBold,
+    fontFamily: FONTS.Bold,
     color: color.text,
+  },
+  subBalanceDesc: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Medium,
+    color: '#94A3B8',
+    marginTop: '2@vs',
+  },
+  premiumExpiryAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: color.primary + '14',
+    padding: '10@s',
+    borderRadius: '4@ms',
+    marginTop: '16@vs',
+    borderWidth: 1,
+    borderColor: color.primary + '40',
+  },
+  premiumExpiryText: {
+    marginLeft: '8@s',
+    fontSize: '12@ms',
+    fontFamily: FONTS.Medium,
+    color: '#D97706',
+  },
+  // Milestones
+  milestoneSection: {
+    marginBottom: '16@vs',
+  },
+  milestoneCard: {
+    backgroundColor: '#FFF',
+    borderRadius: '4@ms',
+    padding: '16@s',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  milestoneInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12@vs',
+  },
+  milestoneTextContent: {
+    flex: 1,
+    marginRight: '8@s',
+  },
+  milestoneName: {
+    fontSize: '15@ms',
+    fontFamily: FONTS.Bold,
+    color: color.text,
+  },
+  milestoneReward: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Medium,
+    color: color.primary,
+    marginTop: '2@vs',
+  },
+  milestoneLimit: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Regular,
+    color: '#64748B',
+    marginTop: '2@vs',
+  },
+  claimGiftBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '5@s',
+    backgroundColor: color.primary,
+    paddingHorizontal: '12@s',
+    paddingVertical: '6@vs',
+    borderRadius: '4@ms',
+    alignSelf: 'flex-start',
+  },
+  claimGiftBtnDis: {
+    backgroundColor: '#F1F5F9',
+  },
+  claimGiftBtnText: {
+    fontSize: '12@ms',
+    fontFamily: FONTS.Bold,
+    color: '#fff',
+  },
+  claimGiftBtnTextDis: {
+    color: '#94A3B8',
+  },
+  milestoneProgressBar: {
+    height: '8@vs',
+    backgroundColor: '#F1F5F9',
+    borderRadius: '2@ms',
+    overflow: 'hidden',
+    marginBottom: '8@vs',
+  },
+  milestoneProgressFill: {
+    height: '100%',
+    borderRadius: '2@ms',
+  },
+  milestoneFooter: {
+    fontSize: '12@ms',
+    fontFamily: FONTS.Medium,
+    color: '#64748B',
+  },
+  milestoneList: {
+    paddingBottom: '20@vs',
+  },
+  milestoneSubTitle: {
+    fontSize: '13@ms',
+    fontFamily: FONTS.Regular,
+    color: '#64748B',
+    marginBottom: '16@vs',
+    marginTop: '-4@vs',
+  },
+  milestoneDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  milestoneFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '4@vs',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: '40@vs',
+    backgroundColor: '#FFF',
+    borderRadius: '4@ms',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  milestoneClaimedBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: color.primary,
+  },
+  milestoneUnlockedBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: color.primary,
+  },
+  milestoneProgressBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: color.primary,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '4@s',
+    paddingHorizontal: '8@s',
+    paddingVertical: '4@vs',
+    borderRadius: '4@ms',
+  },
+  badgeClaimed: {
+    backgroundColor: color.primary + '14',
+  },
+  badgeUnlocked: {
+    backgroundColor: color.primary + '14',
+  },
+  badgeProgress: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusBadgeText: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.Bold,
+  },
+  textClaimed: {
+    color: color.primary,
+  },
+  textUnlocked: {
+    color: color.primary,
+  },
+  textProgress: {
+    color: '#475569',
+  },
+  progressBarContainer: {
+    marginTop: '4@vs',
   },
 })

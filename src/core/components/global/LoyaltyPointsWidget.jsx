@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { ScaledSheet, ms } from 'react-native-size-matters'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { getLoyaltyBalance } from '../../services/loyaltyapi'
+import { getLoyaltyRewards } from '../../services/loyaltyapi'
 import color from '../../utils/color'
 import FONTS from '../../utils/fonts'
 
@@ -25,7 +25,7 @@ const LoyaltyPointsWidget = ({
     try {
       setLoading(true)
       setError(null)
-      const response = await getLoyaltyBalance()
+      const response = await getLoyaltyRewards()
       if (response.success) {
         setBalance(response.data)
       } else {
@@ -52,8 +52,8 @@ const LoyaltyPointsWidget = ({
     return null // Don't show widget on error
   }
 
-  const points = balance.loyaltyPointsBalance || 0
-  const conversionRate = 0.10 // Default, could come from business settings
+  const points = balance.availablePoints || 0
+  const conversionRate = balance.loyaltyRules?.[0]?.conversionRate || 0.10
   const rupeeValue = points * conversionRate
 
   const WidgetContent = () => (

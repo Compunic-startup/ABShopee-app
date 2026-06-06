@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { StyleSheet } from 'react-native'
 import FONTS from '../../../utils/fonts'
 import BASE_URL from '../../../services/api'
-import { getCustomerLoyaltyInfo, calculateLoyaltyPoints, getPointsSuggestions } from '../../../services/loyaltyapi'
+import { getLoyaltyRewards, getPointsSuggestions, getRewardClaims } from '../../../services/loyaltyapi'
 import { openRazorpay, PaymentVerificationOverlay } from '../../global/razorpaymodule'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import noimage from '../../../assets/images/Categories/preloader.gif'
@@ -417,7 +417,7 @@ export default function BuyInstantScreen() {
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false)
 
   // ── Loyalty Points ─────────────────────────────────────────────────────────
-  const [loyaltyInfo, setLoyaltyInfo] = useState(null)
+  const [rewardsData, setRewardsData] = useState(null)
   const [loyaltyLoading, setLoyaltyLoading] = useState(false)
   const [selectedPoints, setSelectedPoints] = useState(0)
   const [inputPoints, setInputPoints] = useState('')
@@ -425,6 +425,9 @@ export default function BuyInstantScreen() {
   const [showLoyaltyInput, setShowLoyaltyInput] = useState(false)
   const [pointsEarning, setPointsEarning] = useState(null)
   const [tierSuggestion, setTierSuggestion] = useState(null)
+  const [loyaltyMessage, setLoyaltyMessage] = useState(null)
+  const [availableClaims, setAvailableClaims] = useState([])
+  const [selectedClaimIds, setSelectedClaimIds] = useState([])
 
   const toast = msg => ToastAndroid.show(msg, ToastAndroid.SHORT)
 
@@ -440,22 +443,24 @@ export default function BuyInstantScreen() {
     init()
   }, [])
 
-  useEffect(() => { if (businessId) { fetchUserProfile(); fetchLoyaltyInfo() } }, [businessId])
+  useEffect(() => { if (businessId) { fetchUserProfile(); fetchLoyaltyRewards(); fetchRewardClaims() } }, [businessId])
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start()
   }, [fadeAnim])
 
-  // ── Fetch loyalty info ───────────────────────────────────────────────────────
-  const fetchLoyaltyInfo = async () => {
+  // ── Fetch loyalty rewards ──────────────────────────────────────────────────
+  const fetchLoyaltyRewards = async () => {
     try {
       setLoyaltyLoading(true)
-      const data = await getCustomerLoyaltyInfo()
-      console.log('BuyNow Loyalty Info:', JSON.stringify(data, null, 2))
-      setLoyaltyInfo(data.data)
+      const res = await getLoyaltyRewards()
+      console.log('BuyNow Loyalty Rewards Response Data:', res?.data)
+      if (res.success) {
+        setRewardsData(res.data)
+      }
     } catch (error) {
-      console.log('Loyalty info fetch error:', error)
-      setLoyaltyInfo(null)
+      console.log('Loyalty rewards fetch error:', error)
+      setRewardsData(null)
     } finally {
       setLoyaltyLoading(false)
     }
@@ -483,28 +488,41 @@ export default function BuyInstantScreen() {
     finally { setProfileLoading(false) }
   }
 
+  const fetchRewardClaims = async () => {
+    try {
+      const res = await getRewardClaims()
+      console.log('BuyNow Reward Claims Response Data:', res?.data)
+      if (res.success) {
+        const claims = res.data.rewardClaims || []
+        const available = claims.filter(claim => claim.status === 'available')
+        
+        // Group claims by rewardItemId
+        const grouped = {}
+        available.forEach(claim => {
+          if (!grouped[claim.rewardItemId]) {
+            grouped[claim.rewardItemId] = { ...claim, groupQuantity: 1, claimIds: [claim.id] }
+          } else {
+            grouped[claim.rewardItemId].groupQuantity += 1
+            grouped[claim.rewardItemId].claimIds.push(claim.id)
+          }
+        })
+        setAvailableClaims(Object.values(grouped))
+      }
+    } catch (error) {
+      console.log('Error fetching reward claims:', error)
+    }
+  }
 
   const fetchPreview = async (code = appliedCode, pointsToRedeem = 0) => {
     setLoading(true)
     try {
       const token = await AsyncStorage.getItem('userToken')
       const bId = await AsyncStorage.getItem('businessId')
-      let maxPts = Infinity
-      if (loyaltyInfo) {
-        const baseTP = preview?.totalPayable ?? (price * qty)
-        maxPts = Math.floor(Math.min(
-          loyaltyInfo.loyaltyPointsBalance || 0,
-          loyaltyInfo.loyaltyRules?.[0]?.maxRedeemCappedValue || Infinity,
-          Math.floor((baseTP * (loyaltyInfo.loyaltyRules?.[0]?.maxRedeemPercentage || 100) / 100) / (loyaltyInfo.loyaltyRules?.[0]?.conversionRate || 0.10))
-        ))
-      }
-
-      const requestBody = JSON.stringify({ 
-        quantity: qty, 
-        ...(code ? { code } : {}), 
-        ...(pointsToRedeem > 0 
-          ? (pointsToRedeem >= maxPts ? { redeemPoints: true } : { redeemPoints: true, pointsAmount: pointsToRedeem }) 
-          : {})
+      // Points limits will be handled by the backend during preview/place
+      const requestBody = JSON.stringify({
+        quantity: qty,
+        ...(code ? { code } : {}),
+        ...(pointsToRedeem > 0 ? { redeemPoints: true, pointsAmount: pointsToRedeem } : {})
       })
       console.log('BuyNow Preview Request Body:', requestBody)
       console.log('Redeeming points in BuyNow:', pointsToRedeem)
@@ -515,10 +533,16 @@ export default function BuyInstantScreen() {
       })
       const json = await res.json()
       console.log('BuyNow Preview Response:', json)
+      console.log('BuyNow Preview breakdown/loyalty data:', json?.data?.breakdown)
       if (!res.ok) throw json
       setPreview(json.data)
       if (json.data?.breakdown?.loyaltyDiscount) {
         setLoyaltyDiscount(json.data.breakdown.loyaltyDiscount)
+      }
+      if (json.data?.loyaltyMessage) {
+        setLoyaltyMessage(json.data.loyaltyMessage)
+      } else {
+        setLoyaltyMessage(null)
       }
       return json
     } catch (err) { toast(err?.message || 'Unable to load item') }
@@ -528,49 +552,12 @@ export default function BuyInstantScreen() {
   useEffect(() => { fetchPreview(appliedCode, selectedPoints) }, [qty])
   useEffect(() => { if (businessId) fetchPreview(appliedCode, selectedPoints) }, [selectedPoints])
 
-  // ── Calculate points earning ───────────────────────────────────────────────────
-  const calculatePointsEarning = async () => {
-    if (!preview) return
-    
-    try {
-      const orderDetails = {
-        subtotal: preview?.pricing?.baseSubtotal || price * qty || 0,
-        taxTotal: preview?.taxBreakdown?.taxTotal || 0,
-        totalQuantity: qty,
-        items: preview?.items?.map(item => ({
-          quantity: item.quantity || qty,
-          isFreeGift: item.isFreeGift || false,
-          pricing: { 
-            baseSubtotal: item.pricing?.baseItemTotal || item.pricing?.itemTotal || 0 
-          },
-          discountPricing: { 
-            finalSubtotal: item.discountPricing?.finalItemTotal || item.pricing?.itemTotal || 0 
-          },
-          taxBreakdown: { 
-            taxTotal: item.taxBreakdown?.taxTotal || 0 
-          }
-        })) || [{
-          quantity: qty,
-          isFreeGift: false,
-          pricing: { baseSubtotal: price * qty || 0 },
-          discountPricing: { finalSubtotal: price * qty || 0 },
-          taxBreakdown: { taxTotal: 0 }
-        }]
-      }
-      
-      const response = await calculateLoyaltyPoints(orderDetails)
-      if (response.success) {
-        setPointsEarning(response.data)
-      }
-    } catch (error) {
-      console.log('Points earning calculation error:', error)
-      setPointsEarning(null)
-    }
-  }
+  // Points earning calculation is now handled via suggestions or directly in preview response
+  const calculatePointsEarning = () => { }
 
   useEffect(() => {
     if (preview && selectedPoints === 0) {
-      calculatePointsEarning()
+      // fetchTierSuggestions() could be called here
     }
   }, [preview, appliedCode])
 
@@ -602,16 +589,15 @@ export default function BuyInstantScreen() {
   }
 
   useEffect(() => {
-    if (preview && loyaltyInfo) fetchTierSuggestions()
-  }, [preview, loyaltyInfo])
+    if (preview && rewardsData) fetchTierSuggestions()
+  }, [preview, rewardsData])
 
   const applyCode = async type => {
     const code = (type === 'coupon' ? couponInput : dealerInput).trim()
     if (!code) { toast('Please enter a code'); return }
 
-    if (loyaltyInfo?.loyaltyRules?.[0] && loyaltyInfo.loyaltyRules[0].earnOnDiscountedPrice === false && selectedPoints > 0) {
-      toast('Coupons and Loyalty Points cannot be used together')
-      return
+    if (selectedPoints > 0) {
+      // Combined discounts logic can go here
     }
 
     try {
@@ -643,16 +629,6 @@ export default function BuyInstantScreen() {
       const bId = businessId ?? await AsyncStorage.getItem('businessId')
       const selectedAddr = addressesCache.find(a => a.id === selectedAddressId)
 
-      let maxPts = Infinity
-      if (loyaltyInfo) {
-        const baseTP = preview?.totalPayable ?? (price * qty)
-        maxPts = Math.floor(Math.min(
-          loyaltyInfo.loyaltyPointsBalance || 0,
-          loyaltyInfo.loyaltyRules?.[0]?.maxRedeemCappedValue || Infinity,
-          Math.floor((baseTP * (loyaltyInfo.loyaltyRules?.[0]?.maxRedeemPercentage || 100) / 100) / (loyaltyInfo.loyaltyRules?.[0]?.conversionRate || 0.10))
-        ))
-      }
-
       const payload = {
         quantity: qty,
         selectedAttributes,
@@ -663,14 +639,13 @@ export default function BuyInstantScreen() {
             addresses: [{
               type: 'shipping',
               addressSnapshot: { line1: selectedAddr?.address?.addressLine1, city: selectedAddr?.address?.city, state: selectedAddr?.address?.state, country: selectedAddr?.address?.country ?? 'India', pincode: selectedAddr?.address?.postalCode },
-              contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.email || '' },
+              contactSnapshot: { name: selectedAddr?.contactInfo?.name, phone: selectedAddr?.contactInfo?.phone, email: selectedAddr?.contactInfo?.email || userProfile?.userProfile?.email || '' },
             }],
             itemType: 'physical',
           }),
         payment: { method: paymentMethod === 'ONLINE' ? 'RAZORPAY' : 'COD' },
-        ...(selectedPoints > 0 
-          ? (selectedPoints >= maxPts ? { redeemPoints: true } : { redeemPoints: true, pointsAmount: selectedPoints }) 
-          : {})
+        ...(selectedClaimIds?.length > 0 ? { redeemedRewardClaimIds: selectedClaimIds } : {}),
+        ...(selectedPoints > 0 ? { redeemPoints: true, pointsAmount: selectedPoints } : {})
       }
 
       const res = await fetch(`${BASE_URL}/customer/business/${bId}/orders/${itemId}/place`, {
@@ -682,7 +657,7 @@ export default function BuyInstantScreen() {
       console.log(json)
       if (!res.ok) throw json
       const pointsEarned = selectedPoints === 0 && pointsEarning ? pointsEarning.pointsToEarn : 0
-      
+
       // Handle bulk digital order approval workflow
       if (json.status === 'pending_approval') {
         if (!json.orderId) {
@@ -699,7 +674,7 @@ export default function BuyInstantScreen() {
         openRazorpay({ razorpayOrder: json.razorpay, orderId: json.orderId, navigation, email: razorpayEmail, setLoadingOverlay: setShowPaymentOverlay, pointsEarned })
         return
       }
-      
+
       // Order placed
 
       toast('Order placed successfully 🎉')
@@ -710,12 +685,12 @@ export default function BuyInstantScreen() {
 
   useFocusEffect(useCallback(() => { fetchUserProfile() }, []))
   useEffect(() => {
-    if (userProfile?.email) {
+    if (userProfile?.userProfile?.email) {
       setEmail(userProfile.userProfile.email)
     }
   }, [userProfile])
 
-  const finalEmail = email || userProfile?.email || ''
+  const finalEmail = email || userProfile?.userProfile?.email || ''
 
   // Derived preview values
   const unitPrice = preview?.pricing?.unitPrice ?? price
@@ -725,7 +700,7 @@ export default function BuyInstantScreen() {
   const finalSubtotal = preview?.discountPricing?.finalSubtotal ?? baseSubtotal
   const taxTotal = preview?.taxBreakdown?.taxTotal ?? 0
   const baseTotalPayable = preview?.totalPayable ?? finalSubtotal + taxTotal
-  const pointsDiscount = selectedPoints > 0 ? selectedPoints * (loyaltyInfo?.loyaltyRules?.[0]?.conversionRate || 0.10) : 0
+  const pointsDiscount = selectedPoints > 0 ? selectedPoints * (rewardsData?.loyaltyRules?.[0]?.conversionRate || 0.10) : 0
   const totalPayable = Math.max(0, baseTotalPayable - pointsDiscount)
   const discountSummary = preview?.discountSummary ?? []
   const taxComponents = preview?.taxBreakdown?.components ?? {}
@@ -923,7 +898,7 @@ export default function BuyInstantScreen() {
             </View>
 
             {/* ── Loyalty Points ── */}
-            {loyaltyInfo && loyaltyInfo.loyaltyPointsBalance > 0 && (
+            {/* {rewardsData && rewardsData.availablePoints > 0 && (
               <>
                 <View style={S.divider} />
                 <TouchableOpacity 
@@ -944,7 +919,7 @@ export default function BuyInstantScreen() {
                       <Text style={S.offerText}>
                         {selectedPoints > 0 
                           ? `${selectedPoints} Points Applied ✓` 
-                          : `Use Points (Balance: ${loyaltyInfo.loyaltyPointsBalance?.toFixed(0) || 0})`
+                          : `Use Points (Balance: ${rewardsData.availablePoints?.toFixed(0) || 0})`
                         }
                       </Text>
                       {selectedPoints > 0 && (
@@ -966,9 +941,9 @@ export default function BuyInstantScreen() {
                         onChangeText={(text) => {
                           const points = parseInt(text) || 0
                           const maxPoints = Math.min(
-                            loyaltyInfo.loyaltyPointsBalance,
-                            loyaltyInfo.loyaltyRules?.[0]?.maxRedeemCappedValue || Infinity,
-                            Math.floor((baseTotalPayable * (loyaltyInfo.loyaltyRules?.[0]?.maxRedeemPercentage || 100) / 100) / (loyaltyInfo.loyaltyRules?.[0]?.conversionRate || 0.10))
+                            rewardsData.availablePoints,
+                            rewardsData.loyaltyRules?.[0]?.maxRedeemCappedValue || Infinity,
+                            Math.floor((baseTotalPayable * (rewardsData.loyaltyRules?.[0]?.maxRedeemPercentage || 100) / 100) / (rewardsData.loyaltyRules?.[0]?.conversionRate || 0.10))
                           )
                           if (points > maxPoints) {
                             ToastAndroid.show(`Max ${maxPoints.toFixed(0)} points`, ToastAndroid.SHORT)
@@ -977,7 +952,7 @@ export default function BuyInstantScreen() {
                             setInputPoints(text)
                           }
                         }}
-                        placeholder={`Max: ${loyaltyInfo.loyaltyPointsBalance?.toFixed(0)} pts`}
+                        placeholder={`Max: ${rewardsData.availablePoints?.toFixed(0)} pts`}
                         placeholderTextColor="#BDBDBD"
                         keyboardType="number-pad"
                         maxLength={6}
@@ -987,15 +962,9 @@ export default function BuyInstantScreen() {
                         disabled={!inputPoints || loyaltyLoading}
                         onPress={() => {
                           const points = parseInt(inputPoints) || 0
-                          const minPoints = loyaltyInfo.loyaltyRules?.[0]?.minPointsToRedeem || 0
+                          const minPoints = rewardsData.loyaltyRules?.[0]?.minPointsToRedeem || 0
 
-                          const hasDiscounts = (discountSummary.length > 0) || !!appliedCode
-                          if (points > 0 && loyaltyInfo?.loyaltyRules?.[0] && loyaltyInfo.loyaltyRules[0].earnOnDiscountedPrice === false && hasDiscounts) {
-                            ToastAndroid.show('Loyalty Points cannot be used with other discounts/coupons', ToastAndroid.LONG)
-                            return
-                          }
-
-                          if (points > 0 && loyaltyInfo.loyaltyPointsBalance < minPoints) {
+                          if (points > 0 && rewardsData.availablePoints < minPoints) {
                             ToastAndroid.show(`You need a balance of at least ${minPoints} points to start redeeming`, ToastAndroid.SHORT)
                             return
                           }
@@ -1012,20 +981,29 @@ export default function BuyInstantScreen() {
                       </TouchableOpacity>
                     </View>
                     
+                    {loyaltyMessage && (
+                      <View style={S.loyaltyMessageCard}>
+                        <Icon name="information-outline" size={ms(14)} color="#E65100" />
+                        <Text style={S.loyaltyMessageText}>{loyaltyMessage}</Text>
+                      </View>
+                    )}
+
+                    <View style={S.loyaltyBalancesInfo}>
+                      <View style={S.loyaltyBalanceSubItem}>
+                        <Text style={S.loyaltyBalanceSubLabel}>Total Balance</Text>
+                        <Text style={S.loyaltyBalanceSubValue}>{rewardsData?.availablePoints || 0}</Text>
+                      </View>
+                    </View>
+                    
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: vs(4), paddingHorizontal: s(4) }}>
                       <Text style={{ fontSize: ms(11), color: '#888', fontFamily: FONTS.Medium }}>
-                        1 Point = ₹{(loyaltyInfo?.loyaltyRules?.[0]?.conversionRate || 0.10).toFixed(2)}
+                        1 Point = ₹{(rewardsData?.loyaltyRules?.[0]?.conversionRate || 0.10).toFixed(2)}
                       </Text>
-                      {pointsEarning && pointsEarning.pointsToEarn > 0 && selectedPoints === 0 && (
-                        <Text style={{ fontSize: ms(11), color: color.primary, fontFamily: FONTS.Medium }}>
-                          Earn {pointsEarning.pointsToEarn.toFixed(0)} pts on this order
-                        </Text>
-                      )}
                     </View>
                   </View>
                 )}
               </>
-            )}
+            )} */}
           </View>
 
           {/* ── Free gifts ── */}
@@ -1117,6 +1095,70 @@ export default function BuyInstantScreen() {
                 )}
               </>
             )}
+
+            {/* ── Reward Claims (Free Gifts) ── */}
+            {availableClaims.length > 0 && (
+              <>
+                <View style={S.offerDivider} />
+                <View style={S.cardHeader}>
+                  <Icon name="gift-outline" size={ms(20)} color={color.primary} />
+                  <Text style={S.sectionTitle}>Select Your Reward Gift</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: s(10), paddingBottom: vs(5) }}>
+                  {availableClaims.map(group => {
+                    const selectedCount = selectedClaimIds.filter(id => group.claimIds.includes(id)).length;
+                    const isSelected = selectedCount > 0;
+                    return (
+                      <View
+                        key={group.rewardItemId}
+                        style={[
+                          S.claimGiftCard,
+                          isSelected && S.claimGiftCardSelected,
+                          { minWidth: ms(130) }
+                        ]}
+                      >
+                        <View style={S.claimGiftIcon}>
+                          <Icon name="gift" size={ms(24)} color={isSelected ? '#fff' : color.primary} />
+                        </View>
+                        <Text style={[S.claimGiftTitle, isSelected && { color: '#fff' }]} numberOfLines={2}>
+                          {group.rewardTitle}
+                        </Text>
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: vs(8), gap: s(10) }}>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              if (selectedCount > 0) {
+                                const idToRemove = selectedClaimIds.find(id => group.claimIds.includes(id));
+                                setSelectedClaimIds(prev => prev.filter(id => id !== idToRemove));
+                              }
+                            }}
+                            style={{ padding: s(4), backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : color.primary + '15', borderRadius: ms(4) }}
+                          >
+                            <Icon name="minus" size={ms(16)} color={isSelected ? '#fff' : color.primary} />
+                          </TouchableOpacity>
+                          <Text style={{ fontSize: ms(14), fontFamily: FONTS.Bold, color: isSelected ? '#fff' : color.text }}>
+                            {selectedCount}
+                          </Text>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              if (selectedCount < group.groupQuantity) {
+                                const nextId = group.claimIds.find(id => !selectedClaimIds.includes(id));
+                                if (nextId) setSelectedClaimIds(prev => [...prev, nextId]);
+                              } else {
+                                ToastAndroid.show(`Max ${group.groupQuantity} claims available`, ToastAndroid.SHORT);
+                              }
+                            }}
+                            style={{ padding: s(4), backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : color.primary + '15', borderRadius: ms(4) }}
+                          >
+                            <Icon name="plus" size={ms(16)} color={isSelected ? '#fff' : color.primary} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
           </View>
 
           {/* ── Address / Digital ── */}
@@ -1191,7 +1233,7 @@ export default function BuyInstantScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={[S.payOption, paymentMethod === 'COD' && S.payOptionActive, isDigital && S.payOptionDis]}
               onPress={() => !isDigital && setPaymentMethod('COD')}
               disabled={isDigital}
@@ -1207,7 +1249,7 @@ export default function BuyInstantScreen() {
                   <Text style={S.paySub}>{isDigital ? 'Not available for digital items' : 'Pay when you receive'}</Text>
                 </View>
               </View>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           {/* Security banner */}
@@ -1255,7 +1297,7 @@ export default function BuyInstantScreen() {
           </View>
         </View>
       )}
-      
+
       {/* Payment Verification Overlay */}
       <PaymentVerificationOverlay visible={showPaymentOverlay} />
     </KeyboardAvoidingView>
@@ -1700,6 +1742,47 @@ const S = ScaledSheet.create({
     fontFamily: FONTS.Regular,
     color: '#666',
   },
+  loyaltyMessageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '6@s',
+    backgroundColor: '#FFF3E0',
+    padding: '10@s',
+    borderRadius: '8@ms',
+    marginBottom: '10@vs',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  loyaltyMessageText: {
+    fontSize: '12@ms',
+    color: '#E65100',
+    fontFamily: FONTS.Medium,
+    flex: 1,
+  },
+  loyaltyBalancesInfo: {
+    flexDirection: 'row',
+    gap: '10@s',
+    marginBottom: '10@vs',
+  },
+  loyaltyBalanceSubItem: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    padding: '10@s',
+    borderRadius: '8@ms',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  loyaltyBalanceSubLabel: {
+    fontSize: '10@ms',
+    color: '#888',
+    fontFamily: FONTS.Medium,
+    marginBottom: '2@vs',
+  },
+  loyaltyBalanceSubValue: {
+    fontSize: '14@ms',
+    color: color.text,
+    fontFamily: FONTS.Bold,
+  },
   // Expandable Loyalty Row Styles
   loyaltyRowExpand: {
     flexDirection: 'row',
@@ -1893,5 +1976,62 @@ const S = ScaledSheet.create({
     color: '#666',
     fontFamily: FONTS.Medium,
     textAlign: 'center',
+  },
+  claimGiftCard: {
+    width: '110@s',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: '8@ms',
+    padding: '12@s',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  claimGiftCardSelected: {
+    backgroundColor: color.primary,
+    borderColor: color.primary,
+  },
+  claimGiftIcon: {
+    width: '40@s',
+    height: '40@s',
+    borderRadius: '8@ms',
+    backgroundColor: color.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: '8@vs',
+  },
+  claimGiftTitle: {
+    fontSize: '11@ms',
+    fontFamily: FONTS.SemiBold,
+    color: color.text,
+    textAlign: 'center',
+    lineHeight: '15@ms',
+  },
+  claimGiftCheck: {
+    position: 'absolute',
+    top: '-8@vs',
+    right: '-8@s',
+    backgroundColor: color.GREEN,
+    borderRadius: '10@ms',
+    padding: '2@s',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  claimGiftQtyBadge: {
+    position: 'absolute',
+    top: '6@vs',
+    left: '6@s',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: '4@s',
+    paddingVertical: '2@vs',
+    borderRadius: '4@ms',
+  },
+  claimGiftQtyBadgeSelected: {
+    backgroundColor: '#fff',
+  },
+  claimGiftQtyText: {
+    fontSize: '10@ms',
+    fontFamily: FONTS.Bold,
+    color: '#64748B',
   },
 })

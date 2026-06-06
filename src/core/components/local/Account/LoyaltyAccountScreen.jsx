@@ -13,11 +13,10 @@ import {
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { 
-  getLoyaltyBalance, 
-  getCustomerLoyaltyInfo, 
-  getLoyaltyAnalytics, 
-  getPointsExpiry 
+import {
+  getLoyaltyRewards,
+  getLoyaltyAnalytics,
+  getPointsExpiry
 } from '../../../services/loyaltyapi'
 import color from '../../../utils/color'
 import FONTS from '../../../utils/fonts'
@@ -26,8 +25,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 const LoyaltyAccountScreen = () => {
   const navigation = useNavigation()
-  const [balance, setBalance] = useState(null)
-  const [loyaltyInfo, setLoyaltyInfo] = useState(null)
+  const [rewardsData, setRewardsData] = useState(null)
   const [analytics, setAnalytics] = useState(null)
   const [expiryInfo, setExpiryInfo] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -50,17 +48,14 @@ const LoyaltyAccountScreen = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      
-      // Fetch all data in parallel
-      const [balanceRes, infoRes, analyticsRes, expiryRes] = await Promise.all([
-        getLoyaltyBalance(),
-        getCustomerLoyaltyInfo(),
+
+      const [rewardsRes, analyticsRes, expiryRes] = await Promise.all([
+        getLoyaltyRewards(),
         getLoyaltyAnalytics(90),
         getPointsExpiry(30)
       ])
 
-      if (balanceRes.success) setBalance(balanceRes.data)
-      if (infoRes.success) setLoyaltyInfo(infoRes.data)
+      if (rewardsRes.success) setRewardsData(rewardsRes.data)
       if (analyticsRes.success) setAnalytics(analyticsRes.data)
       if (expiryRes.success) setExpiryInfo(expiryRes.data)
 
@@ -116,11 +111,14 @@ const LoyaltyAccountScreen = () => {
     )
   }
 
-  const points = balance?.loyaltyPointsBalance || 0
-  const conversionRate = loyaltyInfo?.loyaltyRule?.conversionRate || 0.10
+  const points = rewardsData?.availablePoints || 0
+
+  // Get active rule for rates and constraints
+  const activeRule = rewardsData?.loyaltyRules?.find(r => r.status !== 'inactive') || rewardsData?.loyaltyRule
+  const conversionRate = activeRule?.conversionRate || 0.10
   const rupeeValue = points * conversionRate
-  const minPoints = loyaltyInfo?.loyaltyRule?.minPointsToRedeem || 100
-  const maxPoints = loyaltyInfo?.loyaltyRule?.maxRedeemCappedValue || 500
+  const minPoints = activeRule?.minPointsToRedeem || 100
+  const maxPoints = activeRule?.maxRedeemCappedValue || 500
 
   return (
     <SafeAreaView style={styles.container}>
@@ -135,7 +133,7 @@ const LoyaltyAccountScreen = () => {
             <Icon name="star-circle" size={ms(32)} color="#fff" />
             <Text style={styles.balanceTitle}>Available Points</Text>
           </View>
-          <Text style={styles.balanceAmount}>{points.toFixed(2)}</Text>
+          <Text style={styles.balanceAmount}>{points.toFixed(0)}</Text>
           <Text style={styles.balanceValue}>≈ ₹{rupeeValue.toFixed(2)}</Text>
           <View style={styles.balanceFooter}>
             <Text style={styles.balanceFooterText}>
@@ -146,14 +144,14 @@ const LoyaltyAccountScreen = () => {
 
         {/* Quick Actions */}
         <View style={styles.actionsRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => navigation.navigate('LoyaltyHistoryScreen')}
           >
             <Icon name="history" size={ms(24)} color={color.primary} />
             <Text style={styles.actionText}>History</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => navigation.navigate('ExploreInventoryScreen')}
           >
@@ -234,7 +232,7 @@ const LoyaltyAccountScreen = () => {
                 </Text>
               </View>
             ))}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.useNowButton}
               onPress={() => navigation.navigate('ExploreInventoryScreen')}
             >
@@ -280,10 +278,10 @@ const LoyaltyAccountScreen = () => {
             {analytics.recentTransactions.slice(0, 3).map((transaction, index) => (
               <View key={index} style={styles.recentItem}>
                 <View style={styles.recentLeft}>
-                  <Icon 
-                    name={transaction.type === 'earn' ? 'plus-circle' : 'minus-circle'} 
-                    size={ms(16)} 
-                    color={transaction.type === 'earn' ? '#4CAF50' : '#F44336'} 
+                  <Icon
+                    name={transaction.type === 'earn' ? 'plus-circle' : 'minus-circle'}
+                    size={ms(16)}
+                    color={transaction.type === 'earn' ? '#4CAF50' : '#F44336'}
                   />
                   <View>
                     <Text style={styles.recentTitle}>
@@ -302,7 +300,7 @@ const LoyaltyAccountScreen = () => {
                 </Text>
               </View>
             ))}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.viewAllButton}
               onPress={() => navigation.navigate('LoyaltyHistoryScreen')}
             >
@@ -367,6 +365,22 @@ const styles = ScaledSheet.create({
     fontFamily: FONTS.SemiBold,
     opacity: 0.8,
     marginTop: '4@vs',
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '6@s',
+    marginTop: '8@vs',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: '10@s',
+    paddingVertical: '4@vs',
+    borderRadius: '12@ms',
+  },
+  pendingText: {
+    fontSize: '12@ms',
+    color: '#fff',
+    fontFamily: FONTS.Medium,
+    opacity: 0.9,
   },
   balanceFooter: {
     marginTop: '16@vs',

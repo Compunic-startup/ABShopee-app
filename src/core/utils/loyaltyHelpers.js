@@ -28,22 +28,20 @@ export const calculateTierInfo = (loyaltyData) => {
   return { currentTier: currentTierInfo, nextTier: nextTierInfo }
 }
 
-export const getConversionRate = (loyaltyData) => {
-  if (!loyaltyData?.loyaltyRules || !Array.isArray(loyaltyData.loyaltyRules)) {
-    return 0.10 // Default fallback
-  }
+export const getActiveRule = (loyaltyData) => {
+  const { currentTier } = calculateTierInfo(loyaltyData)
+  if (currentTier) return currentTier
   
-  // Use the first active rule's conversion rate
-  const activeRule = loyaltyData.loyaltyRules.find(rule => rule.status === 'active')
+  // Fallback to first active rule if no tier reached yet (or first rule if none marked active)
+  return loyaltyData?.loyaltyRules?.find(rule => rule.status !== 'inactive') || loyaltyData?.loyaltyRules?.[0] || null
+}
+
+export const getConversionRate = (loyaltyData) => {
+  const activeRule = getActiveRule(loyaltyData)
   return activeRule?.conversionRate || 0.10
 }
 
 export const getMinPointsToRedeem = (loyaltyData) => {
-  if (!loyaltyData?.loyaltyRules || !Array.isArray(loyaltyData.loyaltyRules)) {
-    return 0 // Default fallback
-  }
-  
-  // Use the first active rule's minimum points
-  const activeRule = loyaltyData.loyaltyRules.find(rule => rule.status === 'active')
+  const activeRule = getActiveRule(loyaltyData)
   return activeRule?.minPointsToRedeem || 0
 }

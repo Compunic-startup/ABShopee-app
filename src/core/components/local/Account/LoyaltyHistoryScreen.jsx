@@ -13,7 +13,7 @@ import {
 import { ScaledSheet, ms, vs, s } from 'react-native-size-matters'
 import { useNavigation } from '@react-navigation/native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { getLoyaltyHistory } from '../../../services/loyaltyapi'
+import { getLoyaltyAnalytics } from '../../../services/loyaltyapi'
 import color from '../../../utils/color'
 import FONTS from '../../../utils/fonts'
 
@@ -22,9 +22,6 @@ const LoyaltyHistoryScreen = () => {
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [pagination, setPagination] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     navigation.setOptions({
@@ -40,27 +37,17 @@ const LoyaltyHistoryScreen = () => {
     })
   }, [navigation])
 
-  const fetchTransactions = useCallback(async (page = 1, append = false) => {
+  const fetchTransactions = useCallback(async () => {
     try {
-      if (page === 1) {
-        setLoading(true)
-      } else {
-        setLoadingMore(true)
-      }
-
-      const response = await getLoyaltyHistory(page, 20)
-      
+      setLoading(true)
+      const response = await getLoyaltyAnalytics(90)
       if (response.success) {
-        const newTransactions = response.data.transactions || []
-        setTransactions(prev => append ? [...prev, ...newTransactions] : newTransactions)
-        setPagination(response.data.pagination)
-        setCurrentPage(page)
+        setTransactions(response.data?.recentTransactions || [])
       }
     } catch (error) {
       console.error('Error fetching loyalty history:', error)
     } finally {
       setLoading(false)
-      setLoadingMore(false)
       setRefreshing(false)
     }
   }, [])
@@ -71,25 +58,18 @@ const LoyaltyHistoryScreen = () => {
 
   const onRefresh = () => {
     setRefreshing(true)
-    setCurrentPage(1)
-    fetchTransactions(1, false)
-  }
-
-  const loadMore = () => {
-    if (pagination && currentPage < pagination.totalPages && !loadingMore) {
-      fetchTransactions(currentPage + 1, true)
-    }
+    fetchTransactions()
   }
 
   const renderTransaction = ({ item }) => {
     const isEarned = item.type === 'earn'
     const isRedeemed = item.type === 'redeem'
     const isExpired = item.type === 'expired'
-    
+
     let icon = 'star-circle'
     let iconColor = color.primary
     let pointsColor = color.text
-    
+
     if (isEarned) {
       icon = 'plus-circle'
       iconColor = '#4CAF50'
@@ -121,16 +101,16 @@ const LoyaltyHistoryScreen = () => {
           </View>
           <View style={styles.transactionDetails}>
             <Text style={styles.transactionTitle}>
-              {item.metadata?.source || 
-               (isEarned ? 'Points Earned' : 
-                isRedeemed ? 'Points Redeemed' : 
-                'Points Expired')}
+              {item.metadata?.source ||
+                (isEarned ? 'Points Earned' :
+                  isRedeemed ? 'Points Redeemed' :
+                    'Points Expired')}
             </Text>
             <Text style={styles.transactionDate}>
               {formatDate(item.createdAt)}
             </Text>
             {item.orderId && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.orderLink}
                 onPress={() => navigation.navigate('OrderDetailsScreen', { orderId: item.orderId })}
               >
@@ -144,17 +124,17 @@ const LoyaltyHistoryScreen = () => {
           <Text style={[styles.pointsAmount, { color: pointsColor }]}>
             {isEarned ? '+' : '-'}{Math.abs(item.points).toFixed(2)}
           </Text>
-          <View style={[styles.statusBadge, { 
-            backgroundColor: 
+          <View style={[styles.statusBadge, {
+            backgroundColor:
               item.status === 'confirmed' ? '#E8F5E8' :
-              item.status === 'pending' ? '#FFF3E0' :
-              '#FFEBEE'
+                item.status === 'pending' ? '#FFF3E0' :
+                  '#FFEBEE'
           }]}>
             <Text style={[styles.statusText, {
-              color: 
+              color:
                 item.status === 'confirmed' ? '#2E7D32' :
-                item.status === 'pending' ? '#F57C00' :
-                '#C62828'
+                  item.status === 'pending' ? '#F57C00' :
+                    '#C62828'
             }]}>
               {item.status}
             </Text>
@@ -205,21 +185,10 @@ const LoyaltyHistoryScreen = () => {
           <FlatList
             data={transactions}
             renderItem={renderTransaction}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => item.id || String(index)}
             contentContainerStyle={styles.listContainer}
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.1}
-            ListFooterComponent={renderFooter}
             scrollEnabled={false}
           />
-        )}
-        
-        {pagination && pagination.totalPages > 1 && (
-          <View style={styles.paginationInfo}>
-            <Text style={styles.paginationText}>
-              Showing {transactions.length} of {pagination.total} transactions
-            </Text>
-          </View>
         )}
       </ScrollView>
     </SafeAreaView>

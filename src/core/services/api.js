@@ -1,5 +1,7 @@
-export const BASE_URL = 'https://abshopee.com'
-// export const BASE_URL = 'http://192.168.0.102:9100'
+// export const BASE_URL = 'https://abshopee.com'
+export const BASE_URL = 'http://192.168.0.102:9100'
+// export const BASE_URL = 'https://quantity-connecticut-ride-watching.trycloudflare.com'
+
 // export const BASE_URL = 'http://localhost:9100'
 
 // const request = async ({
